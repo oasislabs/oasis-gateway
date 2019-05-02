@@ -5,9 +5,12 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strconv"
 
 	"github.com/oasislabs/developer-gateway/log"
 )
+
+const HttpHeaderTraceID = "X-OASIS-TRACE-ID"
 
 // HttpMiddleware are the handlers that offer extra functionality to a request and
 // that in success will forward the request to another handler
@@ -40,7 +43,6 @@ func (e HttpError) Error() string {
 func MakeHttpError(ctx context.Context, description string, statusCode int) *HttpError {
 	return &HttpError{
 		Cause: &Error{
-			TraceID:     log.GetTraceID(ctx),
 			ErrorCode:   -1,
 			Description: description,
 		},
@@ -103,6 +105,8 @@ type HttpRouter struct {
 func (h *HttpRouter) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 	path := req.URL.EscapedPath()
 	method := req.Method
+	traceID := ParseTraceID(req.Header.Get(HttpHeaderTraceID))
+	req = req.WithContext(context.WithValue(req.Context(), log.ContextKeyTraceID, traceID))
 
 	h.logger.Debug(req.Context(), "", log.MapFields{
 		"path":      path,
@@ -156,6 +160,8 @@ func (h *HttpRouter) reportSuccess(res http.ResponseWriter, req *http.Request, b
 	path := req.URL.EscapedPath()
 	method := req.Method
 
+	res.Header().Add(HttpHeaderTraceID, strconv.FormatInt(log.GetTraceID(req.Context()), 10))
+
 	if body == nil {
 		res.WriteHeader(http.StatusNoContent)
 		h.logger.Info(req.Context(), "", log.MapFields{
@@ -205,7 +211,9 @@ func (h *HttpRouter) reportError(res http.ResponseWriter, req *http.Request, err
 	path := req.URL.EscapedPath()
 	method := req.Method
 
+	res.Header().Add(HttpHeaderTraceID, strconv.FormatInt(log.GetTraceID(req.Context()), 10))
 	res.WriteHeader(err.StatusCode)
+
 	if err.Cause != nil {
 		if err := h.encoder.Encode(res, err.Cause); err != nil {
 			h.logger.Debug(req.Context(), "failed to encode error response to response writer", log.MapFields{

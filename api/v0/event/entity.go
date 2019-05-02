@@ -1,5 +1,7 @@
 package event
 
+import "github.com/oasislabs/developer-gateway/rpc"
+
 // AsyncResponse is the response returned by APIs that are asynchronous
 // that return an ID that can be used by the user to receive and identify
 // a response to the request when it is ready
@@ -115,4 +117,15 @@ type ServiceDeployEvent struct {
 	// is generated when a service is deployed and it can be used
 	// for service execution
 	Address string `json:"address"`
+}
+
+// ErrorEvent is the event that can be polled by the user
+// as a result to a a request that failed
+type ErrorEvent struct {
+	// ID to identifiy an asynchronous response. It uniquely identifies the
+	// event and orders it in the sequence of events expected by the user
+	ID int64 `json:"id"`
+
+	// Cause is the error that caused the event to failed
+	Cause rpc.Error
 }
