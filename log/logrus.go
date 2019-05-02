@@ -15,10 +15,12 @@ type LogrusLoggerProperties struct {
 }
 
 type LogrusLogger struct {
-	log *logrus.Logger
+	root *logrus.Logger
+	log  *logrus.Logger
 }
 
 type LogrusEntry struct {
+	root  *logrus.Logger
 	entry *logrus.Entry
 }
 
@@ -39,12 +41,13 @@ func NewLogrus(properties LogrusLoggerProperties) Logger {
 		log.SetOutput(properties.Output)
 	}
 
-	return LogrusLogger{log: log}
+	return LogrusLogger{root: log, log: log}
 }
 
 func (l LogrusLogger) ForClass(pkg string, class string) Logger {
 	return &LogrusEntry{
-		entry: l.log.WithFields(logrus.Fields{
+		root: l.root,
+		entry: l.root.WithFields(logrus.Fields{
 			"pkg":   pkg,
 			"class": class,
 		}),
@@ -78,7 +81,8 @@ func (l LogrusLogger) Fatal(ctx context.Context, msg string, loggables ...Loggab
 
 func (e LogrusEntry) ForClass(pkg string, class string) Logger {
 	return &LogrusEntry{
-		entry: e.entry.WithFields(logrus.Fields{
+		root: e.root,
+		entry: e.root.WithFields(logrus.Fields{
 			"pkg":   pkg,
 			"class": class,
 		}),

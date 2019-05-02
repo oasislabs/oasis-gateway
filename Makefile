@@ -1,20 +1,17 @@
-all: build test
+all:  build test build-gateway
 
 build:
-	go build github.com/oasislabs/developer-gateway/api
-	go build github.com/oasislabs/developer-gateway/log
-	go build github.com/oasislabs/developer-gateway/rpc
+	go build ./...
+
+build-gateway:
+	go build github.com/oasislabs/developer-gateway/cmd/gateway
 
 lint:
-	go vet github.com/oasislabs/developer-gateway/api
-	go vet github.com/oasislabs/developer-gateway/log
-	go vet github.com/oasislabs/developer-gateway/rpc
+	go vet ./...
 	golangci-lint run
 
 test:
-	go test -v -race github.com/oasislabs/developer-gateway/api
-	go test -v -race github.com/oasislabs/developer-gateway/log
-	go test -v -race github.com/oasislabs/developer-gateway/rpc
+	go test -v -race ./...
 
 test-coverage:
 	go test -v -covermode=count -coverprofile=coverage.out ./...

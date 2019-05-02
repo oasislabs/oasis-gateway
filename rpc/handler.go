@@ -10,23 +10,31 @@ type Handler interface {
 	Handle(ctx context.Context, body interface{}) (interface{}, error)
 }
 
-// HandleFunc is the type definition for a function to be able to act as a Handler
-type HandleFunc func(ctx context.Context, body interface{}) (interface{}, error)
+// HandlerFunc is the type definition for a function to be able to act as a Handler
+type HandlerFunc func(ctx context.Context, body interface{}) (interface{}, error)
 
-// Handle is the implementation of the Handler interface for a HandleFunc
-func (h HandleFunc) Handle(ctx context.Context, body interface{}) (interface{}, error) {
+// Handle is the implementation of the Handler interface for a HandlerFunc
+func (h HandlerFunc) Handle(ctx context.Context, body interface{}) (interface{}, error) {
 	return h(ctx, body)
 }
 
-// Factory is an interface for types that build an object of some kind
-type Factory interface {
+// EntityFactory is an interface for types that build an object of some kind
+type EntityFactory interface {
 	Create() interface{}
 }
 
-// FactoryFunc is a type to allow functions to act as a Factory
-type FactoryFunc func() interface{}
+// EntityFactoryFunc is a type to allow functions to act as a Factory
+type EntityFactoryFunc func() interface{}
 
 // Create is the implementation of Factory for FactoryFunc
-func (f FactoryFunc) Create() interface{} {
+func (f EntityFactoryFunc) Create() interface{} {
 	return f()
+}
+
+// HandlerBinder binds a handler to a specific
+// method and path
+type HandlerBinder interface {
+	// Bind binds a handler for a specific method and path, so that the handler
+	// will be dispatched when method and path combination is provided
+	Bind(method string, path string, handler Handler, factory EntityFactory)
 }
