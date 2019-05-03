@@ -122,7 +122,6 @@ func logrusMakeFields(ctx context.Context, loggables ...Loggable) logrus.Fields 
 	}
 
 	fields.Add("traceId", GetTraceID(ctx))
-
 	return fields.fields
 }
 
