@@ -55,6 +55,11 @@ func HttpBadRequest(ctx context.Context, description string) *HttpError {
 	return MakeHttpError(ctx, description, http.StatusBadRequest)
 }
 
+// HttpForbidden returns an HTTP not found error
+func HttpForbidden(ctx context.Context, description string) *HttpError {
+	return MakeHttpError(ctx, description, http.StatusForbidden)
+}
+
 // HttpNotFound returns an HTTP not found error
 func HttpNotFound(ctx context.Context, description string) *HttpError {
 	return MakeHttpError(ctx, description, http.StatusNotFound)
