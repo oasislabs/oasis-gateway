@@ -295,7 +295,7 @@ func NewHttpJsonHandler(properties HttpJsonHandlerProperties) *HttpJsonHandler {
 // ServeHTTP is the implementation of HttpMiddleware for HttpJsonHandler
 func (h *HttpJsonHandler) ServeHTTP(req *http.Request) (interface{}, error) {
 	// verify that content length is set and it is correct
-	if req.ContentLength < -1 || (req.ContentLength == 0 && req.Body != nil) {
+	if req.ContentLength < 0 || (req.ContentLength == 0 && req.Body != nil) {
 		h.logger.Debug(req.Context(), "Content-length header missing from request", log.MapFields{
 			"path":      req.URL.EscapedPath(),
 			"method":    req.Method,

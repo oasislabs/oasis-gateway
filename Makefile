@@ -15,3 +15,6 @@ test:
 
 test-coverage:
 	go test -v -covermode=count -coverprofile=coverage.out ./...
+
+show-coverage:
+	go tool cover -html=coverage.out
