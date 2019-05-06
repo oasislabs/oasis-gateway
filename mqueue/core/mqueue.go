@@ -16,16 +16,16 @@ type Element struct {
 // for each queue they have.
 type MQueue interface {
 	// Insert inserts the element to the provided offset.
-	Insert(element Element) error
+	Insert(key string, element Element) error
 
 	// Retrieve all available elements from the
 	// messaging queue after the provided offset
-	Retrieve(offset uint64, count uint) ([]Element, error)
+	Retrieve(key string, offset uint64, count uint) ([]*Element, error)
 
 	// Discard all elements that have a prior or equal
 	// offset to the provided offset
-	Discard(offset uint64) error
+	Discard(key string, offset uint64) error
 
 	// Next element offset that can be used for the queue.
-	Next() (uint64, error)
+	Next(key string) (uint64, error)
 }

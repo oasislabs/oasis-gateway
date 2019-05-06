@@ -8,7 +8,7 @@ import "github.com/oasislabs/developer-gateway/rpc"
 type AsyncResponse struct {
 	// ID to identify an asynchronous response. It uniquely identifies the
 	// event and orders it in the sequence of events expected by the user
-	ID int64 `json:"id"`
+	ID uint64 `json:"id"`
 }
 
 // UnsubscribeRequest is used by the user to destroy a subscription to specific

@@ -3,11 +3,21 @@ package service
 import (
 	"context"
 
+	auth "github.com/oasislabs/developer-gateway/auth/core"
+	"github.com/oasislabs/developer-gateway/log"
 	"github.com/oasislabs/developer-gateway/rpc"
 )
 
+type Services struct {
+	Logger  log.Logger
+	Request *rpc.RequestManager
+}
+
 // ServiceHandler implements the handlers for service management
-type ServiceHandler struct{}
+type ServiceHandler struct {
+	logger  log.Logger
+	request *rpc.RequestManager
+}
 
 // DeployService handles the deployment of new services
 func (h ServiceHandler) DeployService(ctx context.Context, v interface{}) (interface{}, error) {
@@ -17,8 +27,19 @@ func (h ServiceHandler) DeployService(ctx context.Context, v interface{}) (inter
 
 // ExecutService handle the execution of deployed services
 func (h ServiceHandler) ExecuteService(ctx context.Context, v interface{}) (interface{}, error) {
-	_ = v.(*ExecuteServiceRequest)
-	return nil, rpc.HttpNotImplemented(ctx, "not implemented")
+	authID := ctx.Value(auth.ContextKeyAuthID).(string)
+
+	req := v.(*ExecuteServiceRequest)
+	id, err := h.request.StartRequest(authID, req)
+	if err != nil {
+		h.logger.Debug(ctx, "failed to start request", log.MapFields{
+			"call_type": "ExecuteServiceFailure",
+			"err":       err.Error(),
+		})
+		return nil, rpc.HttpTooManyRequests(ctx, "too many requests to execute service received")
+	}
+
+	return AsyncResponse{ID: id}, nil
 }
 
 // ListServices lists the service the client has access to
@@ -37,8 +58,18 @@ func (H ServiceHandler) GetPublicKeyService(ctx context.Context, v interface{}) 
 
 // BindHandler binds the service handler to the provided
 // HandlerBinder
-func BindHandler(binder rpc.HandlerBinder) {
-	handler := ServiceHandler{}
+func BindHandler(services Services, binder rpc.HandlerBinder) {
+	if services.Request == nil {
+		panic("Request must be provided as a service")
+	}
+	if services.Logger == nil {
+		panic("Logger must be provided as a service")
+	}
+
+	handler := ServiceHandler{
+		logger:  services.Logger.ForClass("service", "handler"),
+		request: services.Request,
+	}
 
 	binder.Bind("POST", "/v0/api/service/deploy", rpc.HandlerFunc(handler.DeployService),
 		rpc.EntityFactoryFunc(func() interface{} { return &DeployServiceRequest{} }))

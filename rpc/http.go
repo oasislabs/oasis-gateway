@@ -65,6 +65,11 @@ func HttpNotFound(ctx context.Context, description string) *HttpError {
 	return MakeHttpError(ctx, description, http.StatusNotFound)
 }
 
+// HttpTooMayRequests return an HTTP too many requests error
+func HttpTooManyRequests(ctx context.Context, description string) *HttpError {
+	return MakeHttpError(ctx, description, http.StatusTooManyRequests)
+}
+
 // HttpNotFound returns an HTTP not found error
 func HttpNotImplemented(ctx context.Context, description string) *HttpError {
 	return MakeHttpError(ctx, description, http.StatusNotImplemented)
