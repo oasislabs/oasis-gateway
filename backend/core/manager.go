@@ -1,13 +1,24 @@
-package rpc
+package core
 
 import (
-	"github.com/oasislabs/developer-gateway/mqueue/core"
+	"context"
+
+	mqueue "github.com/oasislabs/developer-gateway/mqueue/core"
 )
+
+type Event interface {
+	EventID() uint64
+}
+
+type Events struct {
+	Offset uint64
+	Events []Event
+}
 
 // Client is an interface for any type that sends requests and
 // receives responses
 type Client interface {
-	Request(interface{}) (interface{}, error)
+	ExecuteService(context.Context, uint64, ExecuteServiceRequest) Event
 }
 
 // RequestManager handles the client RPC requests. Most requests
@@ -15,12 +26,12 @@ type Client interface {
 // that the caller can later on query on to find out the outcome
 // of the request.
 type RequestManager struct {
-	mqueue core.MQueue
+	mqueue mqueue.MQueue
 	client Client
 }
 
 type RequestManagerProperties struct {
-	MQueue core.MQueue
+	MQueue mqueue.MQueue
 	Client Client
 }
 
@@ -42,48 +53,44 @@ func NewRequestManager(properties RequestManagerProperties) *RequestManager {
 
 // RequestManager starts a request and provides an identifier for the caller to
 // find the request later on
-func (m *RequestManager) StartRequest(key string, req interface{}) (uint64, error) {
-	id, err := m.mqueue.Next(key)
+func (m *RequestManager) ExecuteServiceAsync(ctx context.Context, req ExecuteServiceRequest) (uint64, error) {
+	// if len(req.Address) == 0 {
+	// 	return 0, errors.New("address cannot be empty")
+	// }
+
+	id, err := m.mqueue.Next(req.Key)
 	if err != nil {
 		return 0, err
 	}
 
-	go m.doRequest(key, id, req)
+	go m.doRequest(ctx, req.Key, id, func() Event { return m.client.ExecuteService(ctx, id, req) })
+
 	return id, nil
 }
 
-func (m *RequestManager) doRequest(key string, id uint64, req interface{}) {
+func (m *RequestManager) doRequest(ctx context.Context, key string, id uint64, fn func() Event) {
 	// TODO(stan): we should handle the case in which the request takes too long
-	res, err := m.client.Request(req)
-	if err != nil {
-		m.mqueue.Insert(key, core.Element{
-			Value:  Error{ErrorCode: -1, Description: err.Error()},
-			Offset: id,
-		})
-		return
-
-	}
-
-	m.mqueue.Insert(key, core.Element{
-		Value:  res,
+	ev := fn()
+	m.mqueue.Insert(key, mqueue.Element{
+		Value:  ev,
 		Offset: id,
 	})
 }
 
 // GetResponses retrieves the responses the RequestManager already got
 // from the asynchronous requests.
-func (m *RequestManager) GetResponses(key string, offset uint64, count uint) ([]interface{}, error) {
+func (m *RequestManager) GetResponses(key string, offset uint64, count uint) (Events, error) {
 	els, err := m.mqueue.Retrieve(key, offset, count)
 	if err != nil {
-		return nil, err
+		return Events{}, err
 	}
 
-	var res []interface{}
-	for _, el := range els {
-		res = append(res, el.Value)
+	var events []Event
+	for _, el := range els.Elements {
+		events = append(events, el.Value.(Event))
 	}
 
-	return res, nil
+	return Events{Offset: els.Offset, Events: events}, nil
 }
 
 // DiscardResponses discards responses stored by the RequestManager to make space

@@ -21,7 +21,7 @@ type insertRequest struct {
 type retrieveRequest struct {
 	Offset uint64
 	Count  uint
-	Out    chan<- []*core.Element
+	Out    chan<- core.Elements
 }
 
 type discardRequest struct {

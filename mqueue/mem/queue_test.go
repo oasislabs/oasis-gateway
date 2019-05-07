@@ -14,9 +14,10 @@ func TestQueueInsertElement(t *testing.T) {
 	assert.Nil(t, err)
 
 	els := queue.Retrieve(0, 1)
-	assert.Equal(t, 1, len(els))
+	assert.Equal(t, 1, len(els.Elements))
 
-	assert.Equal(t, 1, els[0].Value.(int))
+	assert.Equal(t, uint64(0), els.Offset)
+	assert.Equal(t, 1, els.Elements[0].Value.(int))
 }
 
 func TestQueueInsertAlreadyPresent(t *testing.T) {
@@ -39,9 +40,10 @@ func TestQueueInsertMultipleElement(t *testing.T) {
 
 	els := queue.Retrieve(0, 1024)
 
-	assert.Equal(t, 16, len(els))
+	assert.Equal(t, uint64(1008), els.Offset)
+	assert.Equal(t, 16, len(els.Elements))
 	for i := 0; i < 16; i++ {
-		assert.Equal(t, i+1008, els[i].Value.(int))
+		assert.Equal(t, i+1008, els.Elements[i].Value.(int))
 	}
 }
 
@@ -56,6 +58,14 @@ func TestQueueNextInsert(t *testing.T) {
 
 	next = queue.Next()
 	assert.Equal(t, uint64(1009), next)
+}
+
+func TestQueueNextAllAvailable(t *testing.T) {
+	queue := NewOrderedQueue(32)
+
+	for i := 0; i < 16; i++ {
+		assert.Equal(t, uint64(i), queue.Next())
+	}
 }
 
 func TestQueueNextDiscardNotLast(t *testing.T) {

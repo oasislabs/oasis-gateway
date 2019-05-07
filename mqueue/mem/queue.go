@@ -81,14 +81,14 @@ func (q *OrderedQueue) Insert(element core.Element) error {
 // Retrieve returns the list of elements that start at the offset and the list
 // has at most count elements. All the elements between `offset` and `offset + count`
 // that have not been initialized are filtered out
-func (q *OrderedQueue) Retrieve(offset uint64, count uint) []*core.Element {
+func (q *OrderedQueue) Retrieve(offset uint64, count uint) core.Elements {
 	if offset < q.offset {
 		offset = q.offset
 	}
 
 	fromIndex := offset - q.offset
 	if fromIndex > uint64(len(q.elements)) {
-		return nil
+		return core.Elements{Offset: q.offset, Elements: nil}
 	}
 
 	result := make([]*core.Element, 0, 16)
@@ -98,7 +98,7 @@ func (q *OrderedQueue) Retrieve(offset uint64, count uint) []*core.Element {
 		}
 	}
 
-	return result
+	return core.Elements{Offset: q.offset, Elements: result}
 }
 
 // Discard discards all the elements that have an offset
@@ -109,6 +109,7 @@ func (q *OrderedQueue) Discard(offset uint64) {
 
 func (q *OrderedQueue) Next() uint64 {
 	curr := q.nextAvailableIndex
+	next := q.offset + uint64(curr)
 
 	// take the element at `curr` for the current request
 	q.elements[curr].Taken = true
@@ -116,7 +117,7 @@ func (q *OrderedQueue) Next() uint64 {
 	// update q.nextAvailableIndex for the next request
 	q.updateNextAvailableIndex(q.nextAvailableIndex)
 
-	return q.offset + uint64(curr)
+	return next
 }
 
 func (q *OrderedQueue) discard(offset uint64) {
@@ -128,7 +129,7 @@ func (q *OrderedQueue) discard(offset uint64) {
 	if copyFromIndex < uint64(len(q.elements)) {
 		copy(q.elements, q.elements[copyFromIndex:])
 
-		for i := len(q.elements) - int(copyFromIndex) + 1; i < len(q.elements); i++ {
+		for i := len(q.elements) - int(copyFromIndex); i < len(q.elements); i++ {
 			q.elements[i].Taken = false
 			q.elements[i].Element = nil
 		}
@@ -174,7 +175,7 @@ func (q *OrderedQueue) updateNextAvailableIndex(from uint) {
 
 	} else {
 		q.discard(q.offset)
-		q.nextAvailableIndex = uint(len(q.elements))
+		q.nextAvailableIndex = uint(len(q.elements)) - 1
 	}
 
 	// an assert check to verify that the nextAvailableIndex has been
@@ -235,7 +236,7 @@ func (q *OrderedQueue) grow(copyFromIndex, size uint) {
 		}
 	}
 
-	q.updateNextAvailableIndex(nextAvailableIndexFrom)
 	q.elements = elements
 	q.offset += uint64(copyFromIndex)
+	q.updateNextAvailableIndex(nextAvailableIndexFrom)
 }

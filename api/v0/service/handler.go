@@ -4,19 +4,20 @@ import (
 	"context"
 
 	auth "github.com/oasislabs/developer-gateway/auth/core"
+	backend "github.com/oasislabs/developer-gateway/backend/core"
 	"github.com/oasislabs/developer-gateway/log"
 	"github.com/oasislabs/developer-gateway/rpc"
 )
 
 type Services struct {
 	Logger  log.Logger
-	Request *rpc.RequestManager
+	Request *backend.RequestManager
 }
 
 // ServiceHandler implements the handlers for service management
 type ServiceHandler struct {
 	logger  log.Logger
-	request *rpc.RequestManager
+	request *backend.RequestManager
 }
 
 // DeployService handles the deployment of new services
@@ -25,12 +26,19 @@ func (h ServiceHandler) DeployService(ctx context.Context, v interface{}) (inter
 	return nil, rpc.HttpNotImplemented(ctx, "not implemented")
 }
 
-// ExecutService handle the execution of deployed services
+// ExecuteService handle the execution of deployed services
 func (h ServiceHandler) ExecuteService(ctx context.Context, v interface{}) (interface{}, error) {
 	authID := ctx.Value(auth.ContextKeyAuthID).(string)
 
 	req := v.(*ExecuteServiceRequest)
-	id, err := h.request.StartRequest(authID, req)
+
+	// a context from an http request is cancelled after the response to the request is returned,
+	// so a new context is needed to handle the asynchronous request
+	id, err := h.request.ExecuteServiceAsync(context.Background(), backend.ExecuteServiceRequest{
+		Address: req.Address,
+		Data:    req.Data,
+		Key:     authID,
+	})
 	if err != nil {
 		h.logger.Debug(ctx, "failed to start request", log.MapFields{
 			"call_type": "ExecuteServiceFailure",
@@ -42,8 +50,44 @@ func (h ServiceHandler) ExecuteService(ctx context.Context, v interface{}) (inte
 	return AsyncResponse{ID: id}, nil
 }
 
+// PollService polls the service response queue to retrieve available responses
+func (h ServiceHandler) PollService(ctx context.Context, v interface{}) (interface{}, error) {
+	authID := ctx.Value(auth.ContextKeyAuthID).(string)
+
+	req := v.(*PollServiceRequest)
+	if req.Count == 0 {
+		req.Count = 10
+	}
+
+	res, err := h.request.GetResponses(authID, req.Offset, req.Count)
+	if err != nil {
+		return nil, err
+	}
+
+	var events []Event
+	for _, r := range res.Events {
+		switch r := r.(type) {
+		case backend.ErrorEvent:
+			events = append(events, ErrorEvent{
+				ID:    r.ID,
+				Cause: r.Cause,
+			})
+		case backend.ExecuteServiceEvent:
+			events = append(events, ExecuteServiceEvent{
+				ID:      r.ID,
+				Address: r.Address,
+				Output:  r.Output,
+			})
+		default:
+			panic("received unexpected event type from polling service")
+		}
+	}
+
+	return PollServiceResponse{Offset: res.Offset, Events: events}, nil
+}
+
 // ListServices lists the service the client has access to
-func (H ServiceHandler) ListServices(ctx context.Context, v interface{}) (interface{}, error) {
+func (h ServiceHandler) ListServices(ctx context.Context, v interface{}) (interface{}, error) {
 	_ = v.(*ListServiceRequest)
 	return nil, rpc.HttpNotImplemented(ctx, "not implemented")
 }
@@ -51,7 +95,7 @@ func (H ServiceHandler) ListServices(ctx context.Context, v interface{}) (interf
 // GetPublicKeyService retrives the public key associated with a service
 // to allow the client to encrypt the data that serves as argument for
 // a service deployment or service execution.
-func (H ServiceHandler) GetPublicKeyService(ctx context.Context, v interface{}) (interface{}, error) {
+func (h ServiceHandler) GetPublicKeyService(ctx context.Context, v interface{}) (interface{}, error) {
 	_ = v.(*GetPublicKeyServiceRequest)
 	return nil, rpc.HttpNotImplemented(ctx, "not implemented")
 }
@@ -75,6 +119,8 @@ func BindHandler(services Services, binder rpc.HandlerBinder) {
 		rpc.EntityFactoryFunc(func() interface{} { return &DeployServiceRequest{} }))
 	binder.Bind("POST", "/v0/api/service/execute", rpc.HandlerFunc(handler.ExecuteService),
 		rpc.EntityFactoryFunc(func() interface{} { return &ExecuteServiceRequest{} }))
+	binder.Bind("POST", "/v0/api/service/poll", rpc.HandlerFunc(handler.PollService),
+		rpc.EntityFactoryFunc(func() interface{} { return &PollServiceRequest{} }))
 	binder.Bind("GET", "/v0/api/service/list", rpc.HandlerFunc(handler.ListServices),
 		rpc.EntityFactoryFunc(func() interface{} { return &ListServiceRequest{} }))
 	binder.Bind("GET", "/v0/api/service/getPublicKey", rpc.HandlerFunc(handler.GetPublicKeyService),

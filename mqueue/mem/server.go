@@ -18,7 +18,7 @@ type retrieveWorkerRequest struct {
 	Key    string
 	Offset uint64
 	Count  uint
-	Out    chan<- []*core.Element
+	Out    chan<- core.Elements
 }
 
 type discardWorkerRequest struct {
@@ -124,7 +124,7 @@ func (s *Server) insert(req insertWorkerRequest) {
 func (s *Server) retrieve(req retrieveWorkerRequest) {
 	worker, ok := s.workers[req.Key]
 	if !ok {
-		req.Out <- nil
+		req.Out <- core.Elements{Offset: 0, Elements: nil}
 		return
 	}
 
@@ -170,8 +170,8 @@ func (s *Server) Insert(key string, element core.Element) error {
 
 // Retrieve all available elements from the
 // messaging queue after the provided offset
-func (s *Server) Retrieve(key string, offset uint64, count uint) ([]*core.Element, error) {
-	out := make(chan []*core.Element)
+func (s *Server) Retrieve(key string, offset uint64, count uint) (core.Elements, error) {
+	out := make(chan core.Elements)
 	s.inCh <- retrieveWorkerRequest{Key: key, Offset: offset, Count: count, Out: out}
 	return <-out, nil
 }
