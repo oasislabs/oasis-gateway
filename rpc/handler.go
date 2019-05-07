@@ -7,15 +7,15 @@ type Handler interface {
 	// Handle handlers an rpc request and returns a response or error if needed.
 	// Implementations should ensure that if a context is cancelled the request
 	// handling should be halt gracefully and return an appropriate error.
-	Handle(ctx context.Context, body interface{}) (interface{}, error)
+	Handle(ctx context.Context, req interface{}) (interface{}, error)
 }
 
 // HandlerFunc is the type definition for a function to be able to act as a Handler
-type HandlerFunc func(ctx context.Context, body interface{}) (interface{}, error)
+type HandlerFunc func(ctx context.Context, req interface{}) (interface{}, error)
 
 // Handle is the implementation of the Handler interface for a HandlerFunc
-func (h HandlerFunc) Handle(ctx context.Context, body interface{}) (interface{}, error) {
-	return h(ctx, body)
+func (h HandlerFunc) Handle(ctx context.Context, req interface{}) (interface{}, error) {
+	return h(ctx, req)
 }
 
 // EntityFactory is an interface for types that build an object of some kind
