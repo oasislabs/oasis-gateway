@@ -1,0 +1,8 @@
+title = "Production configuration"
+
+[wallet]
+private_key = ""
+
+[eth]
+url = "wss://web3.oasiscloud.io/ws"
+
