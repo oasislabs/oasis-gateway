@@ -9,9 +9,9 @@ In order to build the developer-gateway.
 $ make
 ```
 
-A binary `gateway` will be generated that is the gateway itself. In order to run the gateway,
+A binary `gateway` will be generated that is the gateway itself. In order to run the gateway, make sure you set the right `private_key` parameter in the wallet in cmd/config/production.toml (feel free to copy the file and generate another configuration if needed). By default, `--config` points to `cmd/gateway/config/production.toml`
 
 ```
-./gateway
+./gateway --config cmd/gateway/config/production.toml
 ```
 

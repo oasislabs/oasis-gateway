@@ -17,3 +17,9 @@ curl -X POST http://localhost:1234/v0/api/service/execute -i \
 ```
 
 ## Deploy Service
+
+```
+curl -X POST localhost:1234/v0/api/service/deploy -i \
+  -H 'Content-type:application/json'  -H 'X-INSECURE-AUTH:example' \
+  -d '{"data" : " some data "}'
+```

@@ -45,43 +45,43 @@ type deployServiceRequest struct {
 	Request  backend.DeployServiceRequest
 }
 
-func (r executeServiceRequest) RequestID() uint64 {
+func (r *executeServiceRequest) RequestID() uint64 {
 	return r.ID
 }
 
-func (r executeServiceRequest) IncAttempts() {
+func (r *executeServiceRequest) IncAttempts() {
 	r.Attempts++
 }
 
-func (r executeServiceRequest) GetAttempts() uint {
+func (r *executeServiceRequest) GetAttempts() uint {
 	return r.Attempts
 }
 
-func (r executeServiceRequest) OutCh() chan<- backend.Event {
+func (r *executeServiceRequest) OutCh() chan<- backend.Event {
 	return r.Out
 }
 
-func (r executeServiceRequest) GetContext() context.Context {
+func (r *executeServiceRequest) GetContext() context.Context {
 	return r.Context
 }
 
-func (r deployServiceRequest) RequestID() uint64 {
+func (r *deployServiceRequest) RequestID() uint64 {
 	return r.ID
 }
 
-func (r deployServiceRequest) IncAttempts() {
+func (r *deployServiceRequest) IncAttempts() {
 	r.Attempts++
 }
 
-func (r deployServiceRequest) GetAttempts() uint {
+func (r *deployServiceRequest) GetAttempts() uint {
 	return r.Attempts
 }
 
-func (r deployServiceRequest) OutCh() chan<- backend.Event {
+func (r *deployServiceRequest) OutCh() chan<- backend.Event {
 	return r.Out
 }
 
-func (r deployServiceRequest) GetContext() context.Context {
+func (r *deployServiceRequest) GetContext() context.Context {
 	return r.Context
 }
 
@@ -178,14 +178,14 @@ func (c *EthClient) runTransaction(req ethRequest, fn func(uint64, ethRequest) (
 
 func (c *EthClient) request(req ethRequest) {
 	switch req := req.(type) {
-	case executeServiceRequest:
+	case *executeServiceRequest:
 		c.runTransaction(req, func(nonce uint64, req ethRequest) (backend.Event, error) {
-			request := req.(executeServiceRequest)
+			request := req.(*executeServiceRequest)
 			return c.executeService(request.Context, nonce, request.ID, request.Request)
 		})
-	case deployServiceRequest:
+	case *deployServiceRequest:
 		c.runTransaction(req, func(nonce uint64, req ethRequest) (backend.Event, error) {
-			request := req.(deployServiceRequest)
+			request := req.(*deployServiceRequest)
 			return c.deployService(request.Context, nonce, request.ID, request.Request)
 		})
 	default:
@@ -212,7 +212,7 @@ func (c *EthClient) updateNonce(ctx context.Context) error {
 
 func (c *EthClient) DeployService(ctx context.Context, id uint64, req backend.DeployServiceRequest) backend.Event {
 	out := make(chan backend.Event)
-	c.inCh <- deployServiceRequest{Attempts: 0, Out: out, Context: ctx, ID: id, Request: req}
+	c.inCh <- &deployServiceRequest{Attempts: 0, Out: out, Context: ctx, ID: id, Request: req}
 	return <-out
 }
 
@@ -225,7 +225,7 @@ func (c *EthClient) ExecuteService(ctx context.Context, id uint64, req backend.E
 	}
 
 	out := make(chan backend.Event)
-	c.inCh <- executeServiceRequest{Attempts: 0, Out: out, Context: ctx, ID: id, Request: req}
+	c.inCh <- &executeServiceRequest{Attempts: 0, Out: out, Context: ctx, ID: id, Request: req}
 	return <-out
 }
 
@@ -251,8 +251,15 @@ func (c *EthClient) executeTransaction(ctx context.Context, nonce, id uint64, ad
 		}, nil
 	}
 
-	tx := types.NewTransaction(nonce, common.HexToAddress(address),
-		big.NewInt(0), gas, big.NewInt(gasPrice), data)
+	var tx *types.Transaction
+	if len(address) == 0 {
+		tx = types.NewContractCreation(nonce,
+			big.NewInt(0), gas, big.NewInt(gasPrice), data)
+	} else {
+		tx = types.NewTransaction(nonce, common.HexToAddress(address),
+			big.NewInt(0), gas, big.NewInt(gasPrice), data)
+	}
+
 	tx, err = types.SignTx(tx, c.signer, c.wallet.PrivateKey)
 	if err != nil {
 		c.logger.Debug(ctx, "failure to sign transaction", log.MapFields{
@@ -317,7 +324,7 @@ func (c *EthClient) executeTransaction(ctx context.Context, nonce, id uint64, ad
 	})
 	return backend.ExecuteServiceEvent{
 		ID:      id,
-		Address: address,
+		Address: receipt.ContractAddress.Hex(),
 	}, nil
 }
 
@@ -361,10 +368,16 @@ func (c *EthClient) estimateGas(ctx context.Context, id uint64, address string, 
 		"address":   address,
 	})
 
-	to := common.HexToAddress(address)
+	var to *common.Address
+	var hex common.Address
+	if len(address) > 0 {
+		hex = common.HexToAddress(address)
+		to = &hex
+	}
+
 	gas, err := c.client.EstimateGas(ctx, ethereum.CallMsg{
 		From:     crypto.PubkeyToAddress(c.wallet.PrivateKey.PublicKey),
-		To:       &to,
+		To:       to,
 		Gas:      0,
 		GasPrice: big.NewInt(gasPrice),
 		Value:    big.NewInt(0),

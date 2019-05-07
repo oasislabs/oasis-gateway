@@ -36,7 +36,7 @@ func (h ServiceHandler) DeployService(ctx context.Context, v interface{}) (inter
 			"call_type": "DeployServiceFailure",
 			"err":       err.Error(),
 		})
-		return nil, rpc.HttpTooManyRequests(ctx, "too many requests to execute service received")
+		return nil, rpc.HttpInternalServerError(ctx, "failed to deploy service")
 	}
 
 	return AsyncResponse{ID: id}, nil
@@ -59,7 +59,7 @@ func (h ServiceHandler) ExecuteService(ctx context.Context, v interface{}) (inte
 			"call_type": "ExecuteServiceFailure",
 			"err":       err.Error(),
 		})
-		return nil, rpc.HttpTooManyRequests(ctx, "too many requests to execute service received")
+		return nil, rpc.HttpInternalServerError(ctx, "failed to execute service")
 	}
 
 	return AsyncResponse{ID: id}, nil
