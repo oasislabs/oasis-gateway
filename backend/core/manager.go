@@ -2,6 +2,7 @@ package core
 
 import (
 	"context"
+	"errors"
 
 	mqueue "github.com/oasislabs/developer-gateway/mqueue/core"
 )
@@ -54,9 +55,9 @@ func NewRequestManager(properties RequestManagerProperties) *RequestManager {
 // RequestManager starts a request and provides an identifier for the caller to
 // find the request later on
 func (m *RequestManager) ExecuteServiceAsync(ctx context.Context, req ExecuteServiceRequest) (uint64, error) {
-	// if len(req.Address) == 0 {
-	// 	return 0, errors.New("address cannot be empty")
-	// }
+	if len(req.Address) == 0 {
+		return 0, errors.New("address cannot be empty")
+	}
 
 	id, err := m.mqueue.Next(req.Key)
 	if err != nil {

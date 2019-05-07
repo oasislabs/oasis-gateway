@@ -143,6 +143,13 @@ func (c *EthClient) updateNonce(ctx context.Context) error {
 }
 
 func (c *EthClient) ExecuteService(ctx context.Context, id uint64, req backend.ExecuteServiceRequest) backend.Event {
+	if len(req.Address) == 0 {
+		return backend.ErrorEvent{
+			ID:    id,
+			Cause: rpc.Error{Description: "service address must be set when executing a service", ErrorCode: -1},
+		}
+	}
+
 	out := make(chan backend.Event)
 	c.inCh <- executeServiceRequest{Attempts: 0, Out: out, Context: ctx, ID: id, Request: req}
 	return <-out
@@ -198,6 +205,35 @@ func (c *EthClient) executeService(ctx context.Context, nonce, id uint64, req ba
 		})
 
 		return nil, err
+	}
+
+	receipt, err := c.client.TransactionReceipt(ctx, tx.Hash())
+	if err != nil {
+		c.logger.Debug(ctx, "failure to retrieve transaction receipt", log.MapFields{
+			"call_type": "ExecuteServiceFailure",
+			"id":        id,
+			"address":   req.Address,
+			"err":       err.Error(),
+		})
+
+		return backend.ErrorEvent{
+			ID:    id,
+			Cause: rpc.Error{Description: "failed to retrieve transaction result", ErrorCode: -1},
+		}, nil
+	}
+
+	if receipt.Status != 1 {
+		c.logger.Debug(ctx, "transaction execution failed", log.MapFields{
+			"call_type": "ExecuteServiceFailure",
+			"id":        id,
+			"address":   req.Address,
+			"err":       "transaction executed failed",
+		})
+
+		return backend.ErrorEvent{
+			ID:    id,
+			Cause: rpc.Error{Description: "transaction execution failed", ErrorCode: -1},
+		}, nil
 	}
 
 	c.logger.Debug(ctx, "transaction sent successfully", log.MapFields{
