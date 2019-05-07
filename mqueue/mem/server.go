@@ -5,6 +5,7 @@ import (
 	"errors"
 	"sync"
 
+	"github.com/oasislabs/developer-gateway/log"
 	"github.com/oasislabs/developer-gateway/mqueue/core"
 )
 
@@ -35,15 +36,17 @@ type nextWorkerRequest struct {
 type Server struct {
 	ctx     context.Context
 	wg      sync.WaitGroup
+	logger  log.Logger
 	doneCh  chan string
 	inCh    chan interface{}
 	workers map[string]*Worker
 }
 
-func NewServer(ctx context.Context) *Server {
+func NewServer(ctx context.Context, logger log.Logger) *Server {
 	s := &Server{
 		ctx:     ctx,
 		wg:      sync.WaitGroup{},
+		logger:  logger.ForClass("mqueue/mem", "Server"),
 		doneCh:  make(chan string),
 		inCh:    make(chan interface{}, 64),
 		workers: make(map[string]*Worker),
@@ -86,6 +89,10 @@ func (s *Server) startLoop() {
 func (s *Server) removeWorker(key string) {
 	w, ok := s.workers[key]
 	if !ok {
+		s.logger.Warn(s.ctx, "attempt remove worker that is not present", log.MapFields{
+			"call_type": "RemoveWorkerFailure",
+			"key":       "key",
+		})
 		return
 	}
 
@@ -164,8 +171,7 @@ func (s *Server) next(req nextWorkerRequest) {
 func (s *Server) Insert(key string, element core.Element) error {
 	out := make(chan error)
 	s.inCh <- insertWorkerRequest{Key: key, Element: element, Out: out}
-	<-out
-	return nil
+	return <-out
 }
 
 // Retrieve all available elements from the

@@ -63,7 +63,7 @@ func createEthClient(config Config) *eth.EthClient {
 
 func createRequestManager(ctx context.Context, config Config) *backend.RequestManager {
 	return backend.NewRequestManager(backend.RequestManagerProperties{
-		MQueue: mem.NewServer(ctx),
+		MQueue: mem.NewServer(ctx, logger),
 		Client: createEthClient(config),
 	})
 }
