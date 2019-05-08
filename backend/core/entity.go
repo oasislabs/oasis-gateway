@@ -31,6 +31,34 @@ type DeployServiceRequest struct {
 	Key string
 }
 
+// GetPublicKeyServiceRequest is a request to retrieve the public key
+// associated with a specific service
+type GetPublicKeyServiceRequest struct {
+	// Address is the unique address that identifies the service,
+	// is generated when a service is deployed and it can be used
+	// for service execution
+	Address string `json:"address"`
+}
+
+// GetPublicKeyServiceResponse is the response in which the public key
+// associated with the contract is provided
+type GetPublicKeyServiceResponse struct {
+
+	// Timestamp at which the key expired
+	Timestamp uint64
+
+	// Address is the unique address that identifies the service,
+	// is generated when a service is deployed and it can be used
+	// for service execution
+	Address string
+
+	// PublicKey associated to the service
+	PublicKey string
+
+	// Signature from the key manager to authenticate the public key
+	Signature string
+}
+
 // ErrorEvent is the event that can be polled by the user
 // as a result to a a request that failed
 type ErrorEvent struct {
