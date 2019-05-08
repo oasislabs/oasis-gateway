@@ -1,1 +1,6 @@
 _extends: private-global-settings
+
+collaborators:
+  # eauge is the owner of this repository
+  - username: eauge
+    permission: admin
