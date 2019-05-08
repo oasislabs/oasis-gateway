@@ -22,14 +22,29 @@ type ServiceHandler struct {
 
 // DeployService handles the deployment of new services
 func (h ServiceHandler) DeployService(ctx context.Context, v interface{}) (interface{}, error) {
-	_ = v.(*DeployServiceRequest)
-	return nil, rpc.HttpNotImplemented(ctx, "not implemented")
+	authID := ctx.Value(auth.ContextKeyAuthID).(string)
+	req := v.(*DeployServiceRequest)
+
+	// a context from an http request is cancelled after the response to the request is returned,
+	// so a new context is needed to handle the asynchronous request
+	id, err := h.request.DeployServiceAsync(context.Background(), backend.DeployServiceRequest{
+		Data: req.Data,
+		Key:  authID,
+	})
+	if err != nil {
+		h.logger.Debug(ctx, "failed to start request", log.MapFields{
+			"call_type": "DeployServiceFailure",
+			"err":       err.Error(),
+		})
+		return nil, rpc.HttpInternalServerError(ctx, "failed to deploy service")
+	}
+
+	return AsyncResponse{ID: id}, nil
 }
 
 // ExecuteService handle the execution of deployed services
 func (h ServiceHandler) ExecuteService(ctx context.Context, v interface{}) (interface{}, error) {
 	authID := ctx.Value(auth.ContextKeyAuthID).(string)
-
 	req := v.(*ExecuteServiceRequest)
 
 	// a context from an http request is cancelled after the response to the request is returned,
@@ -44,7 +59,7 @@ func (h ServiceHandler) ExecuteService(ctx context.Context, v interface{}) (inte
 			"call_type": "ExecuteServiceFailure",
 			"err":       err.Error(),
 		})
-		return nil, rpc.HttpTooManyRequests(ctx, "too many requests to execute service received")
+		return nil, rpc.HttpInternalServerError(ctx, "failed to execute service")
 	}
 
 	return AsyncResponse{ID: id}, nil

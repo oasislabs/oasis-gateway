@@ -20,6 +20,7 @@ type Events struct {
 // receives responses
 type Client interface {
 	ExecuteService(context.Context, uint64, ExecuteServiceRequest) Event
+	DeployService(context.Context, uint64, DeployServiceRequest) Event
 }
 
 // RequestManager handles the client RPC requests. Most requests
@@ -53,7 +54,7 @@ func NewRequestManager(properties RequestManagerProperties) *RequestManager {
 }
 
 // RequestManager starts a request and provides an identifier for the caller to
-// find the request later on
+// find the request later on. Executes an operation on a service
 func (m *RequestManager) ExecuteServiceAsync(ctx context.Context, req ExecuteServiceRequest) (uint64, error) {
 	if len(req.Address) == 0 {
 		return 0, errors.New("address cannot be empty")
@@ -65,6 +66,19 @@ func (m *RequestManager) ExecuteServiceAsync(ctx context.Context, req ExecuteSer
 	}
 
 	go m.doRequest(ctx, req.Key, id, func() Event { return m.client.ExecuteService(ctx, id, req) })
+
+	return id, nil
+}
+
+// RequestManager starts a request and provides an identifier for the caller to
+// find the request later on. Deploys a new service
+func (m *RequestManager) DeployServiceAsync(ctx context.Context, req DeployServiceRequest) (uint64, error) {
+	id, err := m.mqueue.Next(req.Key)
+	if err != nil {
+		return 0, err
+	}
+
+	go m.doRequest(ctx, req.Key, id, func() Event { return m.client.DeployService(ctx, id, req) })
 
 	return id, nil
 }
