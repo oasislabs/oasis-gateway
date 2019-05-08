@@ -4,7 +4,9 @@ import (
 	"context"
 	"crypto/ecdsa"
 	"errors"
+	"fmt"
 	"math/big"
+	"net/url"
 	"strings"
 	"sync"
 
@@ -13,6 +15,8 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
+	erpc "github.com/ethereum/go-ethereum/rpc"
+
 	"github.com/oasislabs/developer-gateway/api/v0/service"
 	backend "github.com/oasislabs/developer-gateway/backend/core"
 	"github.com/oasislabs/developer-gateway/log"
@@ -27,6 +31,12 @@ type ethRequest interface {
 	GetAttempts() uint
 	GetContext() context.Context
 	OutCh() chan<- backend.Event
+}
+
+type oasisPublicKeyPayload struct {
+	Timestamp uint64 `json:"timestamp"`
+	PublicKey string `json:"public_key"`
+	Signature string `json:"signature"`
 }
 
 type executeServiceRequest struct {
@@ -95,14 +105,15 @@ type EthClientProperties struct {
 }
 
 type EthClient struct {
-	ctx    context.Context
-	wg     sync.WaitGroup
-	inCh   chan ethRequest
-	logger log.Logger
-	wallet Wallet
-	nonce  uint64
-	signer types.Signer
-	client *ethclient.Client
+	ctx       context.Context
+	wg        sync.WaitGroup
+	inCh      chan ethRequest
+	logger    log.Logger
+	wallet    Wallet
+	nonce     uint64
+	signer    types.Signer
+	rpcClient *erpc.Client
+	client    *ethclient.Client
 }
 
 func (c *EthClient) startLoop(ctx context.Context) {
@@ -208,6 +219,37 @@ func (c *EthClient) updateNonce(ctx context.Context) error {
 	}
 
 	return errors.New("exceeded attempts to update nonce")
+}
+
+func (c *EthClient) GetPublicKeyService(
+	ctx context.Context,
+	req backend.GetPublicKeyServiceRequest,
+) (backend.GetPublicKeyServiceResponse, error) {
+	c.logger.Debug(ctx, "", log.MapFields{
+		"call_type": "GetPublicKeyServiceAttempt",
+		"address":   req.Address,
+	})
+
+	var payload oasisPublicKeyPayload
+	if err := c.rpcClient.CallContext(ctx, &payload, "oasis_getPublicKey", req.Address); err != nil {
+		c.logger.Debug(ctx, "client call failed", log.MapFields{
+			"call_type": "GetPublicKeyServiceFailure",
+			"address":   req.Address,
+		})
+		return backend.GetPublicKeyServiceResponse{}, fmt.Errorf("failed to get public key %s", err.Error())
+	}
+
+	c.logger.Debug(ctx, "", log.MapFields{
+		"call_type": "GetPublicKeyServiceSuccess",
+		"address":   req.Address,
+	})
+
+	return backend.GetPublicKeyServiceResponse{
+		Address:   req.Address,
+		Timestamp: payload.Timestamp,
+		PublicKey: payload.PublicKey,
+		Signature: payload.Signature,
+	}, nil
 }
 
 func (c *EthClient) DeployService(ctx context.Context, id uint64, req backend.DeployServiceRequest) backend.Event {
@@ -408,20 +450,31 @@ func Dial(ctx context.Context, logger log.Logger, properties EthClientProperties
 		return nil, errors.New("no url provided for eth client")
 	}
 
-	client, err := ethclient.Dial(properties.URL)
+	url, err := url.Parse(properties.URL)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("Failed to parse url %s", err.Error())
 	}
 
+	if url.Scheme != "wss" && url.Scheme != "ws" {
+		return nil, errors.New("Only schemes supported are ws and wss")
+	}
+
+	rpcClient, err := erpc.DialWebsocket(ctx, properties.URL, "")
+	if err != nil {
+		return nil, fmt.Errorf("Failed to create websocket connection %s", err.Error())
+	}
+
+	client := ethclient.NewClient(rpcClient)
 	c := &EthClient{
-		ctx:    ctx,
-		wg:     sync.WaitGroup{},
-		inCh:   make(chan ethRequest, 64),
-		logger: logger.ForClass("eth", "EthClient"),
-		nonce:  0,
-		signer: types.FrontierSigner{},
-		wallet: properties.Wallet,
-		client: client,
+		ctx:       ctx,
+		wg:        sync.WaitGroup{},
+		inCh:      make(chan ethRequest, 64),
+		logger:    logger.ForClass("eth", "EthClient"),
+		nonce:     0,
+		signer:    types.FrontierSigner{},
+		wallet:    properties.Wallet,
+		client:    client,
+		rpcClient: rpcClient,
 	}
 
 	c.startLoop(ctx)

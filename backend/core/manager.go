@@ -19,6 +19,7 @@ type Events struct {
 // Client is an interface for any type that sends requests and
 // receives responses
 type Client interface {
+	GetPublicKeyService(context.Context, GetPublicKeyServiceRequest) (GetPublicKeyServiceResponse, error)
 	ExecuteService(context.Context, uint64, ExecuteServiceRequest) Event
 	DeployService(context.Context, uint64, DeployServiceRequest) Event
 }
@@ -51,6 +52,15 @@ func NewRequestManager(properties RequestManagerProperties) *RequestManager {
 		mqueue: properties.MQueue,
 		client: properties.Client,
 	}
+}
+
+// GetPublicKeyService retrieves the public key for a specific service
+func (m *RequestManager) GetPublicKeyService(ctx context.Context, req GetPublicKeyServiceRequest) (GetPublicKeyServiceResponse, error) {
+	if len(req.Address) == 0 {
+		return GetPublicKeyServiceResponse{}, errors.New("address cannot be empty")
+	}
+
+	return m.client.GetPublicKeyService(ctx, req)
 }
 
 // RequestManager starts a request and provides an identifier for the caller to

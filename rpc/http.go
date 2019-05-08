@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"runtime/debug"
 	"strconv"
 
 	"github.com/oasislabs/developer-gateway/log"
@@ -127,6 +128,7 @@ func (h *HttpRouter) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 	defer func() {
 		if r := recover(); r != nil {
 			var err error
+			stacktrace := debug.Stack()
 
 			switch x := r.(type) {
 			case string:
@@ -138,10 +140,11 @@ func (h *HttpRouter) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 			}
 
 			h.logger.Warn(req.Context(), "unexpected panic caught", log.MapFields{
-				"path":      path,
-				"method":    method,
-				"call_type": "HttpRequestHandleFailure",
-				"err":       err,
+				"path":       path,
+				"method":     method,
+				"call_type":  "HttpRequestHandleFailure",
+				"err":        err,
+				"stacktrace": string(stacktrace),
 			})
 
 			// the `err` generated above is an internal error that should not

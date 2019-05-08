@@ -57,6 +57,7 @@ func (h ServiceHandler) ExecuteService(ctx context.Context, v interface{}) (inte
 	if err != nil {
 		h.logger.Debug(ctx, "failed to start request", log.MapFields{
 			"call_type": "ExecuteServiceFailure",
+			"address":   req.Address,
 			"err":       err.Error(),
 		})
 		return nil, rpc.HttpInternalServerError(ctx, "failed to execute service")
@@ -111,8 +112,27 @@ func (h ServiceHandler) ListServices(ctx context.Context, v interface{}) (interf
 // to allow the client to encrypt the data that serves as argument for
 // a service deployment or service execution.
 func (h ServiceHandler) GetPublicKeyService(ctx context.Context, v interface{}) (interface{}, error) {
-	_ = v.(*GetPublicKeyServiceRequest)
-	return nil, rpc.HttpNotImplemented(ctx, "not implemented")
+	req := v.(*GetPublicKeyServiceRequest)
+
+	res, err := h.request.GetPublicKeyService(ctx, backend.GetPublicKeyServiceRequest{
+		Address: req.Address,
+	})
+
+	if err != nil {
+		h.logger.Debug(ctx, "request failed", log.MapFields{
+			"call_type": "GetPublicKeyServiceFailure",
+			"address":   req.Address,
+			"err":       err.Error(),
+		})
+		return nil, rpc.HttpInternalServerError(ctx, "failed to get public key for service")
+	}
+
+	return GetPublicKeyServiceResponse{
+		Timestamp: res.Timestamp,
+		Address:   res.Address,
+		PublicKey: res.PublicKey,
+		Signature: res.Signature,
+	}, nil
 }
 
 // BindHandler binds the service handler to the provided
