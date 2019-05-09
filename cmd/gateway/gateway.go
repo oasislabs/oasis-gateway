@@ -31,9 +31,9 @@ type Services struct {
 	Request *backend.RequestManager
 }
 
-func createServices(ctx context.Context, config Config) Services {
+func createServices(ctx context.Context, config ConfigProvider) Services {
 	return Services{
-		Request: createRequestManager(ctx, config),
+		Request: createRequestManager(ctx, config.Get()),
 	}
 }
 
@@ -110,7 +110,7 @@ func main() {
 	ctx := context.Background()
 	port := 1234
 
-	services := createServices(ctx, provider.Get())
+	services := createServices(ctx, provider)
 	router := createRouter(services)
 
 	s := &http.Server{
