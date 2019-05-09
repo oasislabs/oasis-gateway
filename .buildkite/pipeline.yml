@@ -1,0 +1,43 @@
+##################################
+# Docker image deployment pipeline
+##################################
+
+common_tools_plugin: &common_tools_plugin
+  oasislabs/private-oasis-buildkite-tools#v0.5.0: ~
+
+steps:
+  - label: Generate a set of generic checks
+    command: .buildkite/common/pipelines/generic_checks.sh
+    plugins:
+      - *common_tools_plugin
+
+  - label: Run Tests
+    branches: "*"
+    command:
+      - .buildkite/scripts/build_and_run_tests.sh
+    env:
+      GOPROXY: https://athens.ops.oasiscloud.io/
+    timeout_in_minutes: 20
+    retry:
+      automatic:
+        # Retry if Agent has been forcefully terminated and communication was lost.
+        - exit_status: -1
+          limit: 3
+        # Retry if Agent has been forced to shut down.
+        - exit_status: 255
+          limit: 3
+
+  - label: Generate steps for generic docker pipeline
+    branches: master
+    command: >
+      .buildkite/common/pipelines/generic_docker_build_publish_and_deploy.sh
+      --docker-build-arg BUILDKITE_ACCESS_TOKEN=$BUILDKITE_ACCESS_TOKEN
+      --staging-environment staging
+      --staging-chart-name dashboard
+      --production-environment production
+      --trigger-deploy
+      oasislabs/developer-gateway
+      developer-gateway
+      .buildkite/Dockerfile
+    plugins:
+      - *common_tools_plugin

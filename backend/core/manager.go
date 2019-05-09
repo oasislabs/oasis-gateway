@@ -96,7 +96,11 @@ func (m *RequestManager) DeployServiceAsync(ctx context.Context, req DeployServi
 func (m *RequestManager) doRequest(ctx context.Context, key string, id uint64, fn func() Event) {
 	// TODO(stan): we should handle the case in which the request takes too long
 	ev := fn()
-	m.mqueue.Insert(key, mqueue.Element{
+
+	// TODO(stan): in case of error, we should log the error. We should think if there's
+	// a way to report the error in this case. A failure here means that a client will not
+	// receive a response (not even a failure response)
+	_ = m.mqueue.Insert(key, mqueue.Element{
 		Value:  ev,
 		Offset: id,
 	})

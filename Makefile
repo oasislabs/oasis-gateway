@@ -4,7 +4,7 @@ build:
 	go build ./...
 
 build-gateway:
-	go build github.com/oasislabs/developer-gateway/cmd/gateway
+	go build -o developer-gateway github.com/oasislabs/developer-gateway/cmd/gateway
 
 lint:
 	go vet ./...

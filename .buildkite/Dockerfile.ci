@@ -1,0 +1,15 @@
+FROM golang:1.11-stretch
+
+ENV BUILDKITE_BUILD_NUMBER ""
+ENV BUILDKITE_PULL_REQUEST ""
+ENV BUILDKITE_BRANCH ""
+
+RUN apt update && apt install -y git build-essential gcc binutils curl
+RUN curl -sfL https://install.goreleaser.com/github.com/golangci/golangci-lint.sh | bash -s -- -b /tmp/bin v1.11.2
+
+# Prepare for coverage
+RUN go get golang.org/x/tools/cmd/cover
+
+WORKDIR /app
+COPY . /app
+RUN go get
