@@ -19,7 +19,7 @@ type retrieveWorkerRequest struct {
 	Key    string
 	Offset uint64
 	Count  uint
-	Out    chan<- core.Elements
+	Out    chan<- retrieveResponse
 }
 
 type discardWorkerRequest struct {
@@ -30,7 +30,7 @@ type discardWorkerRequest struct {
 
 type nextWorkerRequest struct {
 	Key string
-	Out chan<- uint64
+	Out chan<- nextResponse
 }
 
 type Server struct {
@@ -131,7 +131,9 @@ func (s *Server) insert(req insertWorkerRequest) {
 func (s *Server) retrieve(req retrieveWorkerRequest) {
 	worker, ok := s.workers[req.Key]
 	if !ok {
-		req.Out <- core.Elements{Offset: 0, Elements: nil}
+		req.Out <- retrieveResponse{Elements: core.Elements{Offset: 0, Elements: nil},
+			Error: nil,
+		}
 		return
 	}
 
@@ -177,9 +179,10 @@ func (s *Server) Insert(key string, element core.Element) error {
 // Retrieve all available elements from the
 // messaging queue after the provided offset
 func (s *Server) Retrieve(key string, offset uint64, count uint) (core.Elements, error) {
-	out := make(chan core.Elements)
+	out := make(chan retrieveResponse)
 	s.inCh <- retrieveWorkerRequest{Key: key, Offset: offset, Count: count, Out: out}
-	return <-out, nil
+	res := <-out
+	return res.Elements, res.Error
 }
 
 // Discard all elements that have a prior or equal
@@ -193,7 +196,8 @@ func (s *Server) Discard(key string, offset uint64) error {
 
 // Next element offset that can be used for the queue.
 func (s *Server) Next(key string) (uint64, error) {
-	out := make(chan uint64)
+	out := make(chan nextResponse)
 	s.inCh <- nextWorkerRequest{Key: key, Out: out}
-	return <-out, nil
+	res := <-out
+	return res.Offset, res.Error
 }

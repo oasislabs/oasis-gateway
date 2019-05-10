@@ -19,7 +19,7 @@ type Elements struct {
 	Offset uint64
 
 	// Elements is the collection of elements starting from offset Offset
-	Elements []*Element
+	Elements []Element
 }
 
 // MQueue is an interface to a messaging queue service that
