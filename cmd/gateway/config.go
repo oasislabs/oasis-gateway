@@ -23,6 +23,36 @@ type ConfigProvider interface {
 	Get() Config
 }
 
+// BindConfig is the configuration for binding the exposed APIs
+// to the computer network interface
+type BindConfig struct {
+	HttpInterface      string `mapstructure:"http_interface"`
+	HttpPort           uint16 `mapstructure:"http_port"`
+	HttpReadTimeoutMs  uint32 `mapstructure:"http_read_timeout_msec"`
+	HttpWriteTimeoutMs uint32 `mapstructure:"http_write_timeout_msec"`
+	HttpMaxHeaderBytes int    `mapstructure:"http_max_header_bytes"`
+}
+
+func (c *BindConfig) Verify(defaults BindConfig) error {
+	if c.HttpInterface == "" {
+		c.HttpInterface = defaults.HttpInterface
+	}
+	if c.HttpPort == 0 {
+		c.HttpPort = defaults.HttpPort
+	}
+	if c.HttpReadTimeoutMs == 0 {
+		c.HttpReadTimeoutMs = defaults.HttpReadTimeoutMs
+	}
+	if c.HttpWriteTimeoutMs == 0 {
+		c.HttpWriteTimeoutMs = defaults.HttpWriteTimeoutMs
+	}
+	if c.HttpMaxHeaderBytes == 0 {
+		c.HttpMaxHeaderBytes = defaults.HttpMaxHeaderBytes
+	}
+
+	return nil
+}
+
 // WalletConfig holds the configuration of a single wallet
 type WalletConfig struct {
 	// PrivateKey for the wallet
@@ -37,6 +67,7 @@ type EthConfig struct {
 
 // Config is the general application's configuration
 type Config struct {
+	Bind BindConfig `mapstructure:"bind"`
 	// Wallet is the configured wallet for the application
 	Wallet    WalletConfig `mapstructure:"wallet"`
 	EthConfig EthConfig    `mapstructure:"eth"`

@@ -5,6 +5,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/oasislabs/developer-gateway/errors"
 	"github.com/oasislabs/developer-gateway/mqueue/core"
 )
 
@@ -15,22 +16,32 @@ const (
 
 type insertRequest struct {
 	Element core.Element
-	Out     chan<- error
+	Out     chan<- errors.Err
 }
 
 type retrieveRequest struct {
 	Offset uint64
 	Count  uint
-	Out    chan<- core.Elements
+	Out    chan<- retrieveResponse
+}
+
+type retrieveResponse struct {
+	Elements core.Elements
+	Error    errors.Err
 }
 
 type discardRequest struct {
 	Offset uint64
-	Out    chan<- error
+	Out    chan<- errors.Err
 }
 
 type nextRequest struct {
-	Out chan<- uint64
+	Out chan<- nextResponse
+}
+
+type nextResponse struct {
+	Offset uint64
+	Error  errors.Err
 }
 
 // Worker implements a very simple messaging queue-like
@@ -41,7 +52,7 @@ type Worker struct {
 	doneCh               chan<- string
 	inCh                 chan interface{}
 	wg                   sync.WaitGroup
-	queue                *OrderedQueue
+	window               SlidingWindow
 }
 
 // NewWorker creates a new instance of a worker
@@ -52,7 +63,7 @@ func NewWorker(ctx context.Context, key string, doneCh chan<- string) *Worker {
 		doneCh:               doneCh,
 		inCh:                 make(chan interface{}),
 		wg:                   sync.WaitGroup{},
-		queue:                NewOrderedQueue(maxElementsPerQueue),
+		window:               NewSlidingWindow(SlidingWindowProps{MaxSize: maxElementsPerQueue}),
 	}
 
 	w.startLoop(ctx)
@@ -118,20 +129,22 @@ func (w *Worker) serveRequest(req interface{}) {
 }
 
 func (w *Worker) insert(req insertRequest) {
-	req.Out <- w.queue.Insert(req.Element)
+	req.Out <- w.window.Set(req.Element.Offset, req.Element.Value)
 }
 
 func (w *Worker) retrieve(req retrieveRequest) {
-	req.Out <- w.queue.Retrieve(req.Offset, req.Count)
+	els, err := w.window.Get(req.Offset, req.Count)
+	req.Out <- retrieveResponse{Elements: els, Error: err}
 }
 
 func (w *Worker) discard(req discardRequest) {
-	w.queue.Discard(req.Offset)
-	req.Out <- nil
+	_, err := w.window.Slide(req.Offset)
+	req.Out <- err
 }
 
 func (w *Worker) next(req nextRequest) {
-	req.Out <- w.queue.Next()
+	offset, err := w.window.ReserveNext()
+	req.Out <- nextResponse{Offset: offset, Error: err}
 }
 
 func (w *Worker) Insert(req insertRequest) {

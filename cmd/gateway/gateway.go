@@ -95,30 +95,47 @@ func createRouter(services Services) *rpc.HttpRouter {
 
 func main() {
 	var (
-		config string
+		configFile string
 	)
 
-	pflag.StringVar(&config, "config", "cmd/gateway/config/production.toml", "configuration file for the gateway")
+	pflag.StringVar(&configFile, "config",
+		"cmd/gateway/config/production.toml",
+		"configuration file for the gateway")
 	pflag.Parse()
 
-	provider, err := ParseSimpleConfig(config)
+	provider, err := ParseSimpleConfig(configFile)
 	if err != nil {
 		fmt.Println(err.Error())
 		os.Exit(1)
 	}
 
 	ctx := context.Background()
-	port := 1234
+
+	bindConfig := provider.Get().Bind
+	err = bindConfig.Verify(BindConfig{
+		HttpInterface:      "127.0.0.1",
+		HttpPort:           1234,
+		HttpReadTimeoutMs:  10000,
+		HttpWriteTimeoutMs: 10000,
+		HttpMaxHeaderBytes: 1 << 10,
+	})
+	if err != nil {
+		fmt.Println(err.Error())
+		os.Exit(1)
+	}
+
+	httpInterface := bindConfig.HttpInterface
+	httpPort := bindConfig.HttpPort
 
 	services := createServices(ctx, provider)
 	router := createRouter(services)
 
 	s := &http.Server{
-		Addr:           fmt.Sprintf(":%d", port),
+		Addr:           fmt.Sprintf("%s:%d", httpInterface, httpPort),
 		Handler:        router,
-		ReadTimeout:    10 * time.Second,
-		WriteTimeout:   10 * time.Second,
-		MaxHeaderBytes: 1 << 10,
+		ReadTimeout:    time.Duration(bindConfig.HttpReadTimeoutMs) * time.Millisecond,
+		WriteTimeout:   time.Duration(bindConfig.HttpWriteTimeoutMs) * time.Millisecond,
+		MaxHeaderBytes: bindConfig.HttpMaxHeaderBytes,
 	}
 
 	if err := s.ListenAndServe(); err != nil {

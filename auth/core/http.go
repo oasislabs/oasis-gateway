@@ -39,7 +39,7 @@ func (m *HttpMiddlewareAuth) ServeHTTP(req *http.Request) (interface{}, error) {
 	id, err := m.auth.Verify(m.auth.Key(), value)
 
 	if err != nil {
-		return nil, rpc.HttpForbidden(req.Context(), "")
+		return nil, &rpc.HttpError{Cause: nil, StatusCode: http.StatusForbidden}
 	}
 
 	req = req.WithContext(context.WithValue(req.Context(), ContextKeyAuthID, id))

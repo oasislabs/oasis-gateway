@@ -3,6 +3,7 @@ package event
 import (
 	"context"
 
+	"github.com/oasislabs/developer-gateway/errors"
 	"github.com/oasislabs/developer-gateway/rpc"
 )
 
@@ -14,21 +15,21 @@ type EventHandler struct{}
 // topics
 func (h EventHandler) Subscribe(ctx context.Context, v interface{}) (interface{}, error) {
 	_ = v.(*SubscribeRequest)
-	return nil, rpc.HttpNotImplemented(ctx, "not implemented")
+	return nil, errors.New(errors.ErrAPINotImplemented, nil)
 }
 
 // Unsubscribe destroys an existing client subscription and all the
 // resources associated with it
 func (h EventHandler) Unsubscribe(ctx context.Context, v interface{}) (interface{}, error) {
 	_ = v.(*UnsubscribeRequest)
-	return nil, rpc.HttpNotImplemented(ctx, "not implemented")
+	return nil, errors.New(errors.ErrAPINotImplemented, nil)
 }
 
 // EventPoll allows the user to query for new events associated
 // with a specific subscription
 func (h EventHandler) EventPoll(ctx context.Context, v interface{}) (interface{}, error) {
 	_ = v.(*EventPollRequest)
-	return nil, rpc.HttpNotImplemented(ctx, "not implemented")
+	return nil, errors.New(errors.ErrAPINotImplemented, nil)
 }
 
 // BindHandler binds the service handler to the provided

@@ -3,7 +3,7 @@ package eth
 import (
 	"context"
 	"crypto/ecdsa"
-	"errors"
+	stderr "errors"
 	"fmt"
 	"math/big"
 	"net/url"
@@ -19,6 +19,7 @@ import (
 
 	"github.com/oasislabs/developer-gateway/api/v0/service"
 	backend "github.com/oasislabs/developer-gateway/backend/core"
+	"github.com/oasislabs/developer-gateway/errors"
 	"github.com/oasislabs/developer-gateway/log"
 	"github.com/oasislabs/developer-gateway/rpc"
 )
@@ -218,13 +219,13 @@ func (c *EthClient) updateNonce(ctx context.Context) error {
 		return nil
 	}
 
-	return errors.New("exceeded attempts to update nonce")
+	return stderr.New("exceeded attempts to update nonce")
 }
 
 func (c *EthClient) GetPublicKeyService(
 	ctx context.Context,
 	req backend.GetPublicKeyServiceRequest,
-) (backend.GetPublicKeyServiceResponse, error) {
+) (backend.GetPublicKeyServiceResponse, errors.Err) {
 	c.logger.Debug(ctx, "", log.MapFields{
 		"call_type": "GetPublicKeyServiceAttempt",
 		"address":   req.Address,
@@ -236,7 +237,8 @@ func (c *EthClient) GetPublicKeyService(
 			"call_type": "GetPublicKeyServiceFailure",
 			"address":   req.Address,
 		})
-		return backend.GetPublicKeyServiceResponse{}, fmt.Errorf("failed to get public key %s", err.Error())
+		return backend.GetPublicKeyServiceResponse{},
+			errors.New(errors.ErrInternalError, fmt.Errorf("failed to get public key %s", err.Error()))
 	}
 
 	c.logger.Debug(ctx, "", log.MapFields{
@@ -252,17 +254,28 @@ func (c *EthClient) GetPublicKeyService(
 	}, nil
 }
 
-func (c *EthClient) DeployService(ctx context.Context, id uint64, req backend.DeployServiceRequest) backend.Event {
+func (c *EthClient) DeployService(
+	ctx context.Context,
+	id uint64,
+	req backend.DeployServiceRequest,
+) backend.Event {
 	out := make(chan backend.Event)
 	c.inCh <- &deployServiceRequest{Attempts: 0, Out: out, Context: ctx, ID: id, Request: req}
 	return <-out
 }
 
-func (c *EthClient) ExecuteService(ctx context.Context, id uint64, req backend.ExecuteServiceRequest) backend.Event {
+func (c *EthClient) ExecuteService(
+	ctx context.Context,
+	id uint64,
+	req backend.ExecuteServiceRequest,
+) backend.Event {
 	if len(req.Address) == 0 {
 		return backend.ErrorEvent{
-			ID:    id,
-			Cause: rpc.Error{Description: "service address must be set when executing a service", ErrorCode: -1},
+			ID: id,
+			Cause: rpc.Error{
+				Description: errors.ErrInvalidAddress.Desc(),
+				ErrorCode:   errors.ErrInvalidAddress.Code(),
+			},
 		}
 	}
 
@@ -271,7 +284,13 @@ func (c *EthClient) ExecuteService(ctx context.Context, id uint64, req backend.E
 	return <-out
 }
 
-func (c *EthClient) executeTransaction(ctx context.Context, nonce, id uint64, address string, data []byte) (backend.Event, error) {
+func (c *EthClient) executeTransaction(
+	ctx context.Context,
+	nonce uint64,
+	id uint64,
+	address string,
+	data []byte,
+) (backend.Event, error) {
 	c.logger.Debug(ctx, "", log.MapFields{
 		"call_type": "ExecuteTransactionAttempt",
 		"id":        id,
@@ -280,16 +299,19 @@ func (c *EthClient) executeTransaction(ctx context.Context, nonce, id uint64, ad
 
 	gas, err := c.estimateGas(ctx, id, address, data)
 	if err != nil {
+		err := errors.New(errors.ErrEstimateGas, err)
 		c.logger.Debug(ctx, "failed to estimate gas", log.MapFields{
 			"call_type": "ExecuteTransactionFailure",
 			"id":        id,
 			"address":   address,
-			"err":       err.Error(),
-		})
+		}, err)
 
 		return backend.ErrorEvent{
-			ID:    id,
-			Cause: rpc.Error{Description: err.Error(), ErrorCode: -1},
+			ID: id,
+			Cause: rpc.Error{
+				Description: errors.ErrEstimateGas.Desc(),
+				ErrorCode:   errors.ErrEstimateGas.Code(),
+			},
 		}, nil
 	}
 
@@ -304,58 +326,68 @@ func (c *EthClient) executeTransaction(ctx context.Context, nonce, id uint64, ad
 
 	tx, err = types.SignTx(tx, c.signer, c.wallet.PrivateKey)
 	if err != nil {
+		err := errors.New(errors.ErrSignedTx, err)
 		c.logger.Debug(ctx, "failure to sign transaction", log.MapFields{
 			"call_type": "ExecuteTransactionFailure",
 			"id":        id,
 			"address":   address,
-			"err":       err.Error(),
-		})
+		}, err)
 
 		return backend.ErrorEvent{
-			ID:    id,
-			Cause: rpc.Error{Description: err.Error(), ErrorCode: -1},
+			ID: id,
+			Cause: rpc.Error{
+				Description: errors.ErrSignedTx.Desc(),
+				ErrorCode:   errors.ErrSignedTx.Code(),
+			},
 		}, nil
 	}
 
 	if err := c.client.SendTransaction(ctx, tx); err != nil {
 		// depending on the error received it may be useful to return the error
 		// and have an upper logic to decide whether to retry the request
+		err := errors.New(errors.ErrSendTransaction, err)
 		c.logger.Debug(ctx, "failure to send transaction", log.MapFields{
 			"call_type": "ExecuteTransactionFailure",
 			"id":        id,
 			"address":   address,
-			"err":       err.Error(),
-		})
+		}, err)
 
 		return nil, err
 	}
 
 	receipt, err := c.client.TransactionReceipt(ctx, tx.Hash())
 	if err != nil {
+		err := errors.New(errors.ErrTransactionReceipt, err)
 		c.logger.Debug(ctx, "failure to retrieve transaction receipt", log.MapFields{
 			"call_type": "ExecuteTransactionFailure",
 			"id":        id,
 			"address":   address,
-			"err":       err.Error(),
-		})
+		}, err)
 
 		return backend.ErrorEvent{
-			ID:    id,
-			Cause: rpc.Error{Description: "failed to retrieve transaction result", ErrorCode: -1},
+			ID: id,
+			Cause: rpc.Error{
+				Description: errors.ErrTransactionReceipt.Desc(),
+				ErrorCode:   errors.ErrTransactionReceipt.Code(),
+			},
 		}, nil
 	}
 
 	if receipt.Status != 1 {
+		err := errors.New(errors.ErrTransactionReceipt, stderr.New(
+			"transaction receipt has status 0 which indicates a transaction execution failure"))
 		c.logger.Debug(ctx, "transaction execution failed", log.MapFields{
 			"call_type": "ExecuteTransactionFailure",
 			"id":        id,
 			"address":   address,
-			"err":       "transaction executed failed",
-		})
+		}, err)
 
 		return backend.ErrorEvent{
-			ID:    id,
-			Cause: rpc.Error{Description: "transaction execution failed", ErrorCode: -1},
+			ID: id,
+			Cause: rpc.Error{
+				Description: errors.ErrTransactionReceiptStatus.Desc(),
+				ErrorCode:   errors.ErrTransactionReceiptStatus.Code(),
+			},
 		}, nil
 	}
 
@@ -378,7 +410,7 @@ func (c *EthClient) executeService(ctx context.Context, nonce, id uint64, req ba
 	return c.executeTransaction(ctx, nonce, id, req.Address, []byte(req.Data))
 }
 
-func (c *EthClient) Nonce(ctx context.Context, address string) (uint64, error) {
+func (c *EthClient) Nonce(ctx context.Context, address string) (uint64, errors.Err) {
 	c.logger.Debug(ctx, "", log.MapFields{
 		"call_type": "NonceAttempt",
 		"address":   address,
@@ -386,11 +418,11 @@ func (c *EthClient) Nonce(ctx context.Context, address string) (uint64, error) {
 
 	nonce, err := c.client.PendingNonceAt(ctx, common.HexToAddress(address))
 	if err != nil {
+		err := errors.New(errors.ErrFetchPendingNonce, err)
 		c.logger.Debug(ctx, "PendingNonceAt request failed", log.MapFields{
 			"call_type": "NonceFailure",
 			"address":   address,
-			"err":       err.Error(),
-		})
+		}, err)
 
 		return 0, err
 	}
@@ -447,7 +479,7 @@ func (c *EthClient) estimateGas(ctx context.Context, id uint64, address string, 
 
 func Dial(ctx context.Context, logger log.Logger, properties EthClientProperties) (*EthClient, error) {
 	if len(properties.URL) == 0 {
-		return nil, errors.New("no url provided for eth client")
+		return nil, stderr.New("no url provided for eth client")
 	}
 
 	url, err := url.Parse(properties.URL)
@@ -456,7 +488,7 @@ func Dial(ctx context.Context, logger log.Logger, properties EthClientProperties
 	}
 
 	if url.Scheme != "wss" && url.Scheme != "ws" {
-		return nil, errors.New("Only schemes supported are ws and wss")
+		return nil, stderr.New("Only schemes supported are ws and wss")
 	}
 
 	rpcClient, err := erpc.DialWebsocket(ctx, properties.URL, "")

@@ -2,9 +2,9 @@ package mem
 
 import (
 	"context"
-	"errors"
 	"sync"
 
+	"github.com/oasislabs/developer-gateway/errors"
 	"github.com/oasislabs/developer-gateway/log"
 	"github.com/oasislabs/developer-gateway/mqueue/core"
 )
@@ -12,25 +12,25 @@ import (
 type insertWorkerRequest struct {
 	Key     string
 	Element core.Element
-	Out     chan<- error
+	Out     chan<- errors.Err
 }
 
 type retrieveWorkerRequest struct {
 	Key    string
 	Offset uint64
 	Count  uint
-	Out    chan<- core.Elements
+	Out    chan<- retrieveResponse
 }
 
 type discardWorkerRequest struct {
 	Key    string
 	Offset uint64
-	Out    chan<- error
+	Out    chan<- errors.Err
 }
 
 type nextWorkerRequest struct {
 	Key string
-	Out chan<- uint64
+	Out chan<- nextResponse
 }
 
 type Server struct {
@@ -131,7 +131,9 @@ func (s *Server) insert(req insertWorkerRequest) {
 func (s *Server) retrieve(req retrieveWorkerRequest) {
 	worker, ok := s.workers[req.Key]
 	if !ok {
-		req.Out <- core.Elements{Offset: 0, Elements: nil}
+		req.Out <- retrieveResponse{Elements: core.Elements{Offset: 0, Elements: nil},
+			Error: nil,
+		}
 		return
 	}
 
@@ -145,7 +147,7 @@ func (s *Server) retrieve(req retrieveWorkerRequest) {
 func (s *Server) discard(req discardWorkerRequest) {
 	worker, ok := s.workers[req.Key]
 	if !ok {
-		req.Out <- errors.New("attempt to discard queue that does not exist")
+		req.Out <- errors.New(errors.ErrQueueDiscardNotExists, nil)
 		return
 	}
 
@@ -168,32 +170,34 @@ func (s *Server) next(req nextWorkerRequest) {
 }
 
 // Insert inserts the element to the provided offset.
-func (s *Server) Insert(key string, element core.Element) error {
-	out := make(chan error)
+func (s *Server) Insert(key string, element core.Element) errors.Err {
+	out := make(chan errors.Err)
 	s.inCh <- insertWorkerRequest{Key: key, Element: element, Out: out}
 	return <-out
 }
 
 // Retrieve all available elements from the
 // messaging queue after the provided offset
-func (s *Server) Retrieve(key string, offset uint64, count uint) (core.Elements, error) {
-	out := make(chan core.Elements)
+func (s *Server) Retrieve(key string, offset uint64, count uint) (core.Elements, errors.Err) {
+	out := make(chan retrieveResponse)
 	s.inCh <- retrieveWorkerRequest{Key: key, Offset: offset, Count: count, Out: out}
-	return <-out, nil
+	res := <-out
+	return res.Elements, res.Error
 }
 
 // Discard all elements that have a prior or equal
 // offset to the provided offset
-func (s *Server) Discard(key string, offset uint64) error {
-	out := make(chan error)
+func (s *Server) Discard(key string, offset uint64) errors.Err {
+	out := make(chan errors.Err)
 	s.inCh <- discardWorkerRequest{Key: key, Offset: offset, Out: out}
 	<-out
 	return nil
 }
 
 // Next element offset that can be used for the queue.
-func (s *Server) Next(key string) (uint64, error) {
-	out := make(chan uint64)
+func (s *Server) Next(key string) (uint64, errors.Err) {
+	out := make(chan nextResponse)
 	s.inCh <- nextWorkerRequest{Key: key, Out: out}
-	return <-out, nil
+	res := <-out
+	return res.Offset, res.Error
 }

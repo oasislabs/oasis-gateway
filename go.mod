@@ -10,6 +10,7 @@ require (
 	github.com/ethereum/go-ethereum v1.8.27
 	github.com/go-logfmt/logfmt v0.4.0 // indirect
 	github.com/go-stack/stack v1.8.0 // indirect
+	github.com/pkg/errors v0.8.1
 	github.com/rs/cors v1.6.0 // indirect
 	github.com/sirupsen/logrus v1.4.1
 	github.com/spf13/pflag v1.0.3

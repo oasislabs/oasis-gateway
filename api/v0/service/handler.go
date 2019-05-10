@@ -2,9 +2,11 @@ package service
 
 import (
 	"context"
+	stderr "errors"
 
 	auth "github.com/oasislabs/developer-gateway/auth/core"
 	backend "github.com/oasislabs/developer-gateway/backend/core"
+	"github.com/oasislabs/developer-gateway/errors"
 	"github.com/oasislabs/developer-gateway/log"
 	"github.com/oasislabs/developer-gateway/rpc"
 )
@@ -25,6 +27,14 @@ func (h ServiceHandler) DeployService(ctx context.Context, v interface{}) (inter
 	authID := ctx.Value(auth.ContextKeyAuthID).(string)
 	req := v.(*DeployServiceRequest)
 
+	if len(req.Data) == 0 {
+		err := errors.New(errors.ErrEmptyInput, stderr.New("data field has not been set"))
+		h.logger.Debug(ctx, "failed to start request", log.MapFields{
+			"call_type": "DeployServiceFailure",
+		}, err)
+		return nil, err
+	}
+
 	// a context from an http request is cancelled after the response to the request is returned,
 	// so a new context is needed to handle the asynchronous request
 	id, err := h.request.DeployServiceAsync(context.Background(), backend.DeployServiceRequest{
@@ -34,9 +44,8 @@ func (h ServiceHandler) DeployService(ctx context.Context, v interface{}) (inter
 	if err != nil {
 		h.logger.Debug(ctx, "failed to start request", log.MapFields{
 			"call_type": "DeployServiceFailure",
-			"err":       err.Error(),
-		})
-		return nil, rpc.HttpInternalServerError(ctx, "failed to deploy service")
+		}, err)
+		return nil, err
 	}
 
 	return AsyncResponse{ID: id}, nil
@@ -46,6 +55,15 @@ func (h ServiceHandler) DeployService(ctx context.Context, v interface{}) (inter
 func (h ServiceHandler) ExecuteService(ctx context.Context, v interface{}) (interface{}, error) {
 	authID := ctx.Value(auth.ContextKeyAuthID).(string)
 	req := v.(*ExecuteServiceRequest)
+
+	if len(req.Data) == 0 || len(req.Address) == 0 {
+		err := errors.New(errors.ErrEmptyInput, stderr.New("data or address field have not been set"))
+		h.logger.Debug(ctx, "failed to start request", log.MapFields{
+			"call_type": "ExecuteServiceFailure",
+			"address":   req.Address,
+		}, err)
+		return nil, err
+	}
 
 	// a context from an http request is cancelled after the response to the request is returned,
 	// so a new context is needed to handle the asynchronous request
@@ -58,9 +76,8 @@ func (h ServiceHandler) ExecuteService(ctx context.Context, v interface{}) (inte
 		h.logger.Debug(ctx, "failed to start request", log.MapFields{
 			"call_type": "ExecuteServiceFailure",
 			"address":   req.Address,
-			"err":       err.Error(),
-		})
-		return nil, rpc.HttpInternalServerError(ctx, "failed to execute service")
+		}, err)
+		return nil, err
 	}
 
 	return AsyncResponse{ID: id}, nil
@@ -105,7 +122,7 @@ func (h ServiceHandler) PollService(ctx context.Context, v interface{}) (interfa
 // ListServices lists the service the client has access to
 func (h ServiceHandler) ListServices(ctx context.Context, v interface{}) (interface{}, error) {
 	_ = v.(*ListServiceRequest)
-	return nil, rpc.HttpNotImplemented(ctx, "not implemented")
+	return nil, rpc.HttpNotImplemented(ctx, errors.New(errors.ErrAPINotImplemented, nil))
 }
 
 // GetPublicKeyService retrives the public key associated with a service
@@ -113,6 +130,15 @@ func (h ServiceHandler) ListServices(ctx context.Context, v interface{}) (interf
 // a service deployment or service execution.
 func (h ServiceHandler) GetPublicKeyService(ctx context.Context, v interface{}) (interface{}, error) {
 	req := v.(*GetPublicKeyServiceRequest)
+
+	if len(req.Address) == 0 {
+		err := errors.New(errors.ErrEmptyInput, stderr.New("address field has not been set"))
+		h.logger.Debug(ctx, "failed to start request", log.MapFields{
+			"call_type": "GetPublicKeyServiceFailure",
+			"address":   req.Address,
+		}, err)
+		return nil, err
+	}
 
 	res, err := h.request.GetPublicKeyService(ctx, backend.GetPublicKeyServiceRequest{
 		Address: req.Address,
@@ -122,9 +148,8 @@ func (h ServiceHandler) GetPublicKeyService(ctx context.Context, v interface{}) 
 		h.logger.Debug(ctx, "request failed", log.MapFields{
 			"call_type": "GetPublicKeyServiceFailure",
 			"address":   req.Address,
-			"err":       err.Error(),
-		})
-		return nil, rpc.HttpInternalServerError(ctx, "failed to get public key for service")
+		}, err)
+		return nil, err
 	}
 
 	return GetPublicKeyServiceResponse{
