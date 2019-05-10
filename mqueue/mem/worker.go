@@ -5,6 +5,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/oasislabs/developer-gateway/errors"
 	"github.com/oasislabs/developer-gateway/mqueue/core"
 )
 
@@ -15,7 +16,7 @@ const (
 
 type insertRequest struct {
 	Element core.Element
-	Out     chan<- error
+	Out     chan<- errors.Err
 }
 
 type retrieveRequest struct {
@@ -26,12 +27,12 @@ type retrieveRequest struct {
 
 type retrieveResponse struct {
 	Elements core.Elements
-	Error    error
+	Error    errors.Err
 }
 
 type discardRequest struct {
 	Offset uint64
-	Out    chan<- error
+	Out    chan<- errors.Err
 }
 
 type nextRequest struct {
@@ -40,7 +41,7 @@ type nextRequest struct {
 
 type nextResponse struct {
 	Offset uint64
-	Error  error
+	Error  errors.Err
 }
 
 // Worker implements a very simple messaging queue-like

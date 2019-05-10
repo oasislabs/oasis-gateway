@@ -1,5 +1,7 @@
 package core
 
+import "github.com/oasislabs/developer-gateway/errors"
+
 // Element represents an element of the OrderedQueue
 type Element struct {
 	// Offset is the offset of the element within the sequence
@@ -28,16 +30,16 @@ type Elements struct {
 // for each queue they have.
 type MQueue interface {
 	// Insert inserts the element to the provided offset.
-	Insert(key string, element Element) error
+	Insert(key string, element Element) errors.Err
 
 	// Retrieve all available elements from the
 	// messaging queue after the provided offset
-	Retrieve(key string, offset uint64, count uint) (Elements, error)
+	Retrieve(key string, offset uint64, count uint) (Elements, errors.Err)
 
 	// Discard all elements that have a prior or equal
 	// offset to the provided offset
-	Discard(key string, offset uint64) error
+	Discard(key string, offset uint64) errors.Err
 
 	// Next element offset that can be used for the queue.
-	Next(key string) (uint64, error)
+	Next(key string) (uint64, errors.Err)
 }

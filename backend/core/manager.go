@@ -2,8 +2,8 @@ package core
 
 import (
 	"context"
-	"errors"
 
+	"github.com/oasislabs/developer-gateway/errors"
 	mqueue "github.com/oasislabs/developer-gateway/mqueue/core"
 )
 
@@ -19,7 +19,7 @@ type Events struct {
 // Client is an interface for any type that sends requests and
 // receives responses
 type Client interface {
-	GetPublicKeyService(context.Context, GetPublicKeyServiceRequest) (GetPublicKeyServiceResponse, error)
+	GetPublicKeyService(context.Context, GetPublicKeyServiceRequest) (GetPublicKeyServiceResponse, errors.Err)
 	ExecuteService(context.Context, uint64, ExecuteServiceRequest) Event
 	DeployService(context.Context, uint64, DeployServiceRequest) Event
 }
@@ -55,9 +55,9 @@ func NewRequestManager(properties RequestManagerProperties) *RequestManager {
 }
 
 // GetPublicKeyService retrieves the public key for a specific service
-func (m *RequestManager) GetPublicKeyService(ctx context.Context, req GetPublicKeyServiceRequest) (GetPublicKeyServiceResponse, error) {
+func (m *RequestManager) GetPublicKeyService(ctx context.Context, req GetPublicKeyServiceRequest) (GetPublicKeyServiceResponse, errors.Err) {
 	if len(req.Address) == 0 {
-		return GetPublicKeyServiceResponse{}, errors.New("address cannot be empty")
+		return GetPublicKeyServiceResponse{}, errors.New(errors.ErrInvalidAddress, nil)
 	}
 
 	return m.client.GetPublicKeyService(ctx, req)
@@ -65,9 +65,12 @@ func (m *RequestManager) GetPublicKeyService(ctx context.Context, req GetPublicK
 
 // RequestManager starts a request and provides an identifier for the caller to
 // find the request later on. Executes an operation on a service
-func (m *RequestManager) ExecuteServiceAsync(ctx context.Context, req ExecuteServiceRequest) (uint64, error) {
+func (m *RequestManager) ExecuteServiceAsync(
+	ctx context.Context,
+	req ExecuteServiceRequest,
+) (uint64, errors.Err) {
 	if len(req.Address) == 0 {
-		return 0, errors.New("address cannot be empty")
+		return 0, errors.New(errors.ErrInvalidAddress, nil)
 	}
 
 	id, err := m.mqueue.Next(req.Key)
@@ -82,7 +85,7 @@ func (m *RequestManager) ExecuteServiceAsync(ctx context.Context, req ExecuteSer
 
 // RequestManager starts a request and provides an identifier for the caller to
 // find the request later on. Deploys a new service
-func (m *RequestManager) DeployServiceAsync(ctx context.Context, req DeployServiceRequest) (uint64, error) {
+func (m *RequestManager) DeployServiceAsync(ctx context.Context, req DeployServiceRequest) (uint64, errors.Err) {
 	id, err := m.mqueue.Next(req.Key)
 	if err != nil {
 		return 0, err

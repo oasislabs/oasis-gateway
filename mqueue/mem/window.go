@@ -1,8 +1,9 @@
 package mem
 
 import (
+	"github.com/oasislabs/developer-gateway/errors"
 	"github.com/oasislabs/developer-gateway/mqueue/core"
-	"github.com/pkg/errors"
+	stderr "github.com/pkg/errors"
 )
 
 type element struct {
@@ -13,10 +14,10 @@ type element struct {
 }
 
 var (
-	ErrFull              = errors.New("window is full and cannot be increase its size")
-	ErrOffsetOutOfWindow = errors.New("offset is out of the window's range")
-	ErrOffsetNotReserved = errors.New("offset is not reserved")
-	ErrOffsetAlreadySet  = errors.New("offset is already set")
+	ErrFull              = stderr.New("window is full and cannot increase its size")
+	ErrOffsetOutOfWindow = stderr.New("offset is out of the window's range")
+	ErrOffsetNotReserved = stderr.New("offset is not reserved")
+	ErrOffsetAlreadySet  = stderr.New("offset is already set")
 )
 
 // SlidingWindow is a sliding window of elements that keep track of
@@ -81,7 +82,7 @@ func NewSlidingWindow(props SlidingWindowProps) SlidingWindow {
 }
 
 // Get returns all the elements in the range from offset to offset + count
-func (w *SlidingWindow) Get(offset uint64, count uint) (core.Elements, error) {
+func (w *SlidingWindow) Get(offset uint64, count uint) (core.Elements, errors.Err) {
 	if offset < w.offset {
 		offset = w.offset
 	}
@@ -107,11 +108,11 @@ func (w *SlidingWindow) Get(offset uint64, count uint) (core.Elements, error) {
 // a next offset because either the window cannot grow more
 // or it cannot slide and discard elements that have not yet
 // been set
-func (w *SlidingWindow) ReserveNext() (uint64, error) {
+func (w *SlidingWindow) ReserveNext() (uint64, errors.Err) {
 	// initialization should ensure that len(w.elements) > 0
 	if w.nextUnreservedIndex >= uint(len(w.elements)-1) {
 		if n := w.makeRoom(); n == 0 {
-			return 0, ErrFull
+			return 0, errors.New(errors.ErrQueueLimitReached, ErrFull)
 		}
 	}
 
@@ -142,18 +143,18 @@ func (w *SlidingWindow) Offset() uint64 {
 // Set sets the value for the element at offset `offset`. If the
 // offset is not in the window's range or the element's state is not
 // reserved or already set an error will be returned
-func (w *SlidingWindow) Set(offset uint64, value interface{}) error {
+func (w *SlidingWindow) Set(offset uint64, value interface{}) errors.Err {
 	if w.offset > offset || offset > w.offset+uint64(len(w.elements)) {
-		return ErrOffsetOutOfWindow
+		return errors.New(errors.ErrOutOfRange, ErrOffsetOutOfWindow)
 	}
 
 	index := uint(offset - w.offset)
 	if !w.elements[index].Reserved {
-		return ErrOffsetNotReserved
+		return errors.New(errors.ErrInvalidStateChangeError, ErrOffsetNotReserved)
 	}
 
 	if w.elements[index].Set {
-		return ErrOffsetAlreadySet
+		return errors.New(errors.ErrInvalidStateChangeError, ErrOffsetAlreadySet)
 	}
 
 	w.elements[index].Set = true
@@ -175,7 +176,7 @@ func (w *SlidingWindow) Set(offset uint64, value interface{}) error {
 // Slide slides the window up to offset effectively discarding all
 // the elements with a lower offset, and making room available for
 // new offsets to be reserved and new elements to be set.
-func (w *SlidingWindow) Slide(offset uint64) (uint, error) {
+func (w *SlidingWindow) Slide(offset uint64) (uint, errors.Err) {
 	return w.slide(offset)
 }
 
@@ -201,13 +202,13 @@ func (w *SlidingWindow) makeRoom() uint {
 	return 0
 }
 
-func (w *SlidingWindow) slide(offset uint64) (uint, error) {
+func (w *SlidingWindow) slide(offset uint64) (uint, errors.Err) {
 	if w.offset > offset {
 		return 0, nil
 	}
 
 	if offset > w.offset+uint64(len(w.elements)) {
-		return 0, ErrOffsetOutOfWindow
+		return 0, errors.New(errors.ErrOutOfRange, ErrOffsetOutOfWindow)
 	}
 
 	limit := uint(offset - w.offset)

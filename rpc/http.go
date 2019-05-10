@@ -2,12 +2,13 @@ package rpc
 
 import (
 	"context"
-	"errors"
+	stderr "errors"
 	"fmt"
 	"net/http"
 	"runtime/debug"
 	"strconv"
 
+	"github.com/oasislabs/developer-gateway/errors"
 	"github.com/oasislabs/developer-gateway/log"
 )
 
@@ -25,60 +26,62 @@ type HttpMiddleware interface {
 // using the http protocol
 type HttpError struct {
 	// Cause of the creation of this HttpError instance
-	Cause error
+	Cause *errors.Error
 
 	// StatusCode is the HTTP status code that defines the error cause
 	StatusCode int
 }
 
-// Error is the implementation of go's error interface for Error
-func (e HttpError) Error() string {
-	if e.Cause == nil {
-		return fmt.Sprintf("http error with status code %d", e.StatusCode)
-	} else {
-		return fmt.Sprintf("%s with status code %d", e.Cause.Error(), e.StatusCode)
+// Log implementation of log.Loggable
+func (e HttpError) Log(fields log.Fields) {
+	fields.Add("status_code", e.StatusCode)
+
+	if e.Cause != nil {
+		e.Cause.Log(fields)
 	}
 }
 
+// Error is the implementation of go's error interface for Error
+func (e HttpError) Error() string {
+	return fmt.Sprintf("%s with status code %d", e.Cause.Error(), e.StatusCode)
+}
+
 // MakeHttpError makes a new http error
-func MakeHttpError(ctx context.Context, description string, statusCode int) *HttpError {
+func MakeHttpError(ctx context.Context, error errors.Error, statusCode int) *HttpError {
 	return &HttpError{
-		Cause: &Error{
-			ErrorCode:   -1,
-			Description: description,
-		},
+		Cause:      &error,
 		StatusCode: statusCode,
 	}
 }
 
 // HttpBadRequest returns an HTTP bad request error
-func HttpBadRequest(ctx context.Context, description string) *HttpError {
-	return MakeHttpError(ctx, description, http.StatusBadRequest)
+func HttpBadRequest(ctx context.Context, error errors.Error) *HttpError {
+	return MakeHttpError(ctx, error, http.StatusBadRequest)
 }
 
 // HttpForbidden returns an HTTP not found error
-func HttpForbidden(ctx context.Context, description string) *HttpError {
-	return MakeHttpError(ctx, description, http.StatusForbidden)
+func HttpForbidden(ctx context.Context, error errors.Error) *HttpError {
+	return MakeHttpError(ctx, error, http.StatusForbidden)
 }
 
 // HttpNotFound returns an HTTP not found error
-func HttpNotFound(ctx context.Context, description string) *HttpError {
-	return MakeHttpError(ctx, description, http.StatusNotFound)
+func HttpNotFound(ctx context.Context, error errors.Error) *HttpError {
+	return MakeHttpError(ctx, error, http.StatusNotFound)
 }
 
 // HttpTooMayRequests return an HTTP too many requests error
-func HttpTooManyRequests(ctx context.Context, description string) *HttpError {
-	return MakeHttpError(ctx, description, http.StatusTooManyRequests)
+func HttpTooManyRequests(ctx context.Context, error errors.Error) *HttpError {
+	return MakeHttpError(ctx, error, http.StatusTooManyRequests)
 }
 
 // HttpNotFound returns an HTTP not found error
-func HttpNotImplemented(ctx context.Context, description string) *HttpError {
-	return MakeHttpError(ctx, description, http.StatusNotImplemented)
+func HttpNotImplemented(ctx context.Context, error errors.Error) *HttpError {
+	return MakeHttpError(ctx, error, http.StatusNotImplemented)
 }
 
 // HttpInternalServerError returns an HTTP internal server error
-func HttpInternalServerError(ctx context.Context, description string) *HttpError {
-	return MakeHttpError(ctx, description, http.StatusInternalServerError)
+func HttpInternalServerError(ctx context.Context, error errors.Error) *HttpError {
+	return MakeHttpError(ctx, error, http.StatusInternalServerError)
 }
 
 // HttpRoute multiplexes the handling of a request to the handler
@@ -132,7 +135,7 @@ func (h *HttpRouter) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 
 			switch x := r.(type) {
 			case string:
-				err = errors.New(x)
+				err = stderr.New(x)
 			case error:
 				err = x
 			default:
@@ -150,7 +153,7 @@ func (h *HttpRouter) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 			// the `err` generated above is an internal error that should not
 			// be exposed to the client. Instead, this we just return a generic
 			// error
-			h.reportAnyError(res, req, errors.New("Unexpected error occurred."))
+			h.reportAnyError(res, req, stderr.New("Unexpected error occurred."))
 		}
 	}()
 
@@ -204,19 +207,52 @@ func (h *HttpRouter) reportSuccess(res http.ResponseWriter, req *http.Request, b
 	})
 }
 
+func (h *HttpRouter) mapError(err errors.Error) *HttpError {
+	switch err.ErrorCode.Category() {
+	case errors.InternalError:
+		return &HttpError{
+			Cause:      &err,
+			StatusCode: http.StatusInternalServerError,
+		}
+	case errors.InputError:
+		return &HttpError{
+			Cause:      &err,
+			StatusCode: http.StatusBadRequest,
+		}
+	case errors.StateConflict:
+		return &HttpError{
+			Cause:      &err,
+			StatusCode: http.StatusConflict,
+		}
+	case errors.ResourceLimitReached:
+		return &HttpError{
+			Cause:      &err,
+			StatusCode: http.StatusTooManyRequests,
+		}
+	case errors.NotImplemented:
+		return &HttpError{
+			Cause:      &err,
+			StatusCode: http.StatusNotImplemented,
+		}
+	default:
+		return &HttpError{
+			Cause:      &err,
+			StatusCode: http.StatusInternalServerError,
+		}
+	}
+}
+
 func (h *HttpRouter) reportAnyError(res http.ResponseWriter, req *http.Request, err error) {
 	switch err := err.(type) {
 	case HttpError:
 		h.reportError(res, req, &err)
 	case *HttpError:
 		h.reportError(res, req, err)
-	case Error:
-		h.reportError(res, req, &HttpError{
-			Cause:      err,
-			StatusCode: http.StatusInternalServerError,
-		})
+	case errors.Error:
+		h.reportError(res, req, h.mapError(err))
 	default:
-		h.reportError(res, req, HttpInternalServerError(req.Context(), err.Error()))
+		h.reportError(res, req, HttpInternalServerError(
+			req.Context(), errors.New(errors.ErrInternalError, err)))
 	}
 }
 
@@ -228,24 +264,24 @@ func (h *HttpRouter) reportError(res http.ResponseWriter, req *http.Request, err
 	res.WriteHeader(err.StatusCode)
 
 	if err.Cause != nil {
-		if err := h.encoder.Encode(res, err.Cause); err != nil {
+		if eerr := h.encoder.Encode(res, Error{
+			ErrorCode:   err.Cause.ErrorCode.Code(),
+			Description: err.Cause.ErrorCode.Desc(),
+		}); eerr != nil {
 			h.logger.Debug(req.Context(), "failed to encode error response to response writer", log.MapFields{
 				"path":      path,
 				"method":    method,
 				"call_type": "HttpRequestHandleFailure",
-				"err":       err.Error(),
-			})
+			}, err)
 			return
 		}
 	}
 
 	h.logger.Info(req.Context(), "", log.MapFields{
-		"path":        path,
-		"method":      method,
-		"call_type":   "HttpRequestHandleFailure",
-		"status_code": err.StatusCode,
-		"err":         err.Error(),
-	})
+		"path":      path,
+		"method":    method,
+		"call_type": "HttpRequestHandleFailure",
+	}, err)
 }
 
 // HttpJsonHandler is handlers requests that expect a body in the JSON format,
@@ -314,7 +350,7 @@ func (h *HttpJsonHandler) ServeHTTP(req *http.Request) (interface{}, error) {
 			"method":    req.Method,
 			"call_type": "HttpJsonRequestHandleFailure",
 		})
-		return nil, HttpBadRequest(req.Context(), "Content-length header missing from request")
+		return nil, errors.New(errors.ErrHttpContentLengthMissing, nil)
 	}
 
 	if uint64(req.ContentLength) > uint64(h.limit) {
@@ -325,7 +361,7 @@ func (h *HttpJsonHandler) ServeHTTP(req *http.Request) (interface{}, error) {
 			"limit":          h.limit,
 			"call_type":      "HttpJsonRequestHandleFailure",
 		})
-		return nil, HttpBadRequest(req.Context(), "Content-length exceeds request limit")
+		return nil, errors.New(errors.ErrHttpContentLengthLimit, nil)
 	}
 
 	// verify that content type is set and it is correct
@@ -337,7 +373,7 @@ func (h *HttpJsonHandler) ServeHTTP(req *http.Request) (interface{}, error) {
 			"content_length": req.ContentLength,
 			"call_type":      "HttpJsonRequestHandleFailure",
 		})
-		return nil, HttpBadRequest(req.Context(), "Content-type should be application/json")
+		return nil, errors.New(errors.ErrHttpContentTypeApplicationJson, nil)
 	}
 
 	// parse body into Go object
@@ -349,8 +385,7 @@ func (h *HttpJsonHandler) ServeHTTP(req *http.Request) (interface{}, error) {
 			"content_length": req.ContentLength,
 			"call_type":      "HttpJsonRequestHandleFailure",
 		})
-		return nil, HttpBadRequest(req.Context(), "Failed to deserialize request body as JSON")
-
+		return nil, errors.New(errors.ErrDeserializeJSON, nil)
 	}
 
 	if body != nil {
@@ -362,7 +397,7 @@ func (h *HttpJsonHandler) ServeHTTP(req *http.Request) (interface{}, error) {
 				"call_type":      "HttpJsonRequestHandleFailure",
 				"err":            err.Error(),
 			})
-			return nil, HttpBadRequest(req.Context(), "")
+			return nil, errors.New(errors.ErrDeserializeJSON, nil)
 		}
 	}
 

@@ -142,7 +142,7 @@ func TestHttpRouterServeHTTPPanic(t *testing.T) {
 
 	assert.Nil(t, err)
 	assert.Equal(t, http.StatusInternalServerError, recorder.Code)
-	assert.Equal(t, "{\"errorCode\":-1,\"description\":\"Unexpected error occurred.\"}\n", string(s))
+	assert.Equal(t, "{\"errorCode\":1000,\"description\":\"Internal Error. Please check the status of the service.\"}\n", string(s))
 }
 
 func TestHttpBinderBuildRouterNoEncoder(t *testing.T) {
@@ -207,7 +207,7 @@ func TestHttpJsonHandlerContentLengthMissing(t *testing.T) {
 
 	v, err := handler.ServeHTTP(req)
 
-	assert.Equal(t, "Content-length header missing from request with status code 400", err.Error())
+	assert.Equal(t, "[2002] error code InputError with desc Content-length header missing from request.", err.Error())
 	assert.Nil(t, v)
 }
 
@@ -223,7 +223,7 @@ func TestHttpJsonHandlerContentLengthMissingWithBody(t *testing.T) {
 
 	v, err := handler.ServeHTTP(req)
 
-	assert.Equal(t, "Content-length header missing from request with status code 400", err.Error())
+	assert.Equal(t, "[2002] error code InputError with desc Content-length header missing from request.", err.Error())
 	assert.Nil(t, v)
 }
 
@@ -240,7 +240,7 @@ func TestHttpJsonHandlerContentLengthExceedsLimit(t *testing.T) {
 
 	v, err := handler.ServeHTTP(req)
 
-	assert.Equal(t, "Content-length exceeds request limit with status code 400", err.Error())
+	assert.Equal(t, "[2003] error code InputError with desc Content-length exceeds request limit.", err.Error())
 	assert.Nil(t, v)
 }
 
@@ -258,7 +258,7 @@ func TestHttpJsonHandlerContentMissing(t *testing.T) {
 
 	v, err := handler.ServeHTTP(req)
 
-	assert.Equal(t, "Content-type should be application/json with status code 400", err.Error())
+	assert.Equal(t, "[2004] error code InputError with desc Content-type should be application/json.", err.Error())
 	assert.Nil(t, v)
 }
 
