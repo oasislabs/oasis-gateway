@@ -8,7 +8,7 @@ RUN apt update && apt install -y git build-essential gcc binutils curl
 RUN curl -sfL https://install.goreleaser.com/github.com/golangci/golangci-lint.sh | bash -s -- -b /tmp/bin v1.11.2
 
 # Prepare for coverage
-RUN go get golang.org/x/tools/cmd/cover
+RUN go get golang.org/x/tools/cmd/cover github.com/mattn/goveralls
 
 WORKDIR /app
 COPY . /app
