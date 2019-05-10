@@ -208,7 +208,7 @@ func (h *HttpRouter) reportSuccess(res http.ResponseWriter, req *http.Request, b
 }
 
 func (h *HttpRouter) mapError(err errors.Error) *HttpError {
-	switch err.ErrorCode.Category() {
+	switch err.ErrorCode().Category() {
 	case errors.InternalError:
 		return &HttpError{
 			Cause:      &err,
@@ -265,8 +265,8 @@ func (h *HttpRouter) reportError(res http.ResponseWriter, req *http.Request, err
 
 	if err.Cause != nil {
 		if eerr := h.encoder.Encode(res, Error{
-			ErrorCode:   err.Cause.ErrorCode.Code(),
-			Description: err.Cause.ErrorCode.Desc(),
+			ErrorCode:   err.Cause.ErrorCode().Code(),
+			Description: err.Cause.ErrorCode().Desc(),
 		}); eerr != nil {
 			h.logger.Debug(req.Context(), "failed to encode error response to response writer", log.MapFields{
 				"path":      path,

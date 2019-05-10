@@ -3,7 +3,6 @@ package mem
 import (
 	"testing"
 
-	"github.com/oasislabs/developer-gateway/errors"
 	"github.com/oasislabs/developer-gateway/mqueue/core"
 	"github.com/stretchr/testify/assert"
 )
@@ -42,7 +41,7 @@ func TestSlidingWindowAlreadySet(t *testing.T) {
 	assert.Nil(t, err)
 
 	err = w.Set(next, "value")
-	assert.Equal(t, ErrOffsetAlreadySet, err.(errors.Error).Cause)
+	assert.Equal(t, ErrOffsetAlreadySet, err.Cause())
 }
 
 func TestSlidingWindowSetMultipleSlideFixed(t *testing.T) {
@@ -107,7 +106,7 @@ func TestSlidingWindowSetNotReserved(t *testing.T) {
 	})
 
 	err := w.Set(0, "value")
-	assert.Equal(t, ErrOffsetNotReserved, err.(errors.Error).Cause)
+	assert.Equal(t, ErrOffsetNotReserved, err.Cause())
 }
 
 func TestSlidingWindowReserveToLimit(t *testing.T) {
@@ -125,7 +124,7 @@ func TestSlidingWindowReserveToLimit(t *testing.T) {
 	}
 
 	next, err := w.ReserveNext()
-	assert.Equal(t, ErrFull, err.(errors.Error).Cause)
+	assert.Equal(t, ErrFull, err.Cause())
 	assert.Equal(t, uint64(0), next)
 }
 

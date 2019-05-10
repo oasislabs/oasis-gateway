@@ -18,3 +18,7 @@ test-coverage:
 
 show-coverage:
 	go tool cover -html=coverage.out
+
+clean:
+	rm -f developer-gateway
+	go clean ./...

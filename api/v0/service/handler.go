@@ -105,11 +105,16 @@ func (h ServiceHandler) PollService(ctx context.Context, v interface{}) (interfa
 				ID:    r.ID,
 				Cause: r.Cause,
 			})
-		case backend.ExecuteServiceEvent:
+		case backend.ExecuteServiceResponse:
 			events = append(events, ExecuteServiceEvent{
 				ID:      r.ID,
 				Address: r.Address,
 				Output:  r.Output,
+			})
+		case backend.DeployServiceResponse:
+			events = append(events, DeployServiceEvent{
+				ID:      r.ID,
+				Address: r.Address,
 			})
 		default:
 			panic("received unexpected event type from polling service")
