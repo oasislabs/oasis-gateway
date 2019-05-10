@@ -57,7 +57,7 @@ type SlidingWindowProps struct {
 	MaxSize uint
 }
 
-// NewSlidingWindow creates a new instance of an SlidingWindow with the
+// NewSlidingWindow creates a new instance of a SlidingWindow with the
 // defined behaviour
 func NewSlidingWindow(props SlidingWindowProps) SlidingWindow {
 	if props.InitialSize == 0 {
