@@ -86,14 +86,20 @@ var (
 
 	ErrDeserializeJSON = ErrorCode{
 		category: InputError,
-		code:     2004,
+		code:     2005,
 		desc:     "Failed to deserialize body as JSON.",
 	}
 
 	ErrInvalidAddress = ErrorCode{
 		category: InputError,
-		code:     2005,
+		code:     2006,
 		desc:     "Provided invalid address.",
+	}
+
+	ErrEmptyInput = ErrorCode{
+		category: InputError,
+		code:     2007,
+		desc:     "Input cannot be empty.",
 	}
 
 	ErrQueueLimitReached = ErrorCode{

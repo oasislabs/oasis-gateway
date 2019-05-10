@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	stderr "errors"
 
 	auth "github.com/oasislabs/developer-gateway/auth/core"
 	backend "github.com/oasislabs/developer-gateway/backend/core"
@@ -26,6 +27,14 @@ func (h ServiceHandler) DeployService(ctx context.Context, v interface{}) (inter
 	authID := ctx.Value(auth.ContextKeyAuthID).(string)
 	req := v.(*DeployServiceRequest)
 
+	if len(req.Data) == 0 {
+		err := errors.New(errors.ErrEmptyInput, stderr.New("data field has not been set"))
+		h.logger.Debug(ctx, "failed to start request", log.MapFields{
+			"call_type": "DeployServiceFailure",
+		}, err)
+		return nil, err
+	}
+
 	// a context from an http request is cancelled after the response to the request is returned,
 	// so a new context is needed to handle the asynchronous request
 	id, err := h.request.DeployServiceAsync(context.Background(), backend.DeployServiceRequest{
@@ -46,6 +55,15 @@ func (h ServiceHandler) DeployService(ctx context.Context, v interface{}) (inter
 func (h ServiceHandler) ExecuteService(ctx context.Context, v interface{}) (interface{}, error) {
 	authID := ctx.Value(auth.ContextKeyAuthID).(string)
 	req := v.(*ExecuteServiceRequest)
+
+	if len(req.Data) == 0 || len(req.Address) == 0 {
+		err := errors.New(errors.ErrEmptyInput, stderr.New("data or address field have not been set"))
+		h.logger.Debug(ctx, "failed to start request", log.MapFields{
+			"call_type": "ExecuteServiceFailure",
+			"address":   req.Address,
+		}, err)
+		return nil, err
+	}
 
 	// a context from an http request is cancelled after the response to the request is returned,
 	// so a new context is needed to handle the asynchronous request
@@ -112,6 +130,15 @@ func (h ServiceHandler) ListServices(ctx context.Context, v interface{}) (interf
 // a service deployment or service execution.
 func (h ServiceHandler) GetPublicKeyService(ctx context.Context, v interface{}) (interface{}, error) {
 	req := v.(*GetPublicKeyServiceRequest)
+
+	if len(req.Address) == 0 {
+		err := errors.New(errors.ErrEmptyInput, stderr.New("address field has not been set"))
+		h.logger.Debug(ctx, "failed to start request", log.MapFields{
+			"call_type": "GetPublicKeyServiceFailure",
+			"address":   req.Address,
+		}, err)
+		return nil, err
+	}
 
 	res, err := h.request.GetPublicKeyService(ctx, backend.GetPublicKeyServiceRequest{
 		Address: req.Address,
