@@ -1,10 +1,13 @@
-all:  build test build-gateway
+all:  build test build-gateway build-ekiden-client
 
 build:
 	go build ./...
 
 build-gateway:
 	go build -o developer-gateway github.com/oasislabs/developer-gateway/cmd/gateway
+
+build-ekiden-client:
+	go build -o ekiden-client github.com/oasislabs/developer-gateway/cmd/ekiden-client
 
 lint:
 	go vet ./...

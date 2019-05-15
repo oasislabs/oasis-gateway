@@ -68,6 +68,102 @@ var (
 		desc:     "Internal Error. Please check the status of the service.",
 	}
 
+	ErrEkidenDial = ErrorCode{
+		category: InternalError,
+		code:     1009,
+		desc:     "Internal Error. Please check the status of the service.",
+	}
+
+	ErrEkidenParseCertificate = ErrorCode{
+		category: InternalError,
+		code:     1009,
+		desc:     "Internal Error. Please check the status of the service.",
+	}
+
+	ErrEkidenGetCommittee = ErrorCode{
+		category: InternalError,
+		code:     1011,
+		desc:     "Internal Error. Please check the status of the service.",
+	}
+
+	ErrEkidenCommitteeKindUndefined = ErrorCode{
+		category: InternalError,
+		code:     1012,
+		desc:     "Internal Error. Please check the status of the service.",
+	}
+
+	ErrEkidenCommitteeNotFound = ErrorCode{
+		category: InternalError,
+		code:     1013,
+		desc:     "Internal Error. Please check the status of the service.",
+	}
+
+	ErrEkidenCommitteeLeaderNotFound = ErrorCode{
+		category: InternalError,
+		code:     1014,
+		desc:     "Internal Error. Please check the status of the service.",
+	}
+
+	ErrEkidenGetNode = ErrorCode{
+		category: InternalError,
+		code:     1015,
+		desc:     "Internal Error. Please check the status of the service.",
+	}
+
+	ErrEkidenParseNodeCertificate = ErrorCode{
+		category: InternalError,
+		code:     1016,
+		desc:     "Internal Error. Please check the status of the service.",
+	}
+
+	ErrEkidenNodeNoAddress = ErrorCode{
+		category: InternalError,
+		code:     1017,
+		desc:     "Internal Error. Please check the status of the service.",
+	}
+
+	ErrEkidenPortInvalid = ErrorCode{
+		category: InternalError,
+		code:     1019,
+		desc:     "Internal Error. Please check the status of the service.",
+	}
+
+	ErrEkidenAddressInvalid = ErrorCode{
+		category: InternalError,
+		code:     1019,
+		desc:     "Internal Error. Please check the status of the service.",
+	}
+
+	ErrEkidenAddressTransportUnsupported = ErrorCode{
+		category: InternalError,
+		code:     1020,
+		desc:     "Internal Error. Please check the status of the service.",
+	}
+
+	ErrEkidenEncodeTx = ErrorCode{
+		category: InternalError,
+		code:     1021,
+		desc:     "Internal Error. Please check the status of the service.",
+	}
+
+	ErrEkidenSubmitTx = ErrorCode{
+		category: InternalError,
+		code:     1022,
+		desc:     "Internal Error. Please check the status of the service.",
+	}
+
+	ErrEkidenEncodeRLPTx = ErrorCode{
+		category: InternalError,
+		code:     1023,
+		desc:     "Internal Error. Please check the status of the service.",
+	}
+
+	ErrEkidenSignTx = ErrorCode{
+		category: InternalError,
+		code:     1024,
+		desc:     "Internal Error. Please check the status of the service.",
+	}
+
 	ErrOutOfRange = ErrorCode{
 		category: InputError,
 		code:     2001,

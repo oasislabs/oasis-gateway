@@ -43,7 +43,6 @@ type GetPublicKeyServiceRequest struct {
 // GetPublicKeyServiceResponse is the response in which the public key
 // associated with the contract is provided
 type GetPublicKeyServiceResponse struct {
-
 	// Timestamp at which the key expired
 	Timestamp uint64
 
