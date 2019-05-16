@@ -8,6 +8,8 @@ import (
 
 type Err interface {
 	Error() string
+	Cause() error
+	ErrorCode() ErrorCode
 	log.Loggable
 }
 
@@ -57,6 +59,120 @@ var (
 	ErrFetchPendingNonce = ErrorCode{
 		category: InternalError,
 		code:     1007,
+		desc:     "Internal Error. Please check the status of the service.",
+	}
+
+	ErrMaxAttemptsReached = ErrorCode{
+		category: InternalError,
+		code:     1008,
+		desc:     "Internal Error. Please check the status of the service.",
+	}
+
+	ErrEkidenDial = ErrorCode{
+		category: InternalError,
+		code:     1009,
+		desc:     "Internal Error. Please check the status of the service.",
+	}
+
+	ErrEkidenParseCertificate = ErrorCode{
+		category: InternalError,
+		code:     1009,
+		desc:     "Internal Error. Please check the status of the service.",
+	}
+
+	ErrEkidenGetCommittee = ErrorCode{
+		category: InternalError,
+		code:     1011,
+		desc:     "Internal Error. Please check the status of the service.",
+	}
+
+	ErrEkidenCommitteeKindUndefined = ErrorCode{
+		category: InternalError,
+		code:     1012,
+		desc:     "Internal Error. Please check the status of the service.",
+	}
+
+	ErrEkidenCommitteeNotFound = ErrorCode{
+		category: InternalError,
+		code:     1013,
+		desc:     "Internal Error. Please check the status of the service.",
+	}
+
+	ErrEkidenCommitteeLeaderNotFound = ErrorCode{
+		category: InternalError,
+		code:     1014,
+		desc:     "Internal Error. Please check the status of the service.",
+	}
+
+	ErrEkidenGetNode = ErrorCode{
+		category: InternalError,
+		code:     1015,
+		desc:     "Internal Error. Please check the status of the service.",
+	}
+
+	ErrEkidenParseNodeCertificate = ErrorCode{
+		category: InternalError,
+		code:     1016,
+		desc:     "Internal Error. Please check the status of the service.",
+	}
+
+	ErrEkidenNodeNoAddress = ErrorCode{
+		category: InternalError,
+		code:     1017,
+		desc:     "Internal Error. Please check the status of the service.",
+	}
+
+	ErrEkidenPortInvalid = ErrorCode{
+		category: InternalError,
+		code:     1019,
+		desc:     "Internal Error. Please check the status of the service.",
+	}
+
+	ErrEkidenAddressInvalid = ErrorCode{
+		category: InternalError,
+		code:     1019,
+		desc:     "Internal Error. Please check the status of the service.",
+	}
+
+	ErrEkidenAddressTransportUnsupported = ErrorCode{
+		category: InternalError,
+		code:     1020,
+		desc:     "Internal Error. Please check the status of the service.",
+	}
+
+	ErrEkidenEncodeTx = ErrorCode{
+		category: InternalError,
+		code:     1021,
+		desc:     "Internal Error. Please check the status of the service.",
+	}
+
+	ErrEkidenSubmitTx = ErrorCode{
+		category: InternalError,
+		code:     1022,
+		desc:     "Internal Error. Please check the status of the service.",
+	}
+
+	ErrEkidenEncodeRLPTx = ErrorCode{
+		category: InternalError,
+		code:     1023,
+		desc:     "Internal Error. Please check the status of the service.",
+	}
+
+	ErrEkidenSignTx = ErrorCode{
+		category: InternalError,
+		code:     1024,
+		desc:     "Internal Error. Please check the status of the service.",
+	}
+
+	ErrEkidenDecodeResponse = ErrorCode{
+		category: InternalError,
+		code:     1025,
+		desc:     "Internal Error. Please check the status of the service.",
+	}
+
+	ErrEkidenEmptyResponse = ErrorCode{
+		category: InternalError,
+		code:     1026,
 		desc:     "Internal Error. Please check the status of the service.",
 	}
 
@@ -159,34 +275,44 @@ const (
 // and a cause which might be nil if there's no underlying cause for
 // the error
 type Error struct {
-	Cause     error
-	ErrorCode ErrorCode
+	cause     error
+	errorCode ErrorCode
 }
 
 // Error is the implementation of error for Error
 func (e Error) Error() string {
-	if e.Cause == nil {
+	if e.cause == nil {
 		return fmt.Sprintf("[%d] error code %s with desc %s",
-			e.ErrorCode.Code(), e.ErrorCode.Category(), e.ErrorCode.Desc())
+			e.errorCode.Code(), e.errorCode.Category(), e.errorCode.Desc())
 	} else {
 		return fmt.Sprintf("[%d] error code %s with desc with cause %s",
-			e.ErrorCode.Code(), e.ErrorCode.Category(), e.Cause)
+			e.errorCode.Code(), e.errorCode.Category(), e.cause)
 	}
 }
 
 // Log implementation of log.Loggable
 func (e Error) Log(fields log.Fields) {
-	fields.Add("err", e.ErrorCode.Desc())
-	fields.Add("errorCode", e.ErrorCode.Code())
+	fields.Add("err", e.errorCode.Desc())
+	fields.Add("errorCode", e.errorCode.Code())
 
-	if e.Cause != nil {
-		fields.Add("cause", e.Cause)
+	if e.cause != nil {
+		fields.Add("cause", e.Error())
 	}
+}
+
+// Cause implementation offset Err
+func (e Error) Cause() error {
+	return e.cause
+}
+
+// ErrorCode implementation of Err
+func (e Error) ErrorCode() ErrorCode {
+	return e.errorCode
 }
 
 // New creates a new instance of an error
 func New(errorCode ErrorCode, cause error) Error {
-	return Error{Cause: cause, ErrorCode: errorCode}
+	return Error{cause: cause, errorCode: errorCode}
 }
 
 // ErrorCode holds the necessary information to uniquely identify an error

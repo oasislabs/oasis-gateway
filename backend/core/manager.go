@@ -5,6 +5,7 @@ import (
 
 	"github.com/oasislabs/developer-gateway/errors"
 	mqueue "github.com/oasislabs/developer-gateway/mqueue/core"
+	"github.com/oasislabs/developer-gateway/rpc"
 )
 
 type Event interface {
@@ -19,9 +20,9 @@ type Events struct {
 // Client is an interface for any type that sends requests and
 // receives responses
 type Client interface {
-	GetPublicKeyService(context.Context, GetPublicKeyServiceRequest) (GetPublicKeyServiceResponse, errors.Err)
-	ExecuteService(context.Context, uint64, ExecuteServiceRequest) Event
-	DeployService(context.Context, uint64, DeployServiceRequest) Event
+	GetPublicKeyService(context.Context, GetPublicKeyServiceRequest) (*GetPublicKeyServiceResponse, errors.Err)
+	ExecuteService(context.Context, uint64, ExecuteServiceRequest) (*ExecuteServiceResponse, errors.Err)
+	DeployService(context.Context, uint64, DeployServiceRequest) (*DeployServiceResponse, errors.Err)
 }
 
 // RequestManager handles the client RPC requests. Most requests
@@ -55,9 +56,12 @@ func NewRequestManager(properties RequestManagerProperties) *RequestManager {
 }
 
 // GetPublicKeyService retrieves the public key for a specific service
-func (m *RequestManager) GetPublicKeyService(ctx context.Context, req GetPublicKeyServiceRequest) (GetPublicKeyServiceResponse, errors.Err) {
+func (m *RequestManager) GetPublicKeyService(
+	ctx context.Context,
+	req GetPublicKeyServiceRequest,
+) (*GetPublicKeyServiceResponse, errors.Err) {
 	if len(req.Address) == 0 {
-		return GetPublicKeyServiceResponse{}, errors.New(errors.ErrInvalidAddress, nil)
+		return nil, errors.New(errors.ErrInvalidAddress, nil)
 	}
 
 	return m.client.GetPublicKeyService(ctx, req)
@@ -78,7 +82,7 @@ func (m *RequestManager) ExecuteServiceAsync(
 		return 0, err
 	}
 
-	go m.doRequest(ctx, req.Key, id, func() Event { return m.client.ExecuteService(ctx, id, req) })
+	go m.doRequest(ctx, req.Key, id, func() (Event, errors.Err) { return m.client.ExecuteService(ctx, id, req) })
 
 	return id, nil
 }
@@ -91,14 +95,23 @@ func (m *RequestManager) DeployServiceAsync(ctx context.Context, req DeployServi
 		return 0, err
 	}
 
-	go m.doRequest(ctx, req.Key, id, func() Event { return m.client.DeployService(ctx, id, req) })
+	go m.doRequest(ctx, req.Key, id, func() (Event, errors.Err) { return m.client.DeployService(ctx, id, req) })
 
 	return id, nil
 }
 
-func (m *RequestManager) doRequest(ctx context.Context, key string, id uint64, fn func() Event) {
+func (m *RequestManager) doRequest(ctx context.Context, key string, id uint64, fn func() (Event, errors.Err)) {
 	// TODO(stan): we should handle the case in which the request takes too long
-	ev := fn()
+	ev, err := fn()
+	if err != nil {
+		ev = ErrorEvent{
+			ID: id,
+			Cause: rpc.Error{
+				ErrorCode:   err.ErrorCode().Code(),
+				Description: err.ErrorCode().Desc(),
+			},
+		}
+	}
 
 	// TODO(stan): in case of error, we should log the error. We should think if there's
 	// a way to report the error in this case. A failure here means that a client will not

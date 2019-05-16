@@ -43,7 +43,6 @@ type GetPublicKeyServiceRequest struct {
 // GetPublicKeyServiceResponse is the response in which the public key
 // associated with the contract is provided
 type GetPublicKeyServiceResponse struct {
-
 	// Timestamp at which the key expired
 	Timestamp uint64
 
@@ -70,9 +69,9 @@ type ErrorEvent struct {
 	Cause rpc.Error
 }
 
-// ExecuteServiceEvent is the event that can be polled by the user
+// ExecuteServiceResponse is the event that can be polled by the user
 // as a result to a ServiceExecutionRequest
-type ExecuteServiceEvent struct {
+type ExecuteServiceResponse struct {
 	// ID to identify an asynchronous response. It uniquely identifies the
 	// event and orders it in the sequence of events expected by the user
 	ID uint64
@@ -86,8 +85,26 @@ type ExecuteServiceEvent struct {
 	Output string
 }
 
-// EventID is the implementation of rpc.Event for ExecuteServiceEvent
-func (e ExecuteServiceEvent) EventID() uint64 {
+// DeployServiceResponse is the event that can be polled by the user
+// as a result to a ServiceDeployRequest
+type DeployServiceResponse struct {
+	// ID to identify an asynchronous response. It uniquely identifies the
+	// event and orders it in the sequence of events expected by the user
+	ID uint64
+
+	// Address is the unique address that identifies the service,
+	// is generated when a service is deployed and it can be used
+	// for service execution
+	Address string
+}
+
+// EventID is the implementation of rpc.Event for ExecuteServiceResponse
+func (e ExecuteServiceResponse) EventID() uint64 {
+	return e.ID
+}
+
+// EventID is the implementation of rpc.Event for DeployServiceResponse
+func (e DeployServiceResponse) EventID() uint64 {
 	return e.ID
 }
 

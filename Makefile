@@ -1,10 +1,21 @@
-all:  build test build-gateway
+PROTOFILES=ekiden/grpc/client.proto
+GRPCFILES=$(patsubst %.proto,%.pb.go,$(PROTOFILES))
 
-build:
+all:  build test build-gateway build-ekiden-client
+
+build: build-grpc
 	go build ./...
+
+build-grpc: $(GRPCFILES)
+
+%.pb.go: %.proto
+	protoc -I ./ --go_out=plugins=grpc,paths=source_relative:. $<
 
 build-gateway:
 	go build -o developer-gateway github.com/oasislabs/developer-gateway/cmd/gateway
+
+build-ekiden-client:
+	go build -o ekiden-client github.com/oasislabs/developer-gateway/cmd/ekiden-client
 
 lint:
 	go vet ./...
@@ -19,3 +30,7 @@ test-coverage:
 
 show-coverage:
 	go tool cover -html=coverage.out
+
+clean:
+	rm -f developer-gateway
+	go clean ./...

@@ -11,6 +11,9 @@
 # Output of the go coverage tool, specifically when used with LiteIDE
 *.out
 
+# Self defined configuration files
+*.toml
+
 # Binaries generated
-gateway
 developer-gateway
+ekiden-client
