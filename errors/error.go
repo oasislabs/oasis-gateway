@@ -164,6 +164,18 @@ var (
 		desc:     "Internal Error. Please check the status of the service.",
 	}
 
+	ErrEkidenDecodeResponse = ErrorCode{
+		category: InternalError,
+		code:     1025,
+		desc:     "Internal Error. Please check the status of the service.",
+	}
+
+	ErrEkidenEmptyResponse = ErrorCode{
+		category: InternalError,
+		code:     1026,
+		desc:     "Internal Error. Please check the status of the service.",
+	}
+
 	ErrOutOfRange = ErrorCode{
 		category: InputError,
 		code:     2001,

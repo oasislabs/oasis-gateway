@@ -1,0 +1,171 @@
+syntax = "proto3";
+
+package client;
+option go_package = "github.com/oasislabs/developer-gateway/ekiden";
+
+service Runtime {
+    // Submit a transaction to leader.
+    rpc SubmitTx (SubmitTxRequest) returns (SubmitTxResponse) {}
+    // Wait for the node to finish syncing.
+    rpc WaitSync (WaitSyncRequest) returns (WaitSyncResponse) {}
+    // Check if the node is finished syncing.
+    rpc IsSynced (IsSyncedRequest) returns (IsSyncedResponse) {}
+    // Subscribe to roothash blocks.
+    rpc WatchBlocks (WatchBlocksRequest) returns (stream WatchBlocksResponse) {}
+    // Get roothash block at specific round.
+    rpc GetBlock (GetBlockRequest) returns (GetBlockResponse) {}
+    // Get transaction at specific round and index.
+    rpc GetTxn (GetTxnRequest) returns (GetTxnResponse) {}
+    // Get transaction at specific block hash and index.
+    rpc GetTxnByBlockHash (GetTxnByBlockHashRequest) returns (GetTxnByBlockHashResponse) {}
+    // Get transactions at specific transaction root.
+    rpc GetTransactions (GetTransactionsRequest) returns (GetTransactionsResponse) {}
+    // Query the block index of a given runtime.
+    rpc QueryBlock(QueryBlockRequest) returns (QueryBlockResponse) {}
+    // Query the transaction index of a given runtime.
+    rpc QueryTxn(QueryTxnRequest) returns (QueryTxnResponse) {}
+    // Query the transaction index of a given runtime with a complex
+    // query and returns multiple results.
+    rpc QueryTxns(QueryTxnsRequest) returns (QueryTxnsResponse) {}
+    // Wait for a block to be indexed by the indexer.
+    rpc WaitBlockIndexed(WaitBlockIndexedRequest) returns (WaitBlockIndexedResponse) {}
+}
+
+message SubmitTxRequest {
+    // Encoded transaction.
+    bytes data = 1;
+    // Runtime identifier.
+    bytes runtime_id = 2;
+}
+
+message SubmitTxResponse {
+	bytes result = 1;
+}
+
+message WaitSyncRequest {}
+
+message WaitSyncResponse {}
+
+message IsSyncedRequest {}
+
+message IsSyncedResponse {
+	// True if the node finished the initial sync.
+	bool synced = 1;
+}
+
+message WatchBlocksRequest {
+    // Runtime identifier.
+    bytes runtime_id = 1;
+}
+
+message WatchBlocksResponse {
+    // A CBOR-serialized block.
+    bytes block = 1;
+    // Block header hash.
+    bytes block_hash = 2;
+}
+
+message GetBlockRequest {
+    // Runtime identifier.
+    bytes runtime_id = 1;
+    // Round.
+    uint64 round = 2;
+}
+
+message GetBlockResponse {
+    // A CBOR-serialized block.
+    bytes block = 1;
+    // Block header hash.
+    bytes block_hash = 2;
+}
+
+message GetTxnRequest {
+    // Runtime identifier.
+    bytes runtime_id = 1;
+    // Round.
+    uint64 round = 2;
+    // Transaction index.
+    uint32 index = 3;
+}
+
+message GetTxnResponse {
+    // A CBOR-serialized TxnResult.
+    bytes result = 1;
+}
+
+message GetTxnByBlockHashRequest {
+    // Runtime identifier.
+    bytes runtime_id = 1;
+    // Block hash.
+    bytes block_hash = 2;
+    // Transaction index.
+    uint32 index = 3;
+}
+
+message GetTxnByBlockHashResponse {
+    // A CBOR-serialized TxnResult.
+    bytes result = 1;
+}
+
+message GetTransactionsRequest {
+    // Runtime identifier.
+    bytes runtime_id = 1;
+    // Transaction root.
+    bytes root = 2;
+}
+
+message GetTransactionsResponse {
+    // Raw transactions.
+    repeated bytes txns = 1;
+}
+
+message QueryBlockRequest {
+    // Runtime identifier.
+    bytes runtime_id = 1;
+    // Tag key.
+    bytes key = 2;
+    // Tag value.
+    bytes value = 3;
+}
+
+message QueryBlockResponse {
+    // A CBOR-serialized block.
+    bytes block = 1;
+    // Block header hash.
+    bytes block_hash = 2;
+}
+
+message QueryTxnRequest {
+    // Runtime identifier.
+    bytes runtime_id = 1;
+    // Tag key.
+    bytes key = 2;
+    // Tag value.
+    bytes value = 3;
+}
+
+message QueryTxnResponse {
+    // A CBOR-serialized TxnResult.
+    bytes result = 1;
+}
+
+message QueryTxnsRequest {
+    // Runtime identifier.
+    bytes runtime_id = 1;
+    // A CBOR-serialized query.
+    bytes query = 2;
+}
+
+message QueryTxnsResponse {
+    // CBOR-serialized results.
+    bytes results = 1;
+}
+
+message WaitBlockIndexedRequest {
+    // Runtime identifier.
+    bytes runtime_id = 1;
+    // Round.
+    uint64 round = 2;
+}
+
+message WaitBlockIndexedResponse {}

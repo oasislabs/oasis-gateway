@@ -6,46 +6,44 @@ import (
 	"crypto/ecdsa"
 	"math/big"
 
-	cbor "bitbucket.org/bodhisnarkva/cbor/go"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/oasislabs/developer-gateway/backend/core"
+	"github.com/oasislabs/developer-gateway/ekiden"
 	"github.com/oasislabs/developer-gateway/errors"
-	"github.com/oasislabs/ekiden/go/grpc/txnscheduler"
-	"google.golang.org/grpc"
 )
-
-type submitTxRequest struct {
-	Method string `cbor:"method"`
-	Args   []byte `cbor:"args"`
-}
 
 type Wallet struct {
 	PrivateKey *ecdsa.PrivateKey
 }
 
 type ClientProps struct {
-	NodeProps
 	Wallet
+	RuntimeID []byte
+	URL       string
 }
 
 type Client struct {
-	discovery *Discovery
+	client    *ekiden.Client
 	signer    types.Signer
+	runtimeID []byte
 	wallet    Wallet
-	props     NodeProps
 }
 
-func NewClient(discovery *Discovery, props ClientProps) *Client {
-	if discovery == nil {
-		panic("discovery must be set")
+func DialContext(ctx context.Context, props ClientProps) (*Client, errors.Err) {
+	client, err := ekiden.DialContext(ctx, &ekiden.ClientProps{
+		URL: props.URL,
+	})
+	if err != nil {
+		return nil, errors.New(errors.ErrEkidenDial, err)
 	}
 
 	return &Client{
-		discovery: discovery,
+		client:    client,
 		signer:    types.FrontierSigner{},
+		runtimeID: props.RuntimeID,
 		wallet:    props.Wallet,
-		props:     props.NodeProps}
+	}, nil
 }
 
 func (c *Client) GetPublicKeyService(
@@ -60,16 +58,31 @@ func (c *Client) ExecuteService(
 	id uint64,
 	req core.ExecuteServiceRequest,
 ) (*core.ExecuteServiceResponse, errors.Err) {
-	conn, err := c.discovery.Conn(ctx, Compute)
-	if err != nil {
+	if err := c.submitTx(ctx, req.Address, req.Data); err != nil {
 		return nil, err
 	}
 
-	if err := c.submitTx(ctx, conn, req.Address, req.Data); err != nil {
+	return &core.ExecuteServiceResponse{
+		ID:      id,
+		Address: req.Address,
+		Output:  "",
+	}, nil
+}
+
+func (c *Client) DeployService(
+	ctx context.Context,
+	id uint64,
+	req core.DeployServiceRequest,
+) (*core.DeployServiceResponse, errors.Err) {
+	if err := c.submitTx(ctx, "", req.Data); err != nil {
 		return nil, err
 	}
 
-	return nil, errors.New(errors.ErrAPINotImplemented, nil)
+	// TODO(stan): get address
+	return &core.DeployServiceResponse{
+		ID:      id,
+		Address: "",
+	}, nil
 }
 
 func (c *Client) generateTx(tx *types.Transaction) ([]byte, errors.Err) {
@@ -97,61 +110,23 @@ func (c *Client) createTx(address string, data string) *types.Transaction {
 		return types.NewTransaction(0, common.HexToAddress(address),
 			big.NewInt(0), gas, big.NewInt(gasPrice), []byte(data))
 	}
-
 }
 
-func (c *Client) submitTx(ctx context.Context, conn *grpc.ClientConn, address, data string) errors.Err {
+func (c *Client) submitTx(ctx context.Context, address, data string) errors.Err {
 	tx := c.createTx(address, data)
 	p, err := c.generateTx(tx)
 	if err != nil {
 		return err
 	}
 
-	msg := submitTxRequest{
-		Method: "ethereum_transaction",
-		Args:   p,
-	}
-
-	payload, derr := cbor.Dumps(msg)
-	if err != nil {
-		return errors.New(errors.ErrEkidenEncodeTx, derr)
-	}
-
-	sched := txnscheduler.NewTransactionSchedulerClient(conn)
-	_, derr = sched.SubmitTx(ctx, &txnscheduler.SubmitTxRequest{
-		RuntimeId: c.discovery.RuntimeID(),
-		Data:      payload,
+	_, derr := c.client.Submit(ctx, &ekiden.SubmitRequest{
+		Method:    "ethereum_transaction",
+		RuntimeID: c.runtimeID,
+		Data:      p,
 	})
-
-	if err != nil {
+	if derr != nil {
 		return errors.New(errors.ErrEkidenSubmitTx, derr)
 	}
 
-	// h, derr := hexutil.Decode(tx.Hash().Hex())
-	// if derr != nil {
-	// 	fmt.Println("FAILEWD TO DECODE HEX")
-	// 	return errors.New(errors.ErrEkidenSubmitTx, derr)
-	// }
-
-	// for {
-	// 	res, derr := sched.IsTransactionQueued(ctx, &txnscheduler.IsTransactionQueuedRequest{
-	// 		RuntimeId: c.discovery.RuntimeID(),
-	// 		Hash:      h,
-	// 	})
-	// 	if derr != nil {
-	// 		return errors.New(errors.ErrEkidenSubmitTx, derr)
-	// 	}
-
-	// 	fmt.Println("RESPONSE: ", res.IsQueued)
-	// }
-
 	return nil
-}
-
-func (c *Client) DeployService(
-	ctx context.Context,
-	id uint64,
-	req core.DeployServiceRequest,
-) (*core.DeployServiceResponse, errors.Err) {
-	return nil, errors.New(errors.ErrAPINotImplemented, nil)
 }

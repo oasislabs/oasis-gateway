@@ -1,7 +1,15 @@
+PROTOFILES=ekiden/grpc/client.proto
+GRPCFILES=$(patsubst %.proto,%.pb.go,$(PROTOFILES))
+
 all:  build test build-gateway build-ekiden-client
 
-build:
+build: build-grpc
 	go build ./...
+
+build-grpc: $(GRPCFILES)
+
+%.pb.go: %.proto
+	protoc -I ./ --go_out=plugins=grpc,paths=source_relative:. $<
 
 build-gateway:
 	go build -o developer-gateway github.com/oasislabs/developer-gateway/cmd/gateway
