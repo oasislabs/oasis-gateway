@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/ecdsa"
+	"encoding/hex"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -50,7 +51,26 @@ func (c *Client) GetPublicKeyService(
 	ctx context.Context,
 	req core.GetPublicKeyServiceRequest,
 ) (*core.GetPublicKeyServiceResponse, errors.Err) {
-	return nil, errors.New(errors.ErrAPINotImplemented, nil)
+	decoded, err := hex.DecodeString(req.Address)
+	if err != nil {
+		return nil, errors.New(errors.ErrInvalidAddress, nil)
+	}
+
+	if len(decoded) != 32 {
+		return nil, errors.New(errors.ErrInvalidAddress, nil)
+	}
+
+	var address ekiden.Address
+	copy(address[:], decoded)
+
+	_, err = c.client.GetPublicKey(ctx, &ekiden.GetPublicKeyRequest{
+		Address: address,
+	})
+	if err != nil {
+		return nil, errors.New(errors.ErrEkidenGetPublicKey, err)
+	}
+
+	return &core.GetPublicKeyServiceResponse{}, nil
 }
 
 func (c *Client) ExecuteService(
@@ -119,8 +139,7 @@ func (c *Client) submitTx(ctx context.Context, address, data string) errors.Err 
 		return err
 	}
 
-	_, derr := c.client.Submit(ctx, &ekiden.SubmitRequest{
-		Method:    "ethereum_transaction",
+	_, derr := c.client.EthereumTransaction(ctx, &ekiden.EthereumTransactionRequest{
 		RuntimeID: c.runtimeID,
 		Data:      p,
 	})
