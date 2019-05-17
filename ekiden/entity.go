@@ -56,9 +56,6 @@ type CallEnclaveRequest struct {
 	// Method to be invoked by the request
 	Method string
 
-	// Endpoint identifier for cases where a single node supports multiple endpoints.
-	Endpoint string
-
 	// Data is the RLP encoded representation of the data that
 	// is sent
 	Data []byte
@@ -67,5 +64,5 @@ type CallEnclaveRequest struct {
 // CallEnclaveResponse
 type CallEnclaveResponse struct {
 	// Result contains the resulting value of a successful response
-	Payload []byte
+	Payload interface{}
 }
