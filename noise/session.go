@@ -1,27 +1,40 @@
 package noise
 
 import (
+	"bytes"
 	"crypto/rand"
 	"errors"
 	"fmt"
 	"io"
 
 	"github.com/flynn/noise"
+	"github.com/oasislabs/developer-gateway/rw"
 )
 
+var (
+	ErrReadyUpgrade = errors.New("session is ready to upgrade")
+)
+
+// HandshakeCompletionStage defines the completion stage
+// for the session's handshake
 type HandshakeCompletionStage uint
 
 const (
+	// HandshakeInit the handshake still has to start or is already
+	// in process
 	HandshakeInit HandshakeCompletionStage = iota
+
+	// Handshake has completed and the session can be upgraded to
+	// handle application input/output
 	HandshakeCompleted
+
+	// HandshakeClosed the handshake has ended and the session
+	// has been upgraded
 	HandshakeClosed
 )
 
-type WrapReadWriter interface {
-	Read(io.Reader, []byte) ([]byte, int, error)
-	Write(io.Writer, []byte) (int, error)
-}
-
+// HandshakeHandler is the handler the session uses to set up
+// the handshake with the remote endpoint
 type HandshakeHandler struct {
 	stage        HandshakeCompletionStage
 	state        *noise.HandshakeState
@@ -29,6 +42,8 @@ type HandshakeHandler struct {
 	remoteCipher *noise.CipherState
 }
 
+// Upgrade the HandshakeHandler to a TransportHandler so that the
+// application can send/receive payloads
 func (s *HandshakeHandler) Upgrade() (*TransportHandler, error) {
 	if s.stage != HandshakeCompleted {
 		return nil, errors.New("Handshake has not completed")
@@ -51,24 +66,41 @@ func (s *HandshakeHandler) Upgrade() (*TransportHandler, error) {
 	return transport, nil
 }
 
+// CanUpgrade returns whether the Handler is in a HandshakeCompletionStage
+// in which it can be upgraded to an established session
 func (s *HandshakeHandler) CanUpgrade() bool {
 	return s.stage == HandshakeCompleted
 }
 
-func (s *HandshakeHandler) Read(r io.Reader, p []byte) ([]byte, int, error) {
-	if s.stage != HandshakeInit {
+// Read reads remote input from an io.Reader, processes that
+// input and writes the output (if any needs to be generated)
+// to the writer
+func (s *HandshakeHandler) Read(w io.Writer, r io.Reader) (int, error) {
+	if s.stage == HandshakeCompleted {
+		return 0, ErrReadyUpgrade
+	}
+
+	if s.stage == HandshakeClosed {
 		panic("attempt to call Read on HandshakeHandler instance that has been discarded")
 	}
 
-	in := make([]byte, 1024)
-	in, n, err := readWithAppendLimit(r, in, 65535)
+	in := bytes.NewBuffer(make([]byte, 0, 128))
+	c, err := rw.CopyWithLimit(in, r, rw.ReadLimitProps{
+		Limit:        65535,
+		FailOnExceed: true,
+	})
 	if err != nil {
-		return nil, 0, err
+		return 0, err
 	}
 
-	p, remoteCipher, localCipher, err := s.state.ReadMessage(p, in[:n])
+	p, remoteCipher, localCipher, err := s.state.ReadMessage(nil, in.Bytes()[:c])
 	if err != nil {
-		return nil, 0, err
+		return 0, err
+	}
+
+	n, err := w.Write(p)
+	if err != nil {
+		return 0, err
 	}
 
 	if localCipher != nil && remoteCipher != nil {
@@ -80,16 +112,36 @@ func (s *HandshakeHandler) Read(r io.Reader, p []byte) ([]byte, int, error) {
 		s.stage = HandshakeCompleted
 	}
 
-	return p, len(p), nil
+	return n, nil
 }
 
-func (s *HandshakeHandler) Write(w io.Writer, p []byte) (int, error) {
-	if s.stage != HandshakeInit {
-		panic("attempt to call Output on HandshakeHandler instance that has been discarded")
+// Write reads local input for payloads that need to be sent from
+// an io.Reader, processes the input and writes the output (if
+// any needs to be generated) to the writer
+func (s *HandshakeHandler) Write(w io.Writer, r io.Reader) (int, error) {
+	if s.stage == HandshakeCompleted {
+		return 0, ErrReadyUpgrade
 	}
 
-	out := make([]byte, 0, 1024)
-	out, remoteCipher, localCipher, err := s.state.WriteMessage(out, p)
+	if s.stage == HandshakeClosed {
+		panic("attempt to call Read on HandshakeHandler instance that has been discarded")
+	}
+
+	out := bytes.NewBuffer(make([]byte, 0, 128))
+	c, err := rw.CopyWithLimit(out, r, rw.ReadLimitProps{
+		Limit:        65535,
+		FailOnExceed: true,
+	})
+	if err != nil {
+		return 0, err
+	}
+
+	p, remoteCipher, localCipher, err := s.state.WriteMessage(nil, out.Bytes()[:c])
+	if err != nil {
+		return 0, err
+	}
+
+	n, err := w.Write(p)
 	if err != nil {
 		return 0, err
 	}
@@ -104,40 +156,60 @@ func (s *HandshakeHandler) Write(w io.Writer, p []byte) (int, error) {
 		s.stage = HandshakeCompleted
 	}
 
-	return w.Write(out)
+	return n, err
 }
 
+// TransportHandler is the handler the session uses to send/receive
+// data once the handshake has completed
 type TransportHandler struct {
 	localCipher  *noise.CipherState
 	remoteCipher *noise.CipherState
 	ad           []byte
 }
 
-func (s *TransportHandler) Write(w io.Writer, p []byte) (int, error) {
-	out := make([]byte, 0, 1024)
-	out = s.remoteCipher.Encrypt(out, s.ad, p)
+// Write is the implementation of Write for rw.WrapReadWriter
+func (s *TransportHandler) Write(w io.Writer, r io.Reader) (int, error) {
+	in := bytes.NewBuffer(make([]byte, 0, 128))
+	n, err := rw.CopyWithLimit(in, r, rw.ReadLimitProps{
+		FailOnExceed: true,
+		Limit:        65535,
+	})
+	if err != nil {
+		return 0, err
+	}
+
+	out := s.remoteCipher.Encrypt(nil, s.ad, in.Bytes()[:n])
 	return w.Write(out)
 }
 
-func (s *TransportHandler) Read(r io.Reader, p []byte) ([]byte, int, error) {
-	in := make([]byte, 0, 1024)
-	in, _, err := readWithAppendLimit(r, in, 65535)
+// Read is the implementation of Read for rw.WrapReadWriter
+func (s *TransportHandler) Read(w io.Writer, r io.Reader) (int, error) {
+	in := bytes.NewBuffer(make([]byte, 0, 128))
+	n, err := rw.CopyWithLimit(in, r, rw.ReadLimitProps{
+		FailOnExceed: true,
+		Limit:        65535,
+	})
 	if err != nil {
-		return nil, 0, err
+		return 0, err
 	}
 
-	p, err = s.localCipher.Decrypt(p, s.ad, in)
-	return p, len(p), err
+	p, err := s.localCipher.Decrypt(nil, s.ad, in.Bytes()[:n])
+	if err != nil {
+		return 0, err
+	}
+	return w.Write(p)
 }
 
 // Session holds information on the state of a particular session,
 // handling the protocol messages
 type Session struct {
 	canUpgrade bool
-	handler    WrapReadWriter
+	handler    rw.BiReadWriter
 
-	readFunc  func(io.Reader, []byte) ([]byte, int, error)
-	writeFunc func(io.Writer, []byte) (int, error)
+	reader rw.UniRead
+	writer rw.UniWrite
+
+	id [32]byte
 }
 
 // SessionProps are the properties to configure the behaviour of
@@ -146,6 +218,23 @@ type SessionProps struct {
 	// Initiator sets the role of this Session instance for the handshake. If
 	// true, this Session initiates the handshake
 	Initiator bool
+}
+
+func genSessionID(id []byte) error {
+	if len(id) != 32 {
+		return errors.New("session ID must have 32 bytes")
+	}
+
+	n, err := rand.Reader.Read(id)
+	if err != nil {
+		return err
+	}
+
+	if n != 32 {
+		return errors.New("failed to write 32 random bytes to session ID")
+	}
+
+	return nil
 }
 
 // NewSession creates a new noise session with the specific configuration.
@@ -162,8 +251,6 @@ func NewSession(props *SessionProps) (*Session, error) {
 		Random:        rand.Reader,
 		Pattern:       noise.HandshakeXX,
 		Initiator:     props.Initiator,
-		Prologue:      nil,
-		PresharedKey:  nil,
 		StaticKeypair: pair,
 	}
 
@@ -177,11 +264,22 @@ func NewSession(props *SessionProps) (*Session, error) {
 		handler:    &HandshakeHandler{state: state},
 	}
 
-	session.readFunc = session.readHandshake
-	session.writeFunc = session.writeHandshake
+	session.reader = rw.UniReadFunc(session.readHandshake)
+	session.writer = rw.UniWriteFunc(session.writeHandshake)
+
+	if err := genSessionID(session.id[:]); err != nil {
+		return nil, err
+	}
+
 	return session, nil
 }
 
+func (s *Session) ID() []byte {
+	return s.id[:]
+}
+
+// CanUpgrade checks if the session has finished the handshake and
+// can be upgraded to transport mode
 func (s *Session) CanUpgrade() bool {
 	return s.canUpgrade
 }
@@ -203,53 +301,58 @@ func (s *Session) Upgrade() (*Session, error) {
 	}
 
 	newSession := &Session{
+		id:         s.id,
 		canUpgrade: false,
 		handler:    newHandler,
 	}
 
-	newSession.readFunc = newSession.read
-	newSession.writeFunc = newSession.write
+	newSession.reader = rw.UniReadFunc(newSession.read)
+	newSession.writer = rw.UniWriteFunc(newSession.write)
 
 	return newSession, nil
 }
 
-func (s *Session) writeHandshake(w io.Writer, p []byte) (int, error) {
+func (s *Session) writeHandshake(w io.Writer, r io.Reader) (int, error) {
 	handler := s.handler.(*HandshakeHandler)
-	n, err := handler.Write(w, p)
-	if handler.CanUpgrade() {
-		s.canUpgrade = true
-	}
-	return n, err
-}
-
-func (s *Session) readHandshake(r io.Reader, p []byte) ([]byte, int, error) {
-	handler := s.handler.(*HandshakeHandler)
-	p, n, err := handler.Read(r, p)
+	n, err := handler.Write(w, r)
 	if err != nil {
-		return nil, 0, err
+		return 0, err
+	}
+
+	if handler.CanUpgrade() {
+		s.canUpgrade = true
+	}
+	return n, nil
+}
+
+func (s *Session) readHandshake(w io.Writer, r io.Reader) (int, error) {
+	handler := s.handler.(*HandshakeHandler)
+	n, err := handler.Read(w, r)
+	if err != nil {
+		return 0, err
 	}
 
 	if handler.CanUpgrade() {
 		s.canUpgrade = true
 	}
 
-	return p, n, err
+	return n, nil
 }
 
-func (s *Session) write(w io.Writer, p []byte) (int, error) {
-	return s.handler.Write(w, p)
+func (s *Session) write(w io.Writer, r io.Reader) (int, error) {
+	return s.handler.Write(w, r)
 }
 
-func (s *Session) read(r io.Reader, p []byte) ([]byte, int, error) {
-	return s.handler.Read(r, p)
+func (s *Session) read(w io.Writer, r io.Reader) (int, error) {
+	return s.handler.Read(w, r)
 }
 
 // Write bytes to the session
-func (s *Session) Write(w io.Writer, p []byte) (int, error) {
-	return s.writeFunc(w, p)
+func (s *Session) Write(w io.Writer, r io.Reader) (int, error) {
+	return s.writer.Write(w, r)
 }
 
 // Read bytes from the session
-func (s *Session) Read(r io.Reader, p []byte) ([]byte, int, error) {
-	return s.readFunc(r, p)
+func (s *Session) Read(w io.Writer, r io.Reader) (int, error) {
+	return s.reader.Read(w, r)
 }
