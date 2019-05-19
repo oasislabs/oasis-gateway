@@ -1,9 +1,10 @@
 package ekiden
 
 import (
+	"bytes"
 	"errors"
+	"io"
 
-	cbor "bitbucket.org/bodhisnarkva/cbor/go"
 	"github.com/ugorji/go/codec"
 )
 
@@ -14,10 +15,10 @@ type Address [32]byte
 // request used for serialization/deserialization
 type RequestPayload struct {
 	// Method is the method that the request will invoke
-	Method string `cbor:"method"`
+	Method string `codec:"method"`
 
 	// Args are the arguments for invocation
-	Args interface{} `cbor:"args"`
+	Args interface{} `codec:"args"`
 }
 
 // ResponsePayload is the representation of an ekiden
@@ -25,20 +26,15 @@ type RequestPayload struct {
 type ResponsePayload struct {
 	// Success is the field that is set in case of a successful
 	// response
-	Success interface{} `cbor:"Success"`
+	Success interface{} `codec:"Success"`
 
 	// Error is the field that is set in case of a failed
 	// response with information on the error's cause
-	Error string `cbor:"Error"`
-}
-
-type Frame struct {
-	SessionID []byte `cbor:"session"`
-	Payload   []byte `cbor:"payload"`
+	Error string `codec:"Error"`
 }
 
 type RequestMessage struct {
-	Request RequestPayload `cbor:"Request"`
+	Request RequestPayload `codec:"Request"`
 }
 
 // ResponsePayload is the representation of an ekiden
@@ -46,33 +42,47 @@ type RequestMessage struct {
 type Body struct {
 	// Success is the field that is set in case of a successful
 	// response
-	Success interface{} `cbor:"Success"`
+	Success interface{} `codec:"Success"`
 
 	// Error is the field that is set in case of a failed
 	// response with information on the error's cause
-	Error string `cbor:"Error"`
+	Error string `codec:"Error"`
 }
 
 type Response struct {
-	Body Body `cbor:"body"`
+	Body Body `codec:"body"`
 }
 
 type ResponseMessage struct {
-	Response Response `cbor:"Response"`
-}
-
-// MarshalFrame serializes an ekiden frame to the specified format
-func MarshalFrame(frame *Frame) ([]byte, error) {
-	return cbor.Dumps(frame)
+	Response Response `codec:"Response"`
 }
 
 func MarshalRequestMessage(req *RequestMessage) ([]byte, error) {
-	return cbor.Dumps(req)
+	buf := bytes.NewBuffer(make([]byte, 128))
+	if err := SerializeRequestMessage(buf, req); err != nil {
+		return nil, err
+	}
+
+	return buf.Bytes(), nil
+}
+
+func SerializeRequestMessage(w io.Writer, req *RequestMessage) error {
+	return codec.NewEncoder(w, &codec.CborHandle{}).Encode(req)
 }
 
 // MarshalRequest serializes an ekiden request to he specified format
 func MarshalRequest(req *RequestPayload) ([]byte, error) {
-	return cbor.Dumps(req)
+	buf := bytes.NewBuffer(make([]byte, 128))
+	if err := SerializeRequest(buf, req); err != nil {
+		return nil, err
+	}
+
+	return buf.Bytes(), nil
+}
+
+// SerializeRequest serializes an ekiden request to he specified format
+func SerializeRequest(w io.Writer, req *RequestPayload) error {
+	return codec.NewEncoder(w, &codec.CborHandle{}).Encode(req)
 }
 
 // UnmarshalResponseMessage unmarshals a response message from the enclave.
@@ -106,5 +116,11 @@ func UnmarshalResponseMessage(p []byte, res *ResponseMessage) error {
 
 // UnmarshalResponse deserializes an ekiden response
 func UnmarshalResponse(p []byte, res *ResponsePayload) error {
-	return cbor.Loads(p, res)
+	buf := bytes.NewBuffer(p)
+	return DeserializeResponse(buf, res)
+}
+
+// DeserializeResponse deserializes an ekiden response
+func DeserializeResponse(r io.Reader, res *ResponsePayload) error {
+	return codec.NewDecoder(r, &codec.CborHandle{}).Decode(res)
 }

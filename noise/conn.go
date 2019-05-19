@@ -15,7 +15,6 @@ type Channel interface {
 	// request, and a writer, where the response will be written
 	Request(context.Context, io.Writer, io.Reader) error
 }
-
 type ChannelFunc func(context.Context, io.Writer, io.Reader) error
 
 func (fn ChannelFunc) Request(ctx context.Context, w io.Writer, r io.Reader) error {
