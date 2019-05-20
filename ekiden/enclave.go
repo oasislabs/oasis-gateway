@@ -36,8 +36,8 @@ func DialEnclaveContext(ctx context.Context, props *EnclaveProps) (*Enclave, err
 	enclave := &Enclave{endpoint: props.Endpoint, conn: conn}
 
 	pool, err := noise.DialFixedPool(ctx, noise.FixedConnPoolProps{
-		Conns:   1,
-		Channel: noise.ChannelFunc(enclave.request),
+		Conns:  1,
+		Client: noise.ClientFunc(enclave.request),
 		SessionProps: noise.SessionProps{
 			Initiator: true,
 		},
@@ -82,32 +82,20 @@ func (e *Enclave) request(ctx context.Context, w io.Writer, r io.Reader) error {
 }
 
 func (e *Enclave) CallEnclave(ctx context.Context, req *CallEnclaveRequest) (*CallEnclaveResponse, error) {
-	p, err := MarshalRequestMessage(&RequestMessage{
-		Request: RequestPayload{
-			Method: req.Method,
-			Args:   req.Data,
-		},
+	res, err := e.pool.Request(ctx, noise.RequestPayload{
+		Method: req.Method,
+		Args:   req.Data,
 	})
 
 	if err != nil {
 		return nil, err
 	}
 
-	res := bytes.NewBuffer(make([]byte, 0, 128))
-	if err := e.pool.Request(ctx, res, bytes.NewReader(p)); err != nil {
-		return nil, err
+	if len(res.Error) > 0 {
+		return nil, errors.New(res.Error)
 	}
 
-	var payload ResponseMessage
-	if err := UnmarshalResponseMessage(res.Bytes(), &payload); err != nil {
-		return nil, err
-	}
-
-	if len(payload.Response.Body.Error) > 0 {
-		return nil, errors.New(payload.Response.Body.Error)
-	}
-
-	return &CallEnclaveResponse{Payload: payload.Response.Body.Success}, nil
+	return &CallEnclaveResponse{Payload: res.Success}, nil
 }
 
 // GetPublicKeyRequest retrieves the public key associated with a contract along with

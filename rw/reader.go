@@ -104,6 +104,7 @@ func (r LimitReader) Read(p []byte) (int, error) {
 }
 
 // CopyWithLimit copies props.Limit bytes from an io.Reader to an io.Writer.
+// The copy fails if the reader has more bytes than the expected limit
 func CopyWithLimit(w io.Writer, r io.Reader, props ReadLimitProps) (int64, error) {
 	if r == nil {
 		return 0, nil

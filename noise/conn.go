@@ -7,25 +7,32 @@ import (
 	"io"
 )
 
-// Channel represents a channel between the local endpoint
+// Client represents a channel between the local endpoint
 // and the remote endpoint that a Conn uses to abstract
 // the underlying transport
-type Channel interface {
+type Client interface {
 	// Request abstracts a request into a reader which contains the
 	// request, and a writer, where the response will be written
 	Request(context.Context, io.Writer, io.Reader) error
 }
-type ChannelFunc func(context.Context, io.Writer, io.Reader) error
 
-func (fn ChannelFunc) Request(ctx context.Context, w io.Writer, r io.Reader) error {
+// ClientFunc allows functions to implement a client
+type ClientFunc func(context.Context, io.Writer, io.Reader) error
+
+// Client implementation for ClientFunc
+func (fn ClientFunc) Request(ctx context.Context, w io.Writer, r io.Reader) error {
 	return fn(ctx, w, r)
 }
 
 // Conn represents a noise connection to a remote endpoint. It abstracts
 // handling of the session state. A connection is not concurrency safe,
-// if that's a needed property looked into using a FixedConnPool
+// if that's a needed property looked into using a FixedConnPool.
+// A Conn does not represent a real network connection, it's an abstraction
+// which uses a client to create the illusion of a Conn, it's the Client
+// implementation what defines the underlying model. A Conn allows mutliplexing
+// of multiple sessions over the same networking connection.
 type Conn struct {
-	channel Channel
+	client  Client
 	session *Session
 
 	in  *bytes.Buffer
@@ -35,7 +42,7 @@ type Conn struct {
 // Dial creates a new connection and completes the handshake with the
 // remote endpoint. If the handshake fails the Dial will also be
 // considered failed
-func DialContext(ctx context.Context, channel Channel, props *SessionProps) (*Conn, error) {
+func DialContext(ctx context.Context, client Client, props *SessionProps) (*Conn, error) {
 	if !props.Initiator {
 		return nil, errors.New("when dialing the connection has to initiate the handshake")
 	}
@@ -46,7 +53,7 @@ func DialContext(ctx context.Context, channel Channel, props *SessionProps) (*Co
 	}
 
 	conn := &Conn{
-		channel: channel,
+		client:  client,
 		session: session,
 		in:      bytes.NewBuffer(make([]byte, 0, 512)),
 		out:     bytes.NewBuffer(make([]byte, 0, 512)),
@@ -60,39 +67,78 @@ func DialContext(ctx context.Context, channel Channel, props *SessionProps) (*Co
 
 // Request issues a request in the reader and writes the
 // received response back to the writer
-func (c *Conn) Request(ctx context.Context, res io.Writer, req io.Reader) error {
-	return c.request(ctx, res, req)
+func (c *Conn) Request(ctx context.Context, req RequestPayload) (ResponsePayload, error) {
+	return c.request(ctx, req)
 }
 
-func (c *Conn) request(ctx context.Context, res io.Writer, req io.Reader) error {
+// sendFrame sends a frame to the remote endpoint. This method should
+// be used during the handshake and res, req should have content only
+// if payloads are expected from the remote and local endpoint
+func (c *Conn) sendFrame(ctx context.Context, res io.Writer, req io.Reader) error {
+	// encrypt the request contents with the ciphers in the session
 	if _, err := c.session.Write(c.in, req); err != nil {
 		return err
 	}
 
-	err := SerializeFrame(c.out, &OutgoingFrame{
-		SessionID: c.session.ID(),
-		Payload:   c.in.Bytes(),
-	})
-
-	// cleanup c.in from the request bytes now that all the content
-	// is in out
-	c.in.Reset()
-
-	if err != nil {
+	// serialize the contents of the buffer along with the session ID
+	// into a frame that can finally be sent on the network
+	if err := SerializeIntoFrame(c.out, c.in, c.session.ID()); err != nil {
 		return err
 	}
 
 	// send request whose contents are in c.out. At this point
 	// c.in should be empty
-	if err := c.channel.Request(ctx, c.in, c.out); err != nil {
+	if err := c.client.Request(ctx, c.in, c.out); err != nil {
 		return err
 	}
 
-	if _, err := c.session.Read(res, c.in); err != nil {
-		return err
+	// decrypt session contents
+	_, err := c.session.Read(res, c.in)
+	return err
+}
+
+// request sends a full request with payload to the remote endpoint. A
+// request can be send after the handshake has been completed. During
+// the handshake sendFrame should be used to send frames without
+// extra content
+func (c *Conn) request(ctx context.Context, req RequestPayload) (ResponsePayload, error) {
+	// wrap the request bytes into a RequestMessage
+	if err := SerializeRequestMessage(c.in, &OutgoingRequestMessage{
+		Request: req,
+	}); err != nil {
+		return ResponsePayload{}, err
 	}
 
-	return nil
+	// encrypt the request contents with the ciphers in the session
+	if _, err := c.session.Write(c.out, c.in); err != nil {
+		return ResponsePayload{}, err
+	}
+
+	// serialize the contents of the buffer along with the session ID
+	// into a frame that can finally be sent on the network
+	if err := SerializeIntoFrame(c.in, c.out, c.session.ID()); err != nil {
+		return ResponsePayload{}, err
+	}
+
+	// send request whose contents are in c.out. At this point
+	// c.in should be empty
+	if err := c.client.Request(ctx, c.out, c.in); err != nil {
+		return ResponsePayload{}, err
+	}
+
+	// decrypt session contents
+	_, err := c.session.Read(c.in, c.out)
+	if err != nil {
+		return ResponsePayload{}, err
+	}
+
+	var res ResponseMessage
+	// parse the response to make sure that it's a ResponseMessage
+	if err := DeserializeResponseMessage(c.in, &res); err != nil {
+		return ResponsePayload{}, err
+	}
+
+	return res.Response, nil
 }
 
 // doHandshake performs the initial handshake with the remote endpoint
@@ -102,8 +148,8 @@ func (c *Conn) doHandshake(ctx context.Context) error {
 
 	for i := 0; i < 10 && !c.session.CanUpgrade(); i++ {
 		// since we are not sending any specific payload to the remote end
-		// or expect any incoming payload we set the reader and writer as nil
-		if err := c.request(ctx, out, in); err != nil && err != ErrReadyUpgrade {
+		// or expect any incoming payload sendFrame is used here
+		if err := c.sendFrame(ctx, out, in); err != nil && err != ErrReadyUpgrade {
 			return err
 		}
 

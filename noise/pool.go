@@ -2,14 +2,17 @@ package noise
 
 import (
 	"context"
-	"io"
 )
 
+type response struct {
+	Error    error
+	Response ResponsePayload
+}
+
 type request struct {
-	Context context.Context
-	Reader  io.Reader
-	Writer  io.Writer
-	Error   chan<- error
+	Context  context.Context
+	Request  RequestPayload
+	Response chan response
 }
 
 // FixedConnPool manages a fixed pool of connections and distributes work amongst
@@ -21,7 +24,7 @@ type FixedConnPool struct {
 // FixedConnPoolProps sets up the connection pool
 type FixedConnPoolProps struct {
 	Conns        int
-	Channel      Channel
+	Client       Client
 	SessionProps SessionProps
 }
 
@@ -32,7 +35,7 @@ func DialFixedPool(ctx context.Context, props FixedConnPoolProps) (*FixedConnPoo
 
 	for i := 0; i < props.Conns; i++ {
 		// TODO(stan): this can be done in parallel
-		if err := pool.dialConnection(ctx, props.Channel, &props.SessionProps); err != nil {
+		if err := pool.dialConnection(ctx, props.Client, &props.SessionProps); err != nil {
 			cancel()
 			return nil, err
 		}
@@ -43,10 +46,11 @@ func DialFixedPool(ctx context.Context, props FixedConnPoolProps) (*FixedConnPoo
 
 // Request issues a request to one of the connections in the pool and
 // retrieves the response. The pool is concurrency safe.
-func (p *FixedConnPool) Request(ctx context.Context, res io.Writer, req io.Reader) error {
-	err := make(chan error)
-	p.c <- request{Context: ctx, Reader: req, Writer: res, Error: err}
-	return <-err
+func (p *FixedConnPool) Request(ctx context.Context, req RequestPayload) (ResponsePayload, error) {
+	res := make(chan response)
+	p.c <- request{Context: ctx, Request: req, Response: res}
+	response := <-res
+	return response.Response, response.Error
 }
 
 func startConnLoop(ctx context.Context, conn *Conn, c <-chan request) {
@@ -59,13 +63,14 @@ func startConnLoop(ctx context.Context, conn *Conn, c <-chan request) {
 				return
 			}
 
-			req.Error <- conn.Request(req.Context, req.Writer, req.Reader)
+			res, err := conn.Request(req.Context, req.Request)
+			req.Response <- response{Error: err, Response: res}
 		}
 	}
 }
 
-func (p *FixedConnPool) dialConnection(ctx context.Context, channel Channel, props *SessionProps) error {
-	conn, err := DialContext(ctx, channel, props)
+func (p *FixedConnPool) dialConnection(ctx context.Context, client Client, props *SessionProps) error {
+	conn, err := DialContext(ctx, client, props)
 	if err != nil {
 		// TODO(stan): if a connection fails to establish we should shutdown
 		// all the successful connection gracefully
