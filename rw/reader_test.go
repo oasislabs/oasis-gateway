@@ -8,7 +8,7 @@ import (
 )
 
 func TestLimitReaderRead(t *testing.T) {
-	buf := bytes.NewBuffer([]byte("some data"))
+	buf := bytes.NewBufferString("some data")
 	p := make([]byte, 64)
 
 	n, err := NewLimitReader(buf, ReadLimitProps{FailOnExceed: true, Limit: 16}).Read(p)
@@ -20,7 +20,7 @@ func TestLimitReaderRead(t *testing.T) {
 }
 
 func TestLimitReaderReadBufTooSmall(t *testing.T) {
-	buf := bytes.NewBuffer([]byte("some data"))
+	buf := bytes.NewBufferString("some data")
 	p := make([]byte, 8)
 
 	r := NewLimitReader(buf, ReadLimitProps{FailOnExceed: false, Limit: 16})
@@ -37,7 +37,7 @@ func TestLimitReaderReadBufTooSmall(t *testing.T) {
 }
 
 func TestLimitReaderReadWithLimitErrExceed(t *testing.T) {
-	buf := bytes.NewBuffer([]byte("some data"))
+	buf := bytes.NewBufferString("some data")
 	p := make([]byte, 64)
 
 	n, err := NewLimitReader(buf, ReadLimitProps{FailOnExceed: true, Limit: 8}).Read(p)
@@ -48,7 +48,7 @@ func TestLimitReaderReadWithLimitErrExceed(t *testing.T) {
 }
 
 func TestLimitReaderReadWithLimit(t *testing.T) {
-	buf := bytes.NewBuffer([]byte("some data"))
+	buf := bytes.NewBufferString("some data")
 	p := make([]byte, 64)
 
 	n, err := NewLimitReader(buf, ReadLimitProps{FailOnExceed: false, Limit: 8}).Read(p)
@@ -60,7 +60,7 @@ func TestLimitReaderReadWithLimit(t *testing.T) {
 }
 
 func TestCopyWithLimit(t *testing.T) {
-	r := bytes.NewBuffer([]byte("some data"))
+	r := bytes.NewBufferString("some data")
 	w := bytes.NewBuffer([]byte{})
 
 	n, err := CopyWithLimit(w, r, ReadLimitProps{
@@ -72,11 +72,11 @@ func TestCopyWithLimit(t *testing.T) {
 	assert.Equal(t, int64(9), n)
 	assert.Equal(t, 0, r.Len())
 	assert.Equal(t, 9, w.Len())
-	assert.Equal(t, "some data", string(w.Bytes()))
+	assert.Equal(t, "some data", w.String())
 }
 
 func TestCopyWithLimitErrExceed(t *testing.T) {
-	r := bytes.NewBuffer([]byte("some data"))
+	r := bytes.NewBufferString("some data")
 	w := bytes.NewBuffer([]byte{})
 
 	n, err := CopyWithLimit(w, r, ReadLimitProps{

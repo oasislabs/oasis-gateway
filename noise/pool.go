@@ -31,12 +31,12 @@ type FixedConnPoolProps struct {
 // DialFixedPool creates a new pool of connections
 func DialFixedPool(ctx context.Context, props FixedConnPoolProps) (*FixedConnPool, error) {
 	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
 	pool := &FixedConnPool{c: make(chan request, 64)}
 
 	for i := 0; i < props.Conns; i++ {
 		// TODO(stan): this can be done in parallel
 		if err := pool.dialConnection(ctx, props.Client, &props.SessionProps); err != nil {
-			cancel()
 			return nil, err
 		}
 	}
