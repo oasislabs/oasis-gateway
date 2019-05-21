@@ -15,24 +15,24 @@ type request struct {
 	Response chan response
 }
 
-// FixedConnPool manages a fixed pool of connections and distributes work amongst
+// Client manages a fixed pool of connections and distributes work amongst
 // them so that the caller does not need to worry about concurrency
-type FixedConnPool struct {
+type Client struct {
 	c chan request
 }
 
-// FixedConnPoolProps sets up the connection pool
-type FixedConnPoolProps struct {
+// ClientProps sets up the connection pool
+type ClientProps struct {
 	Conns        int
-	Client       Client
+	Client       Requester
 	SessionProps SessionProps
 }
 
-// DialFixedPool creates a new pool of connections
-func DialFixedPool(ctx context.Context, props FixedConnPoolProps) (*FixedConnPool, error) {
+// DialContext creates a new pool of connections
+func DialContext(ctx context.Context, props ClientProps) (*Client, error) {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
-	pool := &FixedConnPool{c: make(chan request, 64)}
+	pool := &Client{c: make(chan request, 64)}
 
 	for i := 0; i < props.Conns; i++ {
 		// TODO(stan): this can be done in parallel
@@ -46,7 +46,7 @@ func DialFixedPool(ctx context.Context, props FixedConnPoolProps) (*FixedConnPoo
 
 // Request issues a request to one of the connections in the pool and
 // retrieves the response. The pool is concurrency safe.
-func (p *FixedConnPool) Request(ctx context.Context, req RequestPayload) (ResponsePayload, error) {
+func (p *Client) Request(ctx context.Context, req RequestPayload) (ResponsePayload, error) {
 	res := make(chan response)
 	p.c <- request{Context: ctx, Request: req, Response: res}
 	response := <-res
@@ -69,8 +69,8 @@ func startConnLoop(ctx context.Context, conn *Conn, c <-chan request) {
 	}
 }
 
-func (p *FixedConnPool) dialConnection(ctx context.Context, client Client, props *SessionProps) error {
-	conn, err := DialContext(ctx, client, props)
+func (p *Client) dialConnection(ctx context.Context, client Requester, props *SessionProps) error {
+	conn, err := DialConnContext(ctx, client, props)
 	if err != nil {
 		// TODO(stan): if a connection fails to establish we should shutdown
 		// all the successful connection gracefully

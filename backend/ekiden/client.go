@@ -118,6 +118,15 @@ func (c *Client) DeployService(
 	}, nil
 }
 
+func (c *Client) SubscribeRequest(
+	ctx context.Context,
+	id uint64,
+	req core.SubscribeRequest,
+	ch chan<- core.SubscriptionEvent,
+) errors.Err {
+	return errors.New(errors.ErrAPINotImplemented, nil)
+}
+
 func (c *Client) generateTx(tx *types.Transaction) ([]byte, errors.Err) {
 	tx, err := types.SignTx(tx, c.signer, c.wallet.PrivateKey)
 	if err != nil {

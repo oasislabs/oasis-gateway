@@ -224,6 +224,24 @@ var (
 		desc:     "Input cannot be empty.",
 	}
 
+	ErrUnknownSubscriptionType = ErrorCode{
+		category: InputError,
+		code:     2008,
+		desc:     "Unknown subscription type.",
+	}
+
+	ErrParseQueryParams = ErrorCode{
+		category: InputError,
+		code:     2009,
+		desc:     "Failed to parse query parameters.",
+	}
+
+	ErrSubscribeFilterAddress = ErrorCode{
+		category: InputError,
+		code:     2010,
+		desc:     "Only address is available at this time for filtering.",
+	}
+
 	ErrQueueLimitReached = ErrorCode{
 		category: ResourceLimitReached,
 		code:     3001,

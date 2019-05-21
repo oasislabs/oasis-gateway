@@ -2,8 +2,10 @@ package core
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/oasislabs/developer-gateway/errors"
+	"github.com/oasislabs/developer-gateway/log"
 	mqueue "github.com/oasislabs/developer-gateway/mqueue/core"
 	"github.com/oasislabs/developer-gateway/rpc"
 )
@@ -23,6 +25,7 @@ type Client interface {
 	GetPublicKeyService(context.Context, GetPublicKeyServiceRequest) (*GetPublicKeyServiceResponse, errors.Err)
 	ExecuteService(context.Context, uint64, ExecuteServiceRequest) (*ExecuteServiceResponse, errors.Err)
 	DeployService(context.Context, uint64, DeployServiceRequest) (*DeployServiceResponse, errors.Err)
+	SubscribeRequest(context.Context, uint64, SubscribeRequest, chan<- SubscriptionEvent) errors.Err
 }
 
 // RequestManager handles the client RPC requests. Most requests
@@ -32,11 +35,13 @@ type Client interface {
 type RequestManager struct {
 	mqueue mqueue.MQueue
 	client Client
+	logger log.Logger
 }
 
 type RequestManagerProperties struct {
 	MQueue mqueue.MQueue
 	Client Client
+	Logger log.Logger
 }
 
 // NewRequestManager creates a new instance of a request manager
@@ -49,9 +54,14 @@ func NewRequestManager(properties RequestManagerProperties) *RequestManager {
 		panic("Client must be set")
 	}
 
+	if properties.Logger == nil {
+		panic("Logger must be set")
+	}
+
 	return &RequestManager{
 		mqueue: properties.MQueue,
 		client: properties.Client,
+		logger: properties.Logger,
 	}
 }
 
@@ -98,6 +108,35 @@ func (m *RequestManager) DeployServiceAsync(ctx context.Context, req DeployServi
 	go m.doRequest(ctx, req.Key, id, func() (Event, errors.Err) { return m.client.DeployService(ctx, id, req) })
 
 	return id, nil
+}
+
+// Subscribe creates a new subscription using the underlying backend and
+// allocates the necessary resources from the store
+func (m *RequestManager) Subscribe(ctx context.Context, req SubscribeRequest) (uint64, errors.Err) {
+	// use a queue per queue to manage the number of queues created. This
+	// also helps us with managing the resources a specific client is using
+	key := req.Key + "-queue"
+	id, err := m.mqueue.Next(key)
+	if err != nil {
+		return 0, err
+	}
+
+	if err := m.subscribe(ctx, id, req); err != nil {
+		return 0, err
+	}
+
+	return id, nil
+}
+
+func (m *RequestManager) subscribe(ctx context.Context, id uint64, req SubscribeRequest) errors.Err {
+	key := fmt.Sprintf("%s-%d", req.Key, id)
+	sub := newSubscription(m.logger, m.mqueue, key)
+	if err := m.client.SubscribeRequest(ctx, id, req, sub.C); err != nil {
+		return err
+	}
+
+	go sub.Start()
+	return nil
 }
 
 func (m *RequestManager) doRequest(ctx context.Context, key string, id uint64, fn func() (Event, errors.Err)) {

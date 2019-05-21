@@ -21,7 +21,7 @@ type EnclaveProps struct {
 
 type Enclave struct {
 	conn     *grpc.ClientConn
-	pool     *noise.FixedConnPool
+	pool     *noise.Client
 	endpoint string
 }
 
@@ -35,7 +35,7 @@ func DialEnclaveContext(ctx context.Context, props *EnclaveProps) (*Enclave, err
 
 	enclave := &Enclave{endpoint: props.Endpoint, conn: conn}
 
-	pool, err := noise.DialFixedPool(ctx, noise.FixedConnPoolProps{
+	pool, err := noise.DialContext(ctx, noise.ClientProps{
 		Conns:  1,
 		Client: noise.ClientFunc(enclave.request),
 		SessionProps: noise.SessionProps{

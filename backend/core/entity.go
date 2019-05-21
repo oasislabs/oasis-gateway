@@ -112,3 +112,18 @@ func (e DeployServiceResponse) EventID() uint64 {
 func (e ErrorEvent) EventID() uint64 {
 	return e.ID
 }
+
+// SubscribeRequest is a request issued by the client to subscribe to a
+// specific topic and receive events from it until the subscription is
+// closed
+type SubscribeRequest struct {
+	// Topic is the subscription topic
+	Topic string
+
+	// Address will be used to filter events only issues by or to
+	// the address
+	Address string
+
+	// Key is the identifier of the request issuer
+	Key string
+}

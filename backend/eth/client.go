@@ -56,6 +56,12 @@ type executeTransactionResponse struct {
 	Output  []byte
 }
 
+type subscribeRequest struct {
+	Context context.Context
+	ID      uint64
+	Request backend.SubscribeRequest
+}
+
 type executeServiceRequest struct {
 	Attempts uint
 	Out      chan ethResponse
@@ -314,6 +320,16 @@ func (c *EthClient) ExecuteService(
 
 	res := ethRes.Response.(*backend.ExecuteServiceResponse)
 	return res, nil
+}
+
+func (c *EthClient) SubscribeRequest(
+	ctx context.Context,
+	id uint64,
+	req backend.SubscribeRequest,
+	ch chan<- backend.SubscriptionEvent,
+) errors.Err {
+
+	return errors.New(errors.ErrAPINotImplemented, nil)
 }
 
 func (c *EthClient) executeTransaction(
