@@ -2,6 +2,7 @@ package event
 
 import (
 	"context"
+	stderr "errors"
 	"net/url"
 
 	auth "github.com/oasislabs/developer-gateway/auth/core"
@@ -34,7 +35,7 @@ func (h EventHandler) Subscribe(ctx context.Context, v interface{}) (interface{}
 		h.logger.Debug(ctx, "failed to handle request", log.MapFields{
 			"call_type": "SubscribeFailure",
 		}, err)
-		return 0, err
+		return nil, err
 	}
 
 	if len(req.Events) > 1 {
@@ -42,7 +43,7 @@ func (h EventHandler) Subscribe(ctx context.Context, v interface{}) (interface{}
 		h.logger.Debug(ctx, "failed to handle request", log.MapFields{
 			"call_type": "SubscribeFailure",
 		}, err)
-		return 0, err
+		return nil, err
 	}
 
 	query, err := url.ParseQuery(req.Filter)
@@ -51,22 +52,30 @@ func (h EventHandler) Subscribe(ctx context.Context, v interface{}) (interface{}
 		h.logger.Debug(ctx, "failed to handle request", log.MapFields{
 			"call_type": "SubscribeFailure",
 		}, err)
-		return 0, err
+		return nil, err
 	}
 
 	address := query.Get("address")
 	if len(address) == 0 {
 		err := errors.New(errors.ErrParseQueryParams, err)
-		h.logger.Debug(ctx, "failed to handle request", log.MapFields{
+		h.logger.Debug(ctx, "request does not contain address", log.MapFields{
 			"call_type": "SubscribeFailure",
 		}, err)
-		return 0, err
+		return nil, err
 	}
 
 	id, err := h.request.Subscribe(ctx, backend.SubscribeRequest{
 		Topic:   req.Events[0],
 		Address: address,
+		Key:     authID,
 	})
+	if err != nil {
+		err := errors.New(errors.ErrParseQueryParams, err)
+		h.logger.Debug(ctx, "failed to subscribe", log.MapFields{
+			"call_type": "SubscribeFailure",
+		}, err)
+		return nil, err
+	}
 
 	return SubscribeResponse{
 		ID: id,

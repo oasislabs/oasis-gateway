@@ -82,7 +82,7 @@ func (e *Enclave) request(ctx context.Context, w io.Writer, r io.Reader) error {
 }
 
 func (e *Enclave) CallEnclave(ctx context.Context, req *CallEnclaveRequest) (*CallEnclaveResponse, error) {
-	res, err := e.pool.Request(ctx, noise.RequestPayload{
+	res, err := e.client.Request(ctx, noise.RequestPayload{
 		Method: req.Method,
 		Args:   req.Data,
 	})

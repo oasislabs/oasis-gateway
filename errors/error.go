@@ -255,6 +255,12 @@ var (
 		desc:     "Attempt to discard elements from a queue that does not exist.",
 	}
 
+	ErrSubscriptionAlreadyExists = ErrorCode{
+		category: StateConflict,
+		code:     4002,
+		desc:     "Attempt to create a subscription that already exists.",
+	}
+
 	ErrAPINotImplemented = ErrorCode{
 		category: NotImplemented,
 		code:     5001,

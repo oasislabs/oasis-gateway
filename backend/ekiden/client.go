@@ -122,7 +122,7 @@ func (c *Client) SubscribeRequest(
 	ctx context.Context,
 	id uint64,
 	req core.SubscribeRequest,
-	ch chan<- core.SubscriptionEvent,
+	ch chan<- interface{},
 ) errors.Err {
 	return errors.New(errors.ErrAPINotImplemented, nil)
 }

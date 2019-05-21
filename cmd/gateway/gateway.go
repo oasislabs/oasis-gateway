@@ -88,7 +88,10 @@ func createRouter(services Services) *rpc.HttpRouter {
 		Logger:  logger,
 		Request: services.Request,
 	}, binder)
-	event.BindHandler(binder)
+	event.BindHandler(event.Services{
+		Logger:  logger,
+		Request: services.Request,
+	}, binder)
 
 	return binder.Build()
 }

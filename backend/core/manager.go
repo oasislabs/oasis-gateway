@@ -25,7 +25,8 @@ type Client interface {
 	GetPublicKeyService(context.Context, GetPublicKeyServiceRequest) (*GetPublicKeyServiceResponse, errors.Err)
 	ExecuteService(context.Context, uint64, ExecuteServiceRequest) (*ExecuteServiceResponse, errors.Err)
 	DeployService(context.Context, uint64, DeployServiceRequest) (*DeployServiceResponse, errors.Err)
-	SubscribeRequest(context.Context, uint64, SubscribeRequest, chan<- SubscriptionEvent) errors.Err
+	SubscribeRequest(context.Context, CreateSubscriptionRequest, chan<- interface{}) errors.Err
+	UnsubscribeRequest(context.Context, DestroySubscriptionRequest) errors.Err
 }
 
 // RequestManager handles the client RPC requests. Most requests
@@ -129,9 +130,15 @@ func (m *RequestManager) Subscribe(ctx context.Context, req SubscribeRequest) (u
 }
 
 func (m *RequestManager) subscribe(ctx context.Context, id uint64, req SubscribeRequest) errors.Err {
-	key := fmt.Sprintf("%s-%d", req.Key, id)
-	sub := newSubscription(m.logger, m.mqueue, key)
-	if err := m.client.SubscribeRequest(ctx, id, req, sub.C); err != nil {
+	subID := fmt.Sprintf("%s-%d", req.Key, id)
+	// TODO(stan): a request manager should have a context from which the subscription contexts
+	// should derive
+	sub := newSubscription(context.Background(), m.logger, m.mqueue, subID)
+	if err := m.client.SubscribeRequest(ctx, CreateSubscriptionRequest{
+		Topic:   req.Topic,
+		Address: req.Address,
+		SubID:   subID,
+	}, sub.C); err != nil {
 		return err
 	}
 

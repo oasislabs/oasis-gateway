@@ -5,9 +5,11 @@ import (
 	"math/big"
 
 	ethereum "github.com/ethereum/go-ethereum"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
 	rpc "github.com/ethereum/go-ethereum/rpc"
+	"github.com/oasislabs/developer-gateway/conc"
 )
 
 // EthSubscription abstracts an ethereum.Subscription to be
@@ -104,11 +106,111 @@ type Subscriber interface {
 }
 
 type Client interface {
+	EstimateGas(context.Context, ethereum.CallMsg) (uint64, error)
+	GetPublicKey(context.Context, common.Address) (PublicKey, error)
+	PendingNonceAt(context.Context, common.Address) (uint64, error)
+	SendTransaction(context.Context, *types.Transaction) error
 	SubscribeFilterLogs(context.Context, ethereum.FilterQuery, chan<- types.Log) (ethereum.Subscription, error)
+	TransactionReceipt(ctx context.Context, txHash common.Hash) (*types.Receipt, error)
+}
+
+type Pool interface {
+	Conn(context.Context) (*Conn, error)
+	Report(context.Context, *Conn) error
+}
+
+type PooledClientProps struct {
+	Pool        Pool
+	RetryConfig conc.RetryConfig
+}
+
+func NewPooledClient(props PooledClientProps) *PooledClient {
+	return &PooledClient{
+		pool:        props.Pool,
+		retryConfig: props.RetryConfig,
+	}
 }
 
 type PooledClient struct {
-	pool *FixedPoolDialer
+	pool        Pool
+	retryConfig conc.RetryConfig
+}
+
+func (c *PooledClient) request(ctx context.Context, fn func(conn *Conn) (interface{}, error)) (interface{}, error) {
+	return conc.RetryWithConfig(ctx, conc.SupplierFunc(func() (interface{}, error) {
+		conn, err := c.pool.Conn(ctx)
+		if err != nil {
+			return nil, err
+		}
+
+		v, err := fn(conn)
+		if err != nil {
+			// TODO(stan): find out what's the right condition for returning
+			// a client to the pool in case of failure
+			return nil, err
+		}
+
+		return v, nil
+	}), c.retryConfig)
+}
+
+func (c *PooledClient) EstimateGas(ctx context.Context, msg ethereum.CallMsg) (uint64, error) {
+	v, err := c.request(ctx, func(conn *Conn) (interface{}, error) {
+		return conn.eclient.EstimateGas(ctx, msg)
+	})
+
+	if err != nil {
+		return 0, err
+	}
+
+	return v.(uint64), nil
+}
+
+func (c *PooledClient) GetPublicKey(ctx context.Context, address common.Address) (PublicKey, error) {
+	v, err := c.request(ctx, func(conn *Conn) (interface{}, error) {
+		var pk PublicKey
+		err := conn.rclient.CallContext(ctx, &pk, "oasis_getPublicKey", address)
+		return pk, err
+	})
+
+	if err != nil {
+		return PublicKey{}, err
+	}
+
+	return v.(PublicKey), nil
+}
+
+func (c *PooledClient) PendingNonceAt(ctx context.Context, account common.Address) (uint64, error) {
+	v, err := c.request(ctx, func(conn *Conn) (interface{}, error) {
+		return conn.eclient.PendingNonceAt(ctx, account)
+	})
+
+	if err != nil {
+		return 0, err
+	}
+
+	return v.(uint64), nil
+}
+
+func (c *PooledClient) SendTransaction(ctx context.Context, tx *types.Transaction) error {
+	_, err := c.request(ctx, func(conn *Conn) (interface{}, error) {
+		err := conn.eclient.SendTransaction(ctx, tx)
+		return nil, err
+	})
+
+	return err
+}
+
+func (c *PooledClient) TransactionReceipt(ctx context.Context, txHash common.Hash) (*types.Receipt, error) {
+	v, err := c.request(ctx, func(conn *Conn) (interface{}, error) {
+		return conn.eclient.TransactionReceipt(ctx, txHash)
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	return v.(*types.Receipt), nil
 }
 
 func (c *PooledClient) SubscribeFilterLogs(
@@ -121,7 +223,14 @@ func (c *PooledClient) SubscribeFilterLogs(
 		return nil, err
 	}
 
-	return conn.eclient.SubscribeFilterLogs(ctx, q, ch)
+	v, err := conc.RetryWithConfig(ctx, conc.SupplierFunc(func() (interface{}, error) {
+		return conn.eclient.SubscribeFilterLogs(ctx, q, ch)
+	}), c.retryConfig)
+	if err != nil {
+		return nil, err
+	}
+
+	return v.(ethereum.Subscription), nil
 }
 
 type Conn struct {
@@ -148,28 +257,33 @@ type returnResponse struct {
 	Error error
 }
 
-// FixedPoolDialer implements the Dialer interface and it provides
+type UniDialerProps struct {
+	URL         string
+	RetryConfig conc.RetryConfig
+}
+
+// UniDialer implements the Dialer interface and it provides
 // a connection to a specific URL. If a different URL is attempted
 // the FixedDialer will return an error
-type FixedPoolDialer struct {
+type UniDialer struct {
 	ctx  context.Context
 	conn *Conn
 	url  string
 	req  chan interface{}
 }
 
-// NewFixedPoolDialer a connection open to an endpoint. If the
+// NewUniDialer keeps a connection open to an endpoint. If the
 // connection needs to be recreated a client can signal the pool
 // to recreate the connection. Only websocket endpoints are
 // supported because only websocket endpoints support
 // the subscribe API
-func NewFixedPoolDialer(ctx context.Context, url string) *FixedPoolDialer {
-	p := FixedPoolDialer{ctx: ctx, conn: nil, url: url, req: make(chan interface{})}
+func NewUniDialer(ctx context.Context, url string) *UniDialer {
+	p := UniDialer{ctx: ctx, conn: nil, url: url, req: make(chan interface{})}
 	go p.startLoop()
 	return &p
 }
 
-func (p *FixedPoolDialer) startLoop() {
+func (p *UniDialer) startLoop() {
 	defer func() {
 		p.conn.rclient.Close()
 	}()
@@ -184,7 +298,7 @@ func (p *FixedPoolDialer) startLoop() {
 	}
 }
 
-func (p *FixedPoolDialer) request(req interface{}) {
+func (p *UniDialer) request(req interface{}) {
 	switch req := req.(type) {
 	case dialRequest:
 		p.dial(req)
@@ -195,7 +309,7 @@ func (p *FixedPoolDialer) request(req interface{}) {
 	}
 }
 
-func (p *FixedPoolDialer) returnClient(req returnRequest) {
+func (p *UniDialer) returnClient(req returnRequest) {
 	if p.conn == req.Conn {
 		p.conn = nil
 	}
@@ -203,7 +317,7 @@ func (p *FixedPoolDialer) returnClient(req returnRequest) {
 	req.C <- returnResponse{Error: nil}
 }
 
-func (p *FixedPoolDialer) dial(req dialRequest) {
+func (p *UniDialer) dial(req dialRequest) {
 	if p.conn != nil {
 		req.C <- dialResponse{Conn: p.conn, Error: nil}
 		return
@@ -223,10 +337,10 @@ func (p *FixedPoolDialer) dial(req dialRequest) {
 	req.C <- dialResponse{Conn: p.conn, Error: nil}
 }
 
-// ReturnFailed returns a failed Client connection. In this
+// Report returns a failed Client connection. In this
 // case, the pool we create a new Client connection on the
 // next DialContext
-func (p *FixedPoolDialer) ReturnFailed(ctx context.Context, conn *Conn) error {
+func (p *UniDialer) Report(ctx context.Context, conn *Conn) error {
 	c := make(chan returnResponse)
 	p.req <- returnRequest{C: c, Conn: conn}
 	res := <-c
@@ -234,7 +348,7 @@ func (p *FixedPoolDialer) ReturnFailed(ctx context.Context, conn *Conn) error {
 }
 
 // DialContext implementation of Dialer for FixedDialer
-func (p *FixedPoolDialer) Conn(ctx context.Context) (*Conn, error) {
+func (p *UniDialer) Conn(ctx context.Context) (*Conn, error) {
 	c := make(chan dialResponse)
 	p.req <- dialRequest{Context: ctx, C: c}
 	res := <-c

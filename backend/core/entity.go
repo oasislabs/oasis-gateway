@@ -127,3 +127,33 @@ type SubscribeRequest struct {
 	// Key is the identifier of the request issuer
 	Key string
 }
+
+// UnsubscribeRequest is a request issued by the client to subscribe to a
+// specific topic and receive events from it until the subscription is
+// closed
+type UnsubscribeRequest struct {
+	// ID Is the unique identifier for the ID for the issuer
+	ID uint64
+
+	// Key is the identifier of the request issuer
+	Key string
+}
+
+type CreateSubscriptionRequest struct {
+	// Topic is the subscription topic
+	Topic string
+
+	// Address will be used to filter events only issues by or to
+	// the address
+	Address string
+
+	// SubID is the unique subscription's identifier
+	SubID string
+}
+
+// UnsubscribeRequest is a request issued by the client to destroy
+// an existing subscription
+type DestroySubscriptionRequest struct {
+	// SubID is the unique subscription's identifier
+	SubID string
+}

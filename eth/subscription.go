@@ -5,7 +5,6 @@ import (
 	"errors"
 
 	ethereum "github.com/ethereum/go-ethereum"
-	"github.com/oasislabs/developer-gateway/conc"
 	"github.com/oasislabs/developer-gateway/log"
 )
 
@@ -29,10 +28,6 @@ type SubscriptionProps struct {
 
 	// Logger used by the subscription
 	Logger log.Logger
-
-	// RetryConfig configuration used by the subscription when creating
-	// connections and managing subscription requests
-	RetryConfig *conc.RetryConfig
 
 	// Client to make requests
 	Client Client
@@ -59,18 +54,17 @@ type SubscriptionProps struct {
 // Subscription abstracts an ethereum subscription into a type
 // that implements automatic dialing and retries
 type Subscription struct {
-	ctx         context.Context
-	cancel      context.CancelFunc
-	logger      log.Logger
-	retryConfig conc.RetryConfig
-	client      Client
-	sub         ethereum.Subscription
-	subscriber  Subscriber
-	url         string
-	key         string
-	done        chan<- SubscriptionEndEvent
-	c           chan<- interface{}
-	consumer    chan interface{}
+	ctx        context.Context
+	cancel     context.CancelFunc
+	logger     log.Logger
+	client     Client
+	sub        ethereum.Subscription
+	subscriber Subscriber
+	url        string
+	key        string
+	done       chan<- SubscriptionEndEvent
+	c          chan<- interface{}
+	consumer   chan interface{}
 }
 
 // NewSubscription creates a new subscription with the
@@ -93,23 +87,18 @@ func NewSubscription(props SubscriptionProps) *Subscription {
 		props.Context = context.Background()
 	}
 
-	if props.RetryConfig == nil {
-		props.RetryConfig = &conc.RandomConfig
-	}
-
 	ctx, cancel := context.WithCancel(props.Context)
 	s := &Subscription{
-		ctx:         ctx,
-		cancel:      cancel,
-		logger:      props.Logger.ForClass("eth", "Subscription"),
-		retryConfig: *props.RetryConfig,
-		client:      props.Client,
-		url:         props.URL,
-		subscriber:  props.Subscriber,
-		key:         props.Key,
-		done:        props.Done,
-		c:           props.C,
-		consumer:    make(chan interface{}, 64),
+		ctx:        ctx,
+		cancel:     cancel,
+		logger:     props.Logger.ForClass("eth", "Subscription"),
+		client:     props.Client,
+		url:        props.URL,
+		subscriber: props.Subscriber,
+		key:        props.Key,
+		done:       props.Done,
+		c:          props.C,
+		consumer:   make(chan interface{}, 64),
 	}
 
 	go s.startLoop()
@@ -193,42 +182,30 @@ type SubscriptionManagerProps struct {
 	// Logger used by the manager and its subscriptions
 	Logger log.Logger
 
-	// RetryConfig configuration used by the subscription when creating
-	// connections and managing subscription requests
-	RetryConfig *conc.RetryConfig
-
 	// Client to make requests
 	Client Client
-
-	// URL to dial to for the subscription. Must be a ws URL since
-	// other provides may not support creating subscriptions
-	URL string
 }
 
 // SubscriptionManager manages the lifetime
 // of a group of subscriptions
 type SubscriptionManager struct {
-	ctx         context.Context
-	logger      log.Logger
-	done        chan SubscriptionEndEvent
-	req         chan interface{}
-	subs        map[string]*Subscription
-	url         string
-	client      Client
-	retryConfig *conc.RetryConfig
+	ctx    context.Context
+	logger log.Logger
+	done   chan SubscriptionEndEvent
+	req    chan interface{}
+	subs   map[string]*Subscription
+	client Client
 }
 
 // NewSubscriptionManager creates a new subscription manager
 func NewSubscriptionManager(props SubscriptionManagerProps) *SubscriptionManager {
 	m := SubscriptionManager{
-		ctx:         props.Context,
-		logger:      props.Logger.ForClass("eth", "SubscriptionManager"),
-		done:        make(chan SubscriptionEndEvent),
-		req:         make(chan interface{}),
-		subs:        make(map[string]*Subscription),
-		url:         props.URL,
-		client:      props.Client,
-		retryConfig: props.RetryConfig,
+		ctx:    props.Context,
+		logger: props.Logger.ForClass("eth", "SubscriptionManager"),
+		done:   make(chan SubscriptionEndEvent),
+		req:    make(chan interface{}),
+		subs:   make(map[string]*Subscription),
+		client: props.Client,
 	}
 
 	go m.startLoop()
@@ -276,15 +253,13 @@ func (m *SubscriptionManager) create(req createSubscriptionRequest) {
 	}
 
 	m.subs[req.Key] = NewSubscription(SubscriptionProps{
-		Context:     m.ctx,
-		Logger:      m.logger,
-		RetryConfig: m.retryConfig,
-		Client:      m.client,
-		URL:         m.url,
-		Key:         req.Key,
-		Subscriber:  req.Subscriber,
-		C:           req.C,
-		Done:        m.done,
+		Context:    m.ctx,
+		Logger:     m.logger,
+		Client:     m.client,
+		Key:        req.Key,
+		Subscriber: req.Subscriber,
+		C:          req.C,
+		Done:       m.done,
 	})
 
 	req.Err <- nil

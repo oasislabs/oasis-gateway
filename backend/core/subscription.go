@@ -7,22 +7,19 @@ import (
 	mqueue "github.com/oasislabs/developer-gateway/mqueue/core"
 )
 
-type SubscriptionEvent struct {
-	Context context.Context
-	Value   interface{}
-}
-
 type subscription struct {
+	ctx    context.Context
 	logger log.Logger
-	C      chan SubscriptionEvent
+	C      chan interface{}
 	key    string
 	mqueue mqueue.MQueue
 }
 
-func newSubscription(logger log.Logger, mqueue mqueue.MQueue, key string) *subscription {
+func newSubscription(ctx context.Context, logger log.Logger, mqueue mqueue.MQueue, key string) *subscription {
 	return &subscription{
+		ctx:    ctx,
 		logger: logger.ForClass("backend", "subscription"),
-		C:      make(chan SubscriptionEvent),
+		C:      make(chan interface{}),
 		key:    key,
 		mqueue: mqueue,
 	}
@@ -43,7 +40,7 @@ func (s *subscription) Start() {
 
 			id, err := s.mqueue.Next(s.key)
 			if err != nil {
-				s.logger.Warn(ev.Context, "failed to find next resource for event", log.MapFields{
+				s.logger.Warn(s.ctx, "failed to find next resource for event", log.MapFields{
 					"call_type": "InsertSubscriptionEventFailure",
 					"key":       s.key,
 					"err":       err.Error(),
@@ -55,7 +52,7 @@ func (s *subscription) Start() {
 				Value:  ev,
 				Offset: id,
 			}); err != nil {
-				s.logger.Warn(ev.Context, "failed to insert event to resource", log.MapFields{
+				s.logger.Warn(s.ctx, "failed to insert event to resource", log.MapFields{
 					"call_type": "InsertSubscriptionEventFailure",
 					"key":       s.key,
 					"err":       err.Error(),
