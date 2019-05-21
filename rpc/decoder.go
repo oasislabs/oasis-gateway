@@ -26,6 +26,9 @@ func (e JsonDecoder) Decode(reader io.Reader, v interface{}) error {
 // DecodeWithLimit decodes the payload in the reader making sure not
 // to exceed the limit provided
 func (e JsonDecoder) DecodeWithLimit(reader io.Reader, v interface{}, props rw.ReadLimitProps) error {
+	// the JSON decoder needs to receive an io.EOF from the reader to make sure
+	// it finished reading from source
+	props.ErrOnEOF = true
 	limitReader := rw.NewLimitReader(reader, props)
 	return e.Decode(&limitReader, v)
 }

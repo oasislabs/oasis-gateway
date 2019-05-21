@@ -65,6 +65,7 @@ func createRequestManager(ctx context.Context, config Config) *backend.RequestMa
 	return backend.NewRequestManager(backend.RequestManagerProperties{
 		MQueue: mem.NewServer(ctx, logger),
 		Client: createEthClient(config),
+		Logger: logger,
 	})
 }
 
@@ -88,7 +89,10 @@ func createRouter(services Services) *rpc.HttpRouter {
 		Logger:  logger,
 		Request: services.Request,
 	}, binder)
-	event.BindHandler(binder)
+	event.BindHandler(event.Services{
+		Logger:  logger,
+		Request: services.Request,
+	}, binder)
 
 	return binder.Build()
 }

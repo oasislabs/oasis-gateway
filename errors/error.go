@@ -224,6 +224,30 @@ var (
 		desc:     "Input cannot be empty.",
 	}
 
+	ErrUnknownSubscriptionType = ErrorCode{
+		category: InputError,
+		code:     2008,
+		desc:     "Unknown subscription type.",
+	}
+
+	ErrParseQueryParams = ErrorCode{
+		category: InputError,
+		code:     2009,
+		desc:     "Failed to parse query parameters.",
+	}
+
+	ErrSubscribeFilterAddress = ErrorCode{
+		category: InputError,
+		code:     2010,
+		desc:     "Only address is available at this time for filtering.",
+	}
+
+	ErrInvalidKey = ErrorCode{
+		category: InputError,
+		code:     2011,
+		desc:     "Provided invalid key.",
+	}
+
 	ErrQueueLimitReached = ErrorCode{
 		category: ResourceLimitReached,
 		code:     3001,
@@ -237,10 +261,28 @@ var (
 		desc:     "Attempt to discard elements from a queue that does not exist.",
 	}
 
+	ErrSubscriptionAlreadyExists = ErrorCode{
+		category: StateConflict,
+		code:     4002,
+		desc:     "Attempt to create a subscription that already exists.",
+	}
+
 	ErrAPINotImplemented = ErrorCode{
 		category: NotImplemented,
 		code:     5001,
 		desc:     "API not Implemented.",
+	}
+
+	ErrQueueNotFound = ErrorCode{
+		category: NotFound,
+		code:     6001,
+		desc:     "Queue not found.",
+	}
+
+	ErrSubscriptionNotFound = ErrorCode{
+		category: NotFound,
+		code:     6002,
+		desc:     "Subscription not found.",
 	}
 )
 
@@ -271,6 +313,11 @@ const (
 	// take some action to clear up unused resources
 	ResourceLimitReached Category = "ResourceLimitReached"
 
+	// NotFoundErrors refers to errors in which an action is attempted
+	// to be executed on a specific instance of a resource which does
+	// not exist
+	NotFound Category = "NotFound"
+
 	// NotImplemented refers to errors in which the client attempts to
 	// execute an action that has not yet been implemented by the server
 	NotImplemented Category = "Not Implemented"
@@ -291,8 +338,8 @@ func (e Error) Error() string {
 		return fmt.Sprintf("[%d] error code %s with desc %s",
 			e.errorCode.Code(), e.errorCode.Category(), e.errorCode.Desc())
 	} else {
-		return fmt.Sprintf("[%d] error code %s with desc with cause %s",
-			e.errorCode.Code(), e.errorCode.Category(), e.cause)
+		return fmt.Sprintf("[%d] error code %s with desc %s with cause %s",
+			e.errorCode.Code(), e.errorCode.Category(), e.errorCode.Desc(), e.cause)
 	}
 }
 

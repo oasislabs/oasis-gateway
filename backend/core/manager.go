@@ -2,8 +2,10 @@ package core
 
 import (
 	"context"
+	stderr "errors"
 
 	"github.com/oasislabs/developer-gateway/errors"
+	"github.com/oasislabs/developer-gateway/log"
 	mqueue "github.com/oasislabs/developer-gateway/mqueue/core"
 	"github.com/oasislabs/developer-gateway/rpc"
 )
@@ -23,6 +25,8 @@ type Client interface {
 	GetPublicKeyService(context.Context, GetPublicKeyServiceRequest) (*GetPublicKeyServiceResponse, errors.Err)
 	ExecuteService(context.Context, uint64, ExecuteServiceRequest) (*ExecuteServiceResponse, errors.Err)
 	DeployService(context.Context, uint64, DeployServiceRequest) (*DeployServiceResponse, errors.Err)
+	SubscribeRequest(context.Context, CreateSubscriptionRequest, chan<- interface{}) errors.Err
+	UnsubscribeRequest(context.Context, DestroySubscriptionRequest) errors.Err
 }
 
 // RequestManager handles the client RPC requests. Most requests
@@ -32,11 +36,14 @@ type Client interface {
 type RequestManager struct {
 	mqueue mqueue.MQueue
 	client Client
+	logger log.Logger
+	subman *SubscriptionManager
 }
 
 type RequestManagerProperties struct {
 	MQueue mqueue.MQueue
 	Client Client
+	Logger log.Logger
 }
 
 // NewRequestManager creates a new instance of a request manager
@@ -49,9 +56,19 @@ func NewRequestManager(properties RequestManagerProperties) *RequestManager {
 		panic("Client must be set")
 	}
 
+	if properties.Logger == nil {
+		panic("Logger must be set")
+	}
+
 	return &RequestManager{
 		mqueue: properties.MQueue,
+		logger: properties.Logger,
 		client: properties.Client,
+		subman: NewSubscriptionManager(SubscriptionManagerProps{
+			Context: context.Background(),
+			Logger:  properties.Logger,
+			MQueue:  properties.MQueue,
+		}),
 	}
 }
 
@@ -100,6 +117,70 @@ func (m *RequestManager) DeployServiceAsync(ctx context.Context, req DeployServi
 	return id, nil
 }
 
+// Unsubscribe from an existing subscription freeing all the associated
+// resources. After this operation all events from the subscription stream
+// will be lost.
+func (m *RequestManager) Unsubscribe(ctx context.Context, req UnsubscribeRequest) errors.Err {
+	if len(req.Key) == 0 {
+		return errors.New(errors.ErrInvalidKey, stderr.New("key cannot be empty"))
+	}
+
+	subID := SubID(req.Key, req.ID)
+	if !m.subman.Exists(ctx, subID) {
+		return errors.New(errors.ErrSubscriptionNotFound, stderr.New("cannot unsubscribe from subscription that does not exist"))
+	}
+
+	if err := m.client.UnsubscribeRequest(ctx, DestroySubscriptionRequest{
+		SubID: subID,
+	}); err != nil {
+		return err
+	}
+
+	return m.subman.Destroy(ctx, subID)
+}
+
+// Subscribe creates a new subscription using the underlying backend and
+// allocates the necessary resources from the store
+func (m *RequestManager) Subscribe(ctx context.Context, req SubscribeRequest) (uint64, errors.Err) {
+	if len(req.Key) == 0 {
+		return 0, errors.New(errors.ErrInvalidKey, stderr.New("key cannot be empty"))
+	}
+
+	// use a queue per subscription to manage the number of queues created. This
+	// also helps us with managing the resources a specific client is using
+	key := req.Key + "-queue"
+	id, err := m.mqueue.Next(key)
+	if err != nil {
+		return 0, err
+	}
+
+	if err := m.subscribe(ctx, id, req); err != nil {
+		return 0, err
+	}
+
+	return id, nil
+}
+
+func (m *RequestManager) subscribe(ctx context.Context, id uint64, req SubscribeRequest) errors.Err {
+	subID := SubID(req.Key, id)
+	// TODO(stan): a request manager should have a context from which the subscription contexts
+	// should derive
+	c := make(chan interface{}, 64)
+	if err := m.subman.Create(ctx, subID, c); err != nil {
+		return err
+	}
+
+	if err := m.client.SubscribeRequest(ctx, CreateSubscriptionRequest{
+		Topic:   req.Topic,
+		Address: req.Address,
+		SubID:   subID,
+	}, c); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (m *RequestManager) doRequest(ctx context.Context, key string, id uint64, fn func() (Event, errors.Err)) {
 	// TODO(stan): we should handle the case in which the request takes too long
 	ev, err := fn()
@@ -122,12 +203,29 @@ func (m *RequestManager) doRequest(ctx context.Context, key string, id uint64, f
 	})
 }
 
-// GetResponses retrieves the responses the RequestManager already got
+// PollService retrieves the responses the RequestManager already got
 // from the asynchronous requests.
-func (m *RequestManager) GetResponses(key string, offset uint64, count uint) (Events, error) {
+func (m *RequestManager) PollService(ctx context.Context, req PollServiceRequest) (Events, errors.Err) {
+	return m.poll(ctx, req.Key, req.Offset, req.Count, req.DiscardPrevious)
+}
+
+// PollEvent retrieves the responses the RequestManager already got
+// from the asynchronous requests.
+func (m *RequestManager) PollEvent(ctx context.Context, req PollEventRequest) (Events, errors.Err) {
+	subID := SubID(req.Key, req.ID)
+	return m.poll(ctx, subID, req.Offset, req.Count, req.DiscardPrevious)
+}
+
+func (m *RequestManager) poll(ctx context.Context, key string, offset uint64, count uint, discardPrevious bool) (Events, errors.Err) {
 	els, err := m.mqueue.Retrieve(key, offset, count)
 	if err != nil {
 		return Events{}, err
+	}
+
+	if discardPrevious {
+		if err := m.mqueue.Discard(key, offset); err != nil {
+			return Events{}, err
+		}
 	}
 
 	var events []Event

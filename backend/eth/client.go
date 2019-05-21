@@ -14,11 +14,11 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/ethclient"
-	erpc "github.com/ethereum/go-ethereum/rpc"
 
 	backend "github.com/oasislabs/developer-gateway/backend/core"
+	"github.com/oasislabs/developer-gateway/conc"
 	"github.com/oasislabs/developer-gateway/errors"
+	"github.com/oasislabs/developer-gateway/eth"
 	"github.com/oasislabs/developer-gateway/log"
 )
 
@@ -35,12 +35,6 @@ type ethRequest interface {
 type ethResponse struct {
 	Response interface{}
 	Error    errors.Err
-}
-
-type oasisPublicKeyPayload struct {
-	Timestamp uint64 `json:"timestamp"`
-	PublicKey string `json:"public_key"`
-	Signature string `json:"signature"`
 }
 
 type executeTransactionRequest struct {
@@ -122,15 +116,15 @@ type EthClientProperties struct {
 }
 
 type EthClient struct {
-	ctx       context.Context
-	wg        sync.WaitGroup
-	inCh      chan ethRequest
-	logger    log.Logger
-	wallet    Wallet
-	nonce     uint64
-	signer    types.Signer
-	rpcClient *erpc.Client
-	client    *ethclient.Client
+	ctx    context.Context
+	wg     sync.WaitGroup
+	inCh   chan ethRequest
+	logger log.Logger
+	wallet Wallet
+	nonce  uint64
+	signer types.Signer
+	client eth.Client
+	subman *eth.SubscriptionManager
 }
 
 func (c *EthClient) startLoop(ctx context.Context) {
@@ -256,14 +250,13 @@ func (c *EthClient) GetPublicKeyService(
 		"address":   req.Address,
 	})
 
-	var payload oasisPublicKeyPayload
-	if err := c.rpcClient.CallContext(ctx, &payload, "oasis_getPublicKey", req.Address); err != nil {
+	pk, err := c.client.GetPublicKey(ctx, common.HexToAddress(req.Address))
+	if err != nil {
 		err := errors.New(errors.ErrInternalError, fmt.Errorf("failed to get public key %s", err.Error()))
 		c.logger.Debug(ctx, "client call failed", log.MapFields{
 			"call_type": "GetPublicKeyServiceFailure",
 			"address":   req.Address,
 		}, err)
-
 		return nil, err
 	}
 
@@ -274,9 +267,9 @@ func (c *EthClient) GetPublicKeyService(
 
 	return &backend.GetPublicKeyServiceResponse{
 		Address:   req.Address,
-		Timestamp: payload.Timestamp,
-		PublicKey: payload.PublicKey,
-		Signature: payload.Signature,
+		Timestamp: pk.Timestamp,
+		PublicKey: pk.PublicKey,
+		Signature: pk.Signature,
 	}, nil
 }
 
@@ -314,6 +307,40 @@ func (c *EthClient) ExecuteService(
 
 	res := ethRes.Response.(*backend.ExecuteServiceResponse)
 	return res, nil
+}
+
+func (c *EthClient) SubscribeRequest(
+	ctx context.Context,
+	req backend.CreateSubscriptionRequest,
+	ch chan<- interface{},
+) errors.Err {
+	if err := c.subman.Create(ctx, req.SubID, &eth.LogSubscriber{
+		FilterQuery: ethereum.FilterQuery{},
+	}, ch); err != nil {
+		err := errors.New(errors.ErrInternalError, err)
+		c.logger.Debug(ctx, "failed to create subscription", log.MapFields{
+			"call_type": "SubscribeRequestFailure",
+			"address":   req.Address,
+		}, err)
+		return err
+	}
+
+	return nil
+}
+
+func (c *EthClient) UnsubscribeRequest(
+	ctx context.Context,
+	req backend.DestroySubscriptionRequest,
+) errors.Err {
+	if err := c.subman.Destroy(ctx, req.SubID); err != nil {
+		err := errors.New(errors.ErrInternalError, err)
+		c.logger.Debug(ctx, "failed to destroy subscription", log.MapFields{
+			"call_type": "UnsubscribeRequestFailure",
+		}, err)
+		return err
+	}
+
+	return nil
 }
 
 func (c *EthClient) executeTransaction(
@@ -521,22 +548,26 @@ func Dial(ctx context.Context, logger log.Logger, properties EthClientProperties
 		return nil, stderr.New("Only schemes supported are ws and wss")
 	}
 
-	rpcClient, err := erpc.DialWebsocket(ctx, properties.URL, "")
-	if err != nil {
-		return nil, fmt.Errorf("Failed to create websocket connection %s", err.Error())
-	}
+	dialer := eth.NewUniDialer(ctx, properties.URL)
+	client := eth.NewPooledClient(eth.PooledClientProps{
+		Pool:        dialer,
+		RetryConfig: conc.RandomConfig,
+	})
 
-	client := ethclient.NewClient(rpcClient)
 	c := &EthClient{
-		ctx:       ctx,
-		wg:        sync.WaitGroup{},
-		inCh:      make(chan ethRequest, 64),
-		logger:    logger.ForClass("eth", "EthClient"),
-		nonce:     0,
-		signer:    types.FrontierSigner{},
-		wallet:    properties.Wallet,
-		client:    client,
-		rpcClient: rpcClient,
+		ctx:    ctx,
+		wg:     sync.WaitGroup{},
+		inCh:   make(chan ethRequest, 64),
+		logger: logger.ForClass("eth", "EthClient"),
+		nonce:  0,
+		signer: types.FrontierSigner{},
+		wallet: properties.Wallet,
+		client: client,
+		subman: eth.NewSubscriptionManager(eth.SubscriptionManagerProps{
+			Context: ctx,
+			Logger:  logger,
+			Client:  client,
+		}),
 	}
 
 	c.startLoop(ctx)

@@ -42,4 +42,7 @@ type MQueue interface {
 
 	// Next element offset that can be used for the queue.
 	Next(key string) (uint64, errors.Err)
+
+	// Remove the queue and associated resources with the key
+	Remove(key string) errors.Err
 }

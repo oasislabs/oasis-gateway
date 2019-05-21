@@ -71,6 +71,7 @@ func NewWorker(ctx context.Context, key string, doneCh chan<- string) *Worker {
 }
 
 func (w *Worker) Stop() {
+	close(w.inCh)
 	w.wg.Wait()
 }
 

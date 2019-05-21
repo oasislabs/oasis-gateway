@@ -7,10 +7,10 @@ import (
 	"io"
 )
 
-// Client represents a channel between the local endpoint
+// Requester represents a channel between the local endpoint
 // and the remote endpoint that a Conn uses to abstract
 // the underlying transport
-type Client interface {
+type Requester interface {
 	// Request abstracts a request into a reader which contains the
 	// request, and a writer, where the response will be written
 	Request(context.Context, io.Writer, io.Reader) error
@@ -32,17 +32,17 @@ func (fn ClientFunc) Request(ctx context.Context, w io.Writer, r io.Reader) erro
 // implementation what defines the underlying model. A Conn allows mutliplexing
 // of multiple sessions over the same networking connection.
 type Conn struct {
-	client  Client
+	client  Requester
 	session *Session
 
 	in  *bytes.Buffer
 	out *bytes.Buffer
 }
 
-// Dial creates a new connection and completes the handshake with the
+// DialConnContext creates a new connection and completes the handshake with the
 // remote endpoint. If the handshake fails the Dial will also be
 // considered failed
-func DialContext(ctx context.Context, client Client, props *SessionProps) (*Conn, error) {
+func DialConnContext(ctx context.Context, client Requester, props *SessionProps) (*Conn, error) {
 	if !props.Initiator {
 		return nil, errors.New("when dialing the connection has to initiate the handshake")
 	}

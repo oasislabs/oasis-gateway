@@ -169,7 +169,7 @@ type ErrorEvent struct {
 	ID uint64 `json:"id"`
 
 	// Cause is the error that caused the event to failed
-	Cause rpc.Error
+	Cause rpc.Error `json:"cause"`
 }
 
 // EventID is the implementation of rpc.Event for ExecuteServiceEvent
