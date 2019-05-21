@@ -10,6 +10,7 @@ import (
 
 	"github.com/oasislabs/developer-gateway/errors"
 	"github.com/oasislabs/developer-gateway/log"
+	"github.com/oasislabs/developer-gateway/rw"
 )
 
 const HttpHeaderTraceID = "X-OASIS-TRACE-ID"
@@ -389,7 +390,10 @@ func (h *HttpJsonHandler) ServeHTTP(req *http.Request) (interface{}, error) {
 	}
 
 	if body != nil {
-		if err := h.decoder.DecodeWithLimit(req.Body, body, uint(req.ContentLength)); err != nil {
+		if err := h.decoder.DecodeWithLimit(req.Body, body, rw.ReadLimitProps{
+			Limit:        req.ContentLength,
+			FailOnExceed: true,
+		}); err != nil {
 			h.logger.Debug(req.Context(), "failed to decode json", log.MapFields{
 				"path":           req.URL.EscapedPath(),
 				"method":         req.Method,

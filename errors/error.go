@@ -176,6 +176,12 @@ var (
 		desc:     "Internal Error. Please check the status of the service.",
 	}
 
+	ErrEkidenGetPublicKey = ErrorCode{
+		category: InternalError,
+		code:     1027,
+		desc:     "Internal Error. Please check the status of the service.",
+	}
+
 	ErrOutOfRange = ErrorCode{
 		category: InputError,
 		code:     2001,

@@ -1,4 +1,4 @@
-PROTOFILES=ekiden/grpc/client.proto
+PROTOFILES=ekiden/grpc/client.proto ekiden/grpc/enclaverpc.proto
 GRPCFILES=$(patsubst %.proto,%.pb.go,$(PROTOFILES))
 
 all:  build test build-gateway build-ekiden-client

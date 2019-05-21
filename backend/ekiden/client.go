@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/ecdsa"
+	"encoding/hex"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -17,32 +18,45 @@ type Wallet struct {
 	PrivateKey *ecdsa.PrivateKey
 }
 
+type NodeProps struct {
+	URL string
+}
+
 type ClientProps struct {
 	Wallet
-	RuntimeID []byte
-	URL       string
+	RuntimeID       []byte
+	RuntimeProps    NodeProps
+	KeyManagerProps NodeProps
 }
 
 type Client struct {
-	client    *ekiden.Client
-	signer    types.Signer
-	runtimeID []byte
-	wallet    Wallet
+	runtime    *ekiden.Runtime
+	keyManager *ekiden.Enclave
+	signer     types.Signer
+	runtimeID  []byte
+	wallet     Wallet
 }
 
 func DialContext(ctx context.Context, props ClientProps) (*Client, errors.Err) {
-	client, err := ekiden.DialContext(ctx, &ekiden.ClientProps{
-		URL: props.URL,
+	runtime, err := ekiden.DialRuntimeContext(ctx, props.RuntimeProps.URL)
+	if err != nil {
+		return nil, errors.New(errors.ErrEkidenDial, err)
+	}
+
+	keyManager, err := ekiden.DialEnclaveContext(ctx, &ekiden.EnclaveProps{
+		URL:      props.KeyManagerProps.URL,
+		Endpoint: "key-manager",
 	})
 	if err != nil {
 		return nil, errors.New(errors.ErrEkidenDial, err)
 	}
 
 	return &Client{
-		client:    client,
-		signer:    types.FrontierSigner{},
-		runtimeID: props.RuntimeID,
-		wallet:    props.Wallet,
+		runtime:    runtime,
+		keyManager: keyManager,
+		signer:     types.FrontierSigner{},
+		runtimeID:  props.RuntimeID,
+		wallet:     props.Wallet,
 	}, nil
 }
 
@@ -50,7 +64,26 @@ func (c *Client) GetPublicKeyService(
 	ctx context.Context,
 	req core.GetPublicKeyServiceRequest,
 ) (*core.GetPublicKeyServiceResponse, errors.Err) {
-	return nil, errors.New(errors.ErrAPINotImplemented, nil)
+	decoded, err := hex.DecodeString(req.Address)
+	if err != nil {
+		return nil, errors.New(errors.ErrInvalidAddress, err)
+	}
+
+	if len(decoded) != 20 {
+		return nil, errors.New(errors.ErrInvalidAddress, nil)
+	}
+
+	var address ekiden.Address
+	copy(address[:], decoded)
+
+	_, err = c.keyManager.GetPublicKey(ctx, &ekiden.GetPublicKeyRequest{
+		Address: address,
+	})
+	if err != nil {
+		return nil, errors.New(errors.ErrEkidenGetPublicKey, err)
+	}
+
+	return &core.GetPublicKeyServiceResponse{}, nil
 }
 
 func (c *Client) ExecuteService(
@@ -119,8 +152,7 @@ func (c *Client) submitTx(ctx context.Context, address, data string) errors.Err 
 		return err
 	}
 
-	_, derr := c.client.Submit(ctx, &ekiden.SubmitRequest{
-		Method:    "ethereum_transaction",
+	_, derr := c.runtime.EthereumTransaction(ctx, &ekiden.EthereumTransactionRequest{
 		RuntimeID: c.runtimeID,
 		Data:      p,
 	})

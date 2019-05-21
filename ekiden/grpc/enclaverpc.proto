@@ -1,0 +1,21 @@
+syntax = "proto3";
+
+package enclaverpc;
+option go_package = "github.com/oasislabs/developer-gateway/ekiden/grpc";
+
+service EnclaveRpc {
+    // RPC interface.
+    rpc CallEnclave (CallEnclaveRequest) returns (CallEnclaveResponse) {}
+}
+
+message CallEnclaveRequest {
+    // Raw request payload that will be passed to the enclave.
+    bytes payload = 1;
+    // Endpoint identifier for cases where a single node supports multiple endpoints.
+    string endpoint = 2;
+}
+
+message CallEnclaveResponse {
+    // Raw response payload from enclave.
+    bytes payload = 1;
+}

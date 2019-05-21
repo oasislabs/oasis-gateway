@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"testing"
 
+	"github.com/oasislabs/developer-gateway/rw"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -24,7 +25,10 @@ func TestJsonDecoderDecodeWithLimit(t *testing.T) {
 	buffer := bytes.NewBufferString("{\"hamburger\":\"rare\",\"potato\":\"fried\"}\n")
 	m := make(map[string]string)
 
-	err := JsonDecoder{}.DecodeWithLimit(buffer, &m, 1024)
+	err := JsonDecoder{}.DecodeWithLimit(buffer, &m, rw.ReadLimitProps{
+		FailOnExceed: true,
+		Limit:        1024,
+	})
 
 	assert.Nil(t, err)
 	assert.Equal(t, map[string]string{
@@ -33,11 +37,26 @@ func TestJsonDecoderDecodeWithLimit(t *testing.T) {
 	}, m)
 }
 
+func TestJsonDecoderDecodeWithLimitTooSmall(t *testing.T) {
+	buffer := bytes.NewBufferString("{\"hamburger\":\"rare\",\"potato\":\"fried\"}\n")
+	m := make(map[string]string)
+
+	err := JsonDecoder{}.DecodeWithLimit(buffer, &m, rw.ReadLimitProps{
+		FailOnExceed: false,
+		Limit:        10,
+	})
+
+	assert.Equal(t, "unexpected EOF", err.Error())
+}
+
 func TestJsonDecoderDecodeWithLimitTooMuchData(t *testing.T) {
 	buffer := bytes.NewBufferString("{\"hamburger\":\"rare\",\"potato\":\"fried\"}\n")
 	m := make(map[string]string)
 
-	err := JsonDecoder{}.DecodeWithLimit(buffer, &m, 10)
+	err := JsonDecoder{}.DecodeWithLimit(buffer, &m, rw.ReadLimitProps{
+		FailOnExceed: true,
+		Limit:        10,
+	})
 
-	assert.Equal(t, "unexpected EOF", err.Error())
+	assert.Equal(t, rw.ErrLimitExceeded, err)
 }
