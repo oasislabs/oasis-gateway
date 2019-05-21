@@ -3,6 +3,7 @@ package eth
 import (
 	"context"
 	"math/big"
+	"strings"
 
 	ethereum "github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
@@ -50,6 +51,10 @@ func (s *LogSubscriber) Subscribe(
 ) (ethereum.Subscription, error) {
 	clog := make(chan types.Log, 64)
 	cerr := make(chan error)
+
+	if s.FilterQuery.FromBlock == nil {
+	} else {
+	}
 
 	sub, err := client.SubscribeFilterLogs(ctx, s.FilterQuery, clog)
 	if err != nil {
@@ -136,6 +141,18 @@ type PooledClient struct {
 	retryConfig conc.RetryConfig
 }
 
+func (c *PooledClient) shouldRetryAfterError(err error) bool {
+	// TODO(stan): find out what's the right condition for returning
+	// a client to the pool in case of failure
+
+	switch {
+	case strings.Contains(err.Error(), "Requested gas greater than block gas limit"):
+		return false
+	default:
+		return true
+	}
+}
+
 func (c *PooledClient) request(ctx context.Context, fn func(conn *Conn) (interface{}, error)) (interface{}, error) {
 	return conc.RetryWithConfig(ctx, conc.SupplierFunc(func() (interface{}, error) {
 		conn, err := c.pool.Conn(ctx)
@@ -145,9 +162,13 @@ func (c *PooledClient) request(ctx context.Context, fn func(conn *Conn) (interfa
 
 		v, err := fn(conn)
 		if err != nil {
-			// TODO(stan): find out what's the right condition for returning
-			// a client to the pool in case of failure
-			return nil, err
+
+			if c.shouldRetryAfterError(err) {
+				return nil, err
+
+			} else {
+				return nil, conc.ErrCannotRecover{Cause: err}
+			}
 		}
 
 		return v, nil
@@ -229,7 +250,6 @@ func (c *PooledClient) SubscribeFilterLogs(
 	if err != nil {
 		return nil, err
 	}
-
 	return v.(ethereum.Subscription), nil
 }
 

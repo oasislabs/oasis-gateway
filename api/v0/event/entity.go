@@ -41,10 +41,13 @@ type SubscribeRequest struct {
 // that can be used to poll for notifications on the subscription
 type SubscribeResponse AsyncResponse
 
-// EventPollRequest is a request that allows the user to
+// PollEventRequest is a request that allows the user to
 // poll for events either from asynchronous requests or from
 // subscriptions
-type EventPollRequest struct {
+type PollEventRequest struct {
+	// ID is the id of the subscription returned in SubscribeResponse
+	ID uint64 `json:"id"`
+
 	// Offset at which events need to be provided. Events are all ordered
 	// with sequence numbers and it is up to the client to specifiy which
 	// events it wants to receive from an offset in the sequence
@@ -59,9 +62,9 @@ type EventPollRequest struct {
 	DiscardPrevious bool `json:"discardPrevious"`
 }
 
-// EventPollResponse is the list of events that are returned for
+// PollEventResponse is the list of events that are returned for
 // a subscription or a group of asynchronous requests
-type EventPollResponse struct {
+type PollEventResponse struct {
 	// Offset is the current offset at which the provided list of events
 	// start
 	Offset uint64 `json:"offset"`
@@ -74,9 +77,9 @@ type EventPollResponse struct {
 // Event is the interface that all events that can be returned from an
 // EventPollingResponse need to return
 type Event interface {
-	// ID to identifiy an asynchronous response. It uniquely identifies the
+	// EventID to identifiy an asynchronous response. It uniquely identifies the
 	// event and orders it in the sequence of events expected by the user
-	ID() uint64
+	EventID() uint64
 }
 
 // DataEvent is that event that can be polled by the user to poll
@@ -98,5 +101,15 @@ type ErrorEvent struct {
 	ID uint64 `json:"id"`
 
 	// Cause is the error that caused the event to failed
-	Cause rpc.Error
+	Cause rpc.Error `json:"cause"`
+}
+
+// EventID is the implementation of Event for DataEvent
+func (e DataEvent) EventID() uint64 {
+	return e.ID
+}
+
+// EventID is the implementation of Event for ErrorEvent
+func (e ErrorEvent) EventID() uint64 {
+	return e.ID
 }

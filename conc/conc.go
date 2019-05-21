@@ -9,6 +9,17 @@ import (
 	"time"
 )
 
+// ErrCannotRecover is an error that can be passed by clients to
+// retry mechanisms so that the attempted action is not retried
+type ErrCannotRecover struct {
+	Cause error
+}
+
+// Error implementation of error for ErrCannotRecover
+func (e ErrCannotRecover) Error() string {
+	return e.Cause.Error()
+}
+
 const (
 	defaultConcurrency      uint8         = 2
 	defaultBaseTimeout      time.Duration = 1 * time.Second
@@ -107,6 +118,10 @@ func RetryWithConfig(
 			v, err := supplier.Supply()
 			if err == nil {
 				return v, nil
+			}
+
+			if err, ok := err.(ErrCannotRecover); ok {
+				return nil, err.Cause
 			}
 		}
 

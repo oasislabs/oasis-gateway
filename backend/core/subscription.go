@@ -2,7 +2,10 @@ package core
 
 import (
 	"context"
+	"fmt"
 
+	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/oasislabs/developer-gateway/log"
 	mqueue "github.com/oasislabs/developer-gateway/mqueue/core"
 )
@@ -48,8 +51,21 @@ func (s *subscription) Start() {
 				continue
 			}
 
+			data, ok := ev.(types.Log)
+			if !ok {
+				s.logger.Warn(s.ctx, "received event of unexpected type", log.MapFields{
+					"call_type": "InsertSubscriptionEventFailure",
+					"key":       s.key,
+					"type":      fmt.Sprintf("%+v", ev),
+				})
+				continue
+			}
+
 			if err := s.mqueue.Insert(s.key, mqueue.Element{
-				Value:  ev,
+				Value: DataEvent{
+					ID:   id,
+					Data: hexutil.Encode(data.Data),
+				},
 				Offset: id,
 			}); err != nil {
 				s.logger.Warn(s.ctx, "failed to insert event to resource", log.MapFields{

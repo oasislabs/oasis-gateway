@@ -92,7 +92,12 @@ func (h ServiceHandler) PollService(ctx context.Context, v interface{}) (interfa
 		req.Count = 10
 	}
 
-	res, err := h.request.GetResponses(authID, req.Offset, req.Count)
+	res, err := h.request.PollService(ctx, backend.PollServiceRequest{
+		Offset:          req.Offset,
+		Count:           req.Count,
+		DiscardPrevious: req.DiscardPrevious,
+		Key:             authID,
+	})
 	if err != nil {
 		return nil, err
 	}

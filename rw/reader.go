@@ -59,6 +59,10 @@ type ReadLimitProps struct {
 	// Limit is the maximum number of bytes that can be read from the
 	// reader and copied to the provided buffer
 	Limit int64
+
+	// ErrOnEOF sets whether the reader should return an io.EOF error
+	// after finishing reading the underlying source
+	ErrOnEOF bool
 }
 
 // NewLimitReader returns a new LimitReader
@@ -72,6 +76,7 @@ func NewLimitReader(reader io.Reader, props ReadLimitProps) LimitReader {
 	}
 
 	return LimitReader{
+		errOnEOF:     props.ErrOnEOF,
 		failOnExceed: props.FailOnExceed,
 		count:        0,
 		limit:        props.Limit,
@@ -83,6 +88,7 @@ func NewLimitReader(reader io.Reader, props ReadLimitProps) LimitReader {
 // no more than limit bytes are read from the reader
 type LimitReader struct {
 	failOnExceed bool
+	errOnEOF     bool
 	count        int64
 	limit        int64
 	reader       io.Reader
@@ -92,7 +98,15 @@ type LimitReader struct {
 func (r LimitReader) Read(p []byte) (int, error) {
 	n, err := r.reader.Read(p)
 	if err != nil {
-		return 0, err
+		if err == io.EOF {
+			if r.errOnEOF {
+				return n, err
+			}
+
+			return n, nil
+		}
+
+		return n, err
 	}
 
 	r.count += int64(n)
@@ -129,6 +143,10 @@ func CopyWithLimit(w io.Writer, r io.Reader, props ReadLimitProps) (int64, error
 				return 0, ErrLimitExceeded
 			}
 
+			if props.ErrOnEOF {
+				return n, io.EOF
+			}
+
 			return n, nil
 		}
 
@@ -137,6 +155,10 @@ func CopyWithLimit(w io.Writer, r io.Reader, props ReadLimitProps) (int64, error
 
 	if n > props.Limit {
 		return 0, ErrLimitExceeded
+	}
+
+	if props.ErrOnEOF {
+		return n, io.EOF
 	}
 
 	return n, nil

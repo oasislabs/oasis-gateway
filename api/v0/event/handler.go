@@ -46,9 +46,9 @@ func (h EventHandler) Subscribe(ctx context.Context, v interface{}) (interface{}
 		return nil, err
 	}
 
-	query, err := url.ParseQuery(req.Filter)
-	if err != nil {
-		err := errors.New(errors.ErrParseQueryParams, err)
+	query, derr := url.ParseQuery(req.Filter)
+	if derr != nil {
+		err := errors.New(errors.ErrParseQueryParams, derr)
 		h.logger.Debug(ctx, "failed to handle request", log.MapFields{
 			"call_type": "SubscribeFailure",
 		}, err)
@@ -57,7 +57,7 @@ func (h EventHandler) Subscribe(ctx context.Context, v interface{}) (interface{}
 
 	address := query.Get("address")
 	if len(address) == 0 {
-		err := errors.New(errors.ErrParseQueryParams, err)
+		err := errors.New(errors.ErrParseQueryParams, nil)
 		h.logger.Debug(ctx, "request does not contain address", log.MapFields{
 			"call_type": "SubscribeFailure",
 		}, err)
@@ -70,7 +70,6 @@ func (h EventHandler) Subscribe(ctx context.Context, v interface{}) (interface{}
 		Key:     authID,
 	})
 	if err != nil {
-		err := errors.New(errors.ErrParseQueryParams, err)
 		h.logger.Debug(ctx, "failed to subscribe", log.MapFields{
 			"call_type": "SubscribeFailure",
 		}, err)
@@ -91,9 +90,47 @@ func (h EventHandler) Unsubscribe(ctx context.Context, v interface{}) (interface
 
 // EventPoll allows the user to query for new events associated
 // with a specific subscription
-func (h EventHandler) EventPoll(ctx context.Context, v interface{}) (interface{}, error) {
-	_ = v.(*EventPollRequest)
-	return nil, errors.New(errors.ErrAPINotImplemented, nil)
+func (h EventHandler) PollEvent(ctx context.Context, v interface{}) (interface{}, error) {
+	authID := ctx.Value(auth.ContextKeyAuthID).(string)
+	req := v.(*PollEventRequest)
+
+	res, err := h.request.PollEvent(ctx, backend.PollEventRequest{
+		DiscardPrevious: req.DiscardPrevious,
+		Count:           req.Count,
+		Offset:          req.Offset,
+		ID:              req.ID,
+		Key:             authID,
+	})
+	if err != nil {
+		h.logger.Debug(ctx, "failed to poll events from subscription", log.MapFields{
+			"call_type": "PollEventFailure",
+			"id":        req.ID,
+		}, err)
+		return nil, err
+	}
+
+	var events []Event
+	for _, r := range res.Events {
+		switch r := r.(type) {
+		case backend.ErrorEvent:
+			events = append(events, ErrorEvent{
+				ID:    r.ID,
+				Cause: r.Cause,
+			})
+		case backend.DataEvent:
+			events = append(events, DataEvent{
+				ID:   r.ID,
+				Data: r.Data,
+			})
+		default:
+			panic("received unexpected event type from polling service")
+		}
+	}
+
+	return PollEventResponse{
+		Offset: res.Offset,
+		Events: events,
+	}, nil
 }
 
 // BindHandler binds the service handler to the provided
@@ -115,6 +152,6 @@ func BindHandler(services Services, binder rpc.HandlerBinder) {
 		rpc.EntityFactoryFunc(func() interface{} { return &SubscribeRequest{} }))
 	binder.Bind("POST", "/v0/api/event/unsubscribe", rpc.HandlerFunc(handler.Unsubscribe),
 		rpc.EntityFactoryFunc(func() interface{} { return &UnsubscribeRequest{} }))
-	binder.Bind("POST", "/v0/api/event/poll", rpc.HandlerFunc(handler.EventPoll),
-		rpc.EntityFactoryFunc(func() interface{} { return &EventPollRequest{} }))
+	binder.Bind("POST", "/v0/api/event/poll", rpc.HandlerFunc(handler.PollEvent),
+		rpc.EntityFactoryFunc(func() interface{} { return &PollEventRequest{} }))
 }

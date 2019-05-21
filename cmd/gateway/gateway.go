@@ -65,6 +65,7 @@ func createRequestManager(ctx context.Context, config Config) *backend.RequestMa
 	return backend.NewRequestManager(backend.RequestManagerProperties{
 		MQueue: mem.NewServer(ctx, logger),
 		Client: createEthClient(config),
+		Logger: logger,
 	})
 }
 

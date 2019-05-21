@@ -2,7 +2,6 @@ package core
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/oasislabs/developer-gateway/errors"
 	"github.com/oasislabs/developer-gateway/log"
@@ -130,7 +129,7 @@ func (m *RequestManager) Subscribe(ctx context.Context, req SubscribeRequest) (u
 }
 
 func (m *RequestManager) subscribe(ctx context.Context, id uint64, req SubscribeRequest) errors.Err {
-	subID := fmt.Sprintf("%s-%d", req.Key, id)
+	subID := SubID(req.Key, id)
 	// TODO(stan): a request manager should have a context from which the subscription contexts
 	// should derive
 	sub := newSubscription(context.Background(), m.logger, m.mqueue, subID)
@@ -168,12 +167,29 @@ func (m *RequestManager) doRequest(ctx context.Context, key string, id uint64, f
 	})
 }
 
-// GetResponses retrieves the responses the RequestManager already got
+// PollService retrieves the responses the RequestManager already got
 // from the asynchronous requests.
-func (m *RequestManager) GetResponses(key string, offset uint64, count uint) (Events, error) {
+func (m *RequestManager) PollService(ctx context.Context, req PollServiceRequest) (Events, errors.Err) {
+	return m.poll(ctx, req.Key, req.Offset, req.Count, req.DiscardPrevious)
+}
+
+// PollEvent retrieves the responses the RequestManager already got
+// from the asynchronous requests.
+func (m *RequestManager) PollEvent(ctx context.Context, req PollEventRequest) (Events, errors.Err) {
+	subID := SubID(req.Key, req.ID)
+	return m.poll(ctx, subID, req.Offset, req.Count, req.DiscardPrevious)
+}
+
+func (m *RequestManager) poll(ctx context.Context, key string, offset uint64, count uint, discardPrevious bool) (Events, errors.Err) {
 	els, err := m.mqueue.Retrieve(key, offset, count)
 	if err != nil {
 		return Events{}, err
+	}
+
+	if discardPrevious {
+		if err := m.mqueue.Discard(key, offset); err != nil {
+			return Events{}, err
+		}
 	}
 
 	var events []Event
