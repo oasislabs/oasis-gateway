@@ -15,14 +15,7 @@ type AsyncResponse struct {
 // topics on the gateway.
 type UnsubscribeRequest struct {
 	// ID of the subscription to be destroyed
-	ID string `json:"id"`
-}
-
-// UnsubscribeResponse is used by the user to destroy a subscription to specific
-// topics on the gateway.
-type UnsubscribeResponse struct {
-	// ID of the subscription that has been destroyed
-	ID string `json:"id"`
+	ID uint64 `json:"id"`
 }
 
 // SubscribeRequest is used by the user to create a subscription to specific

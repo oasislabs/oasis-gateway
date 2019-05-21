@@ -2,6 +2,7 @@ package mem
 
 import (
 	"context"
+	stderr "errors"
 	"sync"
 
 	"github.com/oasislabs/developer-gateway/errors"
@@ -31,6 +32,15 @@ type discardWorkerRequest struct {
 type nextWorkerRequest struct {
 	Key string
 	Out chan<- nextResponse
+}
+
+type removeWorkerRequest struct {
+	Key string
+	Out chan<- removeWorkerResponse
+}
+
+type removeWorkerResponse struct {
+	Error errors.Err
 }
 
 type Server struct {
@@ -73,10 +83,20 @@ func (s *Server) startLoop() {
 			select {
 			case <-s.ctx.Done():
 				return
-			case key := <-s.doneCh:
+			case key, ok := <-s.doneCh:
+				if !ok {
+					s.logger.Debug(s.ctx, "done channel closed so server is exiting", log.MapFields{
+						"call_type": "ServerLoopEndSuccess",
+					})
+					return
+				}
+
 				s.removeWorker(key)
 			case arg, ok := <-s.inCh:
 				if !ok {
+					s.logger.Debug(s.ctx, "input channel closed so server is exiting", log.MapFields{
+						"call_type": "ServerLoopSuccess",
+					})
 					return
 				}
 
@@ -87,7 +107,7 @@ func (s *Server) startLoop() {
 }
 
 func (s *Server) removeWorker(key string) {
-	w, ok := s.workers[key]
+	_, ok := s.workers[key]
 	if !ok {
 		s.logger.Warn(s.ctx, "attempt remove worker that is not present", log.MapFields{
 			"call_type": "RemoveWorkerFailure",
@@ -96,7 +116,6 @@ func (s *Server) removeWorker(key string) {
 		return
 	}
 
-	w.Stop()
 	delete(s.workers, key)
 }
 
@@ -110,6 +129,8 @@ func (s *Server) serveRequest(req interface{}) {
 		s.discard(req)
 	case nextWorkerRequest:
 		s.next(req)
+	case removeWorkerRequest:
+		s.remove(req)
 	default:
 		panic("invalid request received for worker")
 	}
@@ -169,6 +190,18 @@ func (s *Server) next(req nextWorkerRequest) {
 	})
 }
 
+func (s *Server) remove(req removeWorkerRequest) {
+	worker, ok := s.workers[req.Key]
+	if !ok {
+		err := errors.New(errors.ErrQueueNotFound, stderr.New("cannot remove worker that does not exist"))
+		req.Out <- removeWorkerResponse{Error: err}
+		return
+	}
+
+	worker.Stop()
+	req.Out <- removeWorkerResponse{Error: nil}
+}
+
 // Insert inserts the element to the provided offset.
 func (s *Server) Insert(key string, element core.Element) errors.Err {
 	out := make(chan errors.Err)
@@ -200,4 +233,12 @@ func (s *Server) Next(key string) (uint64, errors.Err) {
 	s.inCh <- nextWorkerRequest{Key: key, Out: out}
 	res := <-out
 	return res.Offset, res.Error
+}
+
+// Remove the key's queue and it's associated resources
+func (s *Server) Remove(key string) errors.Err {
+	out := make(chan removeWorkerResponse)
+	s.inCh <- removeWorkerRequest{Key: key, Out: out}
+	res := <-out
+	return res.Error
 }

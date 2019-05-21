@@ -2,6 +2,7 @@ package core
 
 import (
 	"context"
+	stderr "errors"
 
 	"github.com/oasislabs/developer-gateway/errors"
 	"github.com/oasislabs/developer-gateway/log"
@@ -36,6 +37,7 @@ type RequestManager struct {
 	mqueue mqueue.MQueue
 	client Client
 	logger log.Logger
+	subman *SubscriptionManager
 }
 
 type RequestManagerProperties struct {
@@ -60,8 +62,13 @@ func NewRequestManager(properties RequestManagerProperties) *RequestManager {
 
 	return &RequestManager{
 		mqueue: properties.MQueue,
-		client: properties.Client,
 		logger: properties.Logger,
+		client: properties.Client,
+		subman: NewSubscriptionManager(SubscriptionManagerProps{
+			Context: context.Background(),
+			Logger:  properties.Logger,
+			MQueue:  properties.MQueue,
+		}),
 	}
 }
 
@@ -110,10 +117,36 @@ func (m *RequestManager) DeployServiceAsync(ctx context.Context, req DeployServi
 	return id, nil
 }
 
+// Unsubscribe from an existing subscription freeing all the associated
+// resources. After this operation all events from the subscription stream
+// will be lost.
+func (m *RequestManager) Unsubscribe(ctx context.Context, req UnsubscribeRequest) errors.Err {
+	if len(req.Key) == 0 {
+		return errors.New(errors.ErrInvalidKey, stderr.New("key cannot be empty"))
+	}
+
+	subID := SubID(req.Key, req.ID)
+	if !m.subman.Exists(ctx, subID) {
+		return errors.New(errors.ErrSubscriptionNotFound, stderr.New("cannot unsubscribe from subscription that does not exist"))
+	}
+
+	if err := m.client.UnsubscribeRequest(ctx, DestroySubscriptionRequest{
+		SubID: subID,
+	}); err != nil {
+		return err
+	}
+
+	return m.subman.Destroy(ctx, subID)
+}
+
 // Subscribe creates a new subscription using the underlying backend and
 // allocates the necessary resources from the store
 func (m *RequestManager) Subscribe(ctx context.Context, req SubscribeRequest) (uint64, errors.Err) {
-	// use a queue per queue to manage the number of queues created. This
+	if len(req.Key) == 0 {
+		return 0, errors.New(errors.ErrInvalidKey, stderr.New("key cannot be empty"))
+	}
+
+	// use a queue per subscription to manage the number of queues created. This
 	// also helps us with managing the resources a specific client is using
 	key := req.Key + "-queue"
 	id, err := m.mqueue.Next(key)
@@ -132,16 +165,19 @@ func (m *RequestManager) subscribe(ctx context.Context, id uint64, req Subscribe
 	subID := SubID(req.Key, id)
 	// TODO(stan): a request manager should have a context from which the subscription contexts
 	// should derive
-	sub := newSubscription(context.Background(), m.logger, m.mqueue, subID)
+	c := make(chan interface{}, 64)
+	if err := m.subman.Create(ctx, subID, c); err != nil {
+		return err
+	}
+
 	if err := m.client.SubscribeRequest(ctx, CreateSubscriptionRequest{
 		Topic:   req.Topic,
 		Address: req.Address,
 		SubID:   subID,
-	}, sub.C); err != nil {
+	}, c); err != nil {
 		return err
 	}
 
-	go sub.Start()
 	return nil
 }
 

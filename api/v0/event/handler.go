@@ -84,8 +84,22 @@ func (h EventHandler) Subscribe(ctx context.Context, v interface{}) (interface{}
 // Unsubscribe destroys an existing client subscription and all the
 // resources associated with it
 func (h EventHandler) Unsubscribe(ctx context.Context, v interface{}) (interface{}, error) {
-	_ = v.(*UnsubscribeRequest)
-	return nil, errors.New(errors.ErrAPINotImplemented, nil)
+	authID := ctx.Value(auth.ContextKeyAuthID).(string)
+	req := v.(*UnsubscribeRequest)
+
+	err := h.request.Unsubscribe(ctx, backend.UnsubscribeRequest{
+		ID:  req.ID,
+		Key: authID,
+	})
+	if err != nil {
+		h.logger.Debug(ctx, "failed unsubscribe from events", log.MapFields{
+			"call_type": "PollEventFailure",
+			"id":        req.ID,
+		}, err)
+		return nil, err
+	}
+
+	return nil, nil
 }
 
 // EventPoll allows the user to query for new events associated

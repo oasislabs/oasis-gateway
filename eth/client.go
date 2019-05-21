@@ -52,10 +52,6 @@ func (s *LogSubscriber) Subscribe(
 	clog := make(chan types.Log, 64)
 	cerr := make(chan error)
 
-	if s.FilterQuery.FromBlock == nil {
-	} else {
-	}
-
 	sub, err := client.SubscribeFilterLogs(ctx, s.FilterQuery, clog)
 	if err != nil {
 		return nil, err

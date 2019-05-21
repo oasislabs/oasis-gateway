@@ -50,12 +50,6 @@ type executeTransactionResponse struct {
 	Output  []byte
 }
 
-type subscribeRequest struct {
-	Context context.Context
-	ID      uint64
-	Request backend.SubscribeRequest
-}
-
 type executeServiceRequest struct {
 	Attempts uint
 	Out      chan ethResponse

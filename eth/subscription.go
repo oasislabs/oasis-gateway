@@ -129,7 +129,7 @@ func (s *Subscription) Unsubscribe() {
 
 func (s *Subscription) startLoop() {
 	defer func() {
-		close(s.done)
+		close(s.c)
 	}()
 
 	if err := s.subscribe(); err != nil {
@@ -170,6 +170,12 @@ type destroySubscriptionRequest struct {
 	Context context.Context
 	Key     string
 	Err     chan<- error
+}
+
+type existsSubscriptionRequest struct {
+	Context context.Context
+	Key     string
+	Out     chan<- bool
 }
 
 // SubscriptionManagerProps properties used to create the
@@ -226,7 +232,11 @@ func (m *SubscriptionManager) startLoop() {
 		select {
 		case <-m.ctx.Done():
 			return
-		case ev := <-m.done:
+		case ev, ok := <-m.done:
+			if !ok {
+				return
+			}
+
 			m.remove(ev.Key)
 		case req := <-m.req:
 			m.handleRequest(req)
@@ -240,6 +250,8 @@ func (m *SubscriptionManager) handleRequest(req interface{}) {
 		m.create(req)
 	case destroySubscriptionRequest:
 		m.destroy(req)
+	case existsSubscriptionRequest:
+		m.exists(req)
 	default:
 		panic("received unknown request")
 	}
@@ -265,6 +277,11 @@ func (m *SubscriptionManager) create(req createSubscriptionRequest) {
 	req.Err <- nil
 }
 
+func (m *SubscriptionManager) exists(req existsSubscriptionRequest) {
+	_, ok := m.subs[req.Key]
+	req.Out <- ok
+}
+
 func (m *SubscriptionManager) destroy(req destroySubscriptionRequest) {
 	sub, ok := m.subs[req.Key]
 	if !ok {
@@ -273,7 +290,6 @@ func (m *SubscriptionManager) destroy(req destroySubscriptionRequest) {
 	}
 
 	sub.Unsubscribe()
-	m.remove(req.Key)
 	req.Err <- nil
 }
 
@@ -288,6 +304,20 @@ func (m *SubscriptionManager) remove(key string) {
 	}
 
 	delete(m.subs, key)
+}
+
+// Exists returns true if the subscription exists
+func (m *SubscriptionManager) Exists(
+	ctx context.Context,
+	key string,
+) bool {
+	out := make(chan bool)
+	m.req <- existsSubscriptionRequest{
+		Context: ctx,
+		Key:     key,
+		Out:     out,
+	}
+	return <-out
 }
 
 // Create a new subscription identified by the
