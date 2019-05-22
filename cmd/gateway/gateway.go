@@ -12,6 +12,7 @@ import (
 	"github.com/oasislabs/developer-gateway/api/v0/service"
 	"github.com/oasislabs/developer-gateway/auth/core"
 	"github.com/oasislabs/developer-gateway/auth/insecure"
+	"github.com/oasislabs/developer-gateway/auth/oauth"
 	backend "github.com/oasislabs/developer-gateway/backend/core"
 	"github.com/oasislabs/developer-gateway/backend/eth"
 	"github.com/oasislabs/developer-gateway/log"
@@ -69,7 +70,7 @@ func createRequestManager(ctx context.Context, config Config) *backend.RequestMa
 	})
 }
 
-func createRouter(services Services) *rpc.HttpRouter {
+func createRouter(services Services, auth core.Auth) *rpc.HttpRouter {
 	binder := rpc.NewHttpBinder(rpc.HttpBinderProperties{
 		Encoder: rpc.JsonEncoder{},
 		Logger:  logger,
@@ -81,7 +82,7 @@ func createRouter(services Services) *rpc.HttpRouter {
 				Factory: factory,
 			})
 
-			return core.NewHttpMiddlewareAuth(insecure.InsecureAuth{}, logger, jsonHandler)
+			return core.NewHttpMiddlewareAuth(auth, logger, jsonHandler)
 		}),
 	})
 
@@ -99,12 +100,16 @@ func createRouter(services Services) *rpc.HttpRouter {
 
 func main() {
 	var (
-		configFile string
+		configFile    string
+		authenticator string
 	)
 
 	pflag.StringVar(&configFile, "config",
 		"cmd/gateway/config/production.toml",
 		"configuration file for the gateway")
+	pflag.StringVar(&authenticator, "auth",
+		"insecure",
+		"which authenticator to use")
 	pflag.Parse()
 
 	provider, err := ParseSimpleConfig(configFile)
@@ -132,7 +137,13 @@ func main() {
 	httpPort := bindConfig.HttpPort
 
 	services := createServices(ctx, provider)
-	router := createRouter(services)
+	var router *rpc.Router
+	switch authenticator {
+	case "insecure":
+		router = createRouter(services, insecure.InsecureAuth{})
+	case "oauth":
+		router = createRouter(services, oauth.GoogleOauth{})
+	}
 
 	s := &http.Server{
 		Addr:           fmt.Sprintf("%s:%d", httpInterface, httpPort),
