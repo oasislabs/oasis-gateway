@@ -9,6 +9,6 @@ import (
 // setups with real users
 type InsecureAuth struct{}
 
-func (a InsecureAuth) Authenticate(req *http.Request) error {
-	return nil
+func (a InsecureAuth) Authenticate(req *http.Request) (string, string, error) {
+	return "", "", nil
 }

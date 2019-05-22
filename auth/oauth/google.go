@@ -1,6 +1,7 @@
 package oauth
 
 import (
+	"errors"
 	"net/http"
 
 	oidc "github.com/coreos/go-oidc"
@@ -15,14 +16,16 @@ const (
 
 type GoogleOauth struct{}
 
-func (g GoogleOauth) Authenticate(req *http.Request) error {
+// Authenticates the user using the ID Token receieved from Google.
+// Uses the hash of the access token as the session id.
+func (g GoogleOauth) Authenticate(req *http.Request) (string, string, error) {
 	rawIDToken := req.Header.Get(ID_TOKEN_KEY)
 	keySet := oidc.NewRemoteKeySet(req.Context(), googleKeySet)
 	verifier := oidc.NewVerifier(googleTokenIssuer, keySet, oidc.Config{SkipClientIDCheck: true})
 
 	idToken, err := verifier.Verify(rawIDToken)
 	if err != nil {
-		return err
+		return "", "", err
 	}
 	var claims struct {
 		Email         string `json:"email"`
@@ -30,6 +33,11 @@ func (g GoogleOauth) Authenticate(req *http.Request) error {
 	}
 
 	if err = idToken.Claims(&claims); err != nil {
-		return err
+		return "", "", err
 	}
+	if !claims.EmailVerified {
+		return "", "", errors.New("Email is unverified")
+	}
+
+	return claims.Email, idToken.AccessTokenHash, nil
 }

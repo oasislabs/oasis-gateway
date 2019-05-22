@@ -1,5 +1,6 @@
 package core
 
 const (
-	ContextKeyAuthID string = "authCoreContextKeyAuthID"
+	ContextExpectedAADKey string = "authCoreContextExpectedAADKey"
+	ContextSessionKey     string = "authCoreContextSessionKey"
 )
