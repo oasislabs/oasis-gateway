@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	oidc "github.com/coreos/go-oidc"
+	"github.com/oasislabs/developer-gateway/auth/core"
 )
 
 const (
@@ -16,28 +17,33 @@ const (
 
 type GoogleOauth struct{}
 
+type OpenIDClaims struct {
+	Email         string `json:"email"`
+	EmailVerified bool   `json:"email_verified"`
+}
+
 // Authenticates the user using the ID Token receieved from Google.
 // Uses the hash of the access token as the session id.
-func (g GoogleOauth) Authenticate(req *http.Request) (string, string, error) {
+func (g GoogleOauth) Authenticate(req *http.Request) (*core.AuthenticationData, error) {
 	rawIDToken := req.Header.Get(ID_TOKEN_KEY)
 	keySet := oidc.NewRemoteKeySet(req.Context(), googleKeySet)
-	verifier := oidc.NewVerifier(googleTokenIssuer, keySet, oidc.Config{SkipClientIDCheck: true})
+	verifier := oidc.NewVerifier(googleTokenIssuer, keySet, &oidc.Config{SkipClientIDCheck: true})
 
-	idToken, err := verifier.Verify(rawIDToken)
+	idToken, err := verifier.Verify(req.Context(), rawIDToken)
 	if err != nil {
-		return "", "", err
+		return nil, err
 	}
-	var claims struct {
-		Email         string `json:"email"`
-		EmailVerified bool   `json:"email_verified"`
-	}
-
+	var claims OpenIDClaims
 	if err = idToken.Claims(&claims); err != nil {
-		return "", "", err
+		return nil, err
 	}
 	if !claims.EmailVerified {
-		return "", "", errors.New("Email is unverified")
+		return nil, errors.New("Email is unverified")
+	}
+	authData := core.AuthenticationData{
+		ExpectedAAD: claims.Email,
+		SessionKey:  idToken.AccessTokenHash,
 	}
 
-	return claims.Email, idToken.AccessTokenHash, nil
+	return &authData, nil
 }

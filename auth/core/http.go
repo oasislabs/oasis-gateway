@@ -35,13 +35,13 @@ func NewHttpMiddlewareAuth(auth Auth, logger log.Logger, next rpc.HttpMiddleware
 }
 
 func (m *HttpMiddlewareAuth) ServeHTTP(req *http.Request) (interface{}, error) {
-	expectedAAD, sessionKey, err := m.auth.Authenticate(req)
+	authData, err := m.auth.Authenticate(req)
 
 	if err != nil {
 		return nil, &rpc.HttpError{Cause: nil, StatusCode: http.StatusForbidden}
 	}
 
-	req = req.WithContext(context.WithValue(req.Context(), ContextExpectedAADKey, expectedAAD))
-	req = req.WithContext(context.WithValue(req.Context(), ContextSessionKey, sessionKey))
+	req = req.WithContext(context.WithValue(req.Context(), ContextExpectedAADKey, authData.ExpectedAAD))
+	req = req.WithContext(context.WithValue(req.Context(), ContextSessionKey, authData.SessionKey))
 	return m.next.ServeHTTP(req)
 }

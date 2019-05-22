@@ -98,6 +98,15 @@ func createRouter(services Services, auth core.Auth) *rpc.HttpRouter {
 	return binder.Build()
 }
 
+func getAuth(authenticator string) core.Auth {
+	switch authenticator {
+	case "oauth":
+		return oauth.GoogleOauth{}
+	default:
+		return insecure.InsecureAuth{}
+	}
+}
+
 func main() {
 	var (
 		configFile    string
@@ -137,13 +146,7 @@ func main() {
 	httpPort := bindConfig.HttpPort
 
 	services := createServices(ctx, provider)
-	var router *rpc.Router
-	switch authenticator {
-	case "insecure":
-		router = createRouter(services, insecure.InsecureAuth{})
-	case "oauth":
-		router = createRouter(services, oauth.GoogleOauth{})
-	}
+	router := createRouter(services, getAuth(authenticator))
 
 	s := &http.Server{
 		Addr:           fmt.Sprintf("%s:%d", httpInterface, httpPort),

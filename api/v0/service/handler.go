@@ -24,7 +24,7 @@ type ServiceHandler struct {
 
 // DeployService handles the deployment of new services
 func (h ServiceHandler) DeployService(ctx context.Context, v interface{}) (interface{}, error) {
-	authID := ctx.Value(auth.ContextKeyAuthID).(string)
+	authID := ctx.Value(auth.ContextExpectedAADKey).(string)
 	req := v.(*DeployServiceRequest)
 
 	if len(req.Data) == 0 {
@@ -53,7 +53,7 @@ func (h ServiceHandler) DeployService(ctx context.Context, v interface{}) (inter
 
 // ExecuteService handle the execution of deployed services
 func (h ServiceHandler) ExecuteService(ctx context.Context, v interface{}) (interface{}, error) {
-	authID := ctx.Value(auth.ContextKeyAuthID).(string)
+	authID := ctx.Value(auth.ContextExpectedAADKey).(string)
 	req := v.(*ExecuteServiceRequest)
 
 	if len(req.Data) == 0 || len(req.Address) == 0 {
@@ -85,7 +85,7 @@ func (h ServiceHandler) ExecuteService(ctx context.Context, v interface{}) (inte
 
 // PollService polls the service response queue to retrieve available responses
 func (h ServiceHandler) PollService(ctx context.Context, v interface{}) (interface{}, error) {
-	authID := ctx.Value(auth.ContextKeyAuthID).(string)
+	authID := ctx.Value(auth.ContextExpectedAADKey).(string)
 
 	req := v.(*PollServiceRequest)
 	if req.Count == 0 {
