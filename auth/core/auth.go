@@ -1,6 +1,7 @@
 package core
 
+import "net/http"
+
 type Auth interface {
-	Key() string
-	Verify(key, value string) (string, error)
+	Authenticate(req *http.Request) error
 }
