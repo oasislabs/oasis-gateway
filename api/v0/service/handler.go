@@ -102,7 +102,7 @@ func (h ServiceHandler) PollService(ctx context.Context, v interface{}) (interfa
 		return nil, err
 	}
 
-	events := []Event{}
+	events := make([]Event, 0, len(res.Events))
 	for _, r := range res.Events {
 		switch r := r.(type) {
 		case backend.ErrorEvent:

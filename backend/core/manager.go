@@ -228,7 +228,7 @@ func (m *RequestManager) poll(ctx context.Context, key string, offset uint64, co
 		}
 	}
 
-	events := []Event{}
+	var events []Event
 	for _, el := range els.Elements {
 		events = append(events, el.Value.(Event))
 	}
