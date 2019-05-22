@@ -152,7 +152,7 @@ func (s *Server) insert(req insertWorkerRequest) {
 func (s *Server) retrieve(req retrieveWorkerRequest) {
 	worker, ok := s.workers[req.Key]
 	if !ok {
-		req.Out <- retrieveResponse{Elements: core.Elements{Offset: 0, Elements: nil},
+		req.Out <- retrieveResponse{Elements: core.Elements{Offset: req.Offset, Elements: nil},
 			Error: nil,
 		}
 		return

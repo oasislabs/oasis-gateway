@@ -31,7 +31,7 @@ type Client interface {
 
 // RequestManager handles the client RPC requests. Most requests
 // are asynchronous and they are handled by returning an identifier
-// that the caller can later on query on to find out the outcome
+// that the caller can later on query to find out the outcome
 // of the request.
 type RequestManager struct {
 	mqueue mqueue.MQueue
@@ -228,7 +228,7 @@ func (m *RequestManager) poll(ctx context.Context, key string, offset uint64, co
 		}
 	}
 
-	var events []Event
+	events := []Event{}
 	for _, el := range els.Elements {
 		events = append(events, el.Value.(Event))
 	}
