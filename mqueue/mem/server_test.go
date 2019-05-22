@@ -27,7 +27,7 @@ func TestServerInsert(t *testing.T) {
 
 	err := s.Insert("key", core.Element{
 		Offset: uint64(1),
-		Value: "value",
+		Value: "value1",
 	})
 	assert.Nil(t, err)
 }
@@ -42,14 +42,56 @@ func TestServerRetrieve(t *testing.T) {
 		Elements: nil,
 	})
 	assert.Nil(t, err)
+
+	s.Insert("key", core.Element{
+		Offset: uint64(1),
+		Value: "value1",
+	})
+
+	els, err = s.Retrieve("key", uint64(1), uint(1))
+	assert.Equal(t, core.Elements{
+		Offset: uint64(1),
+		Elements: []core.Element{
+			core.Element{
+				Offset: uint64(1),
+				Value: "value1",
+			},
+		},
+	}, els)
+	assert.Nil(t, err)
 }
 
 func TestServerDiscard(t *testing.T) {
 	s, cancel := initializeServer()
 	defer cancel()
 
+	s.Insert("key", core.Element{
+		Offset: uint64(0),
+		Value: "value0",
+	})
+	s.Insert("key", core.Element{
+		Offset: uint64(1),
+		Value: "value1",
+	})
+	s.Insert("key", core.Element{
+		Offset: uint64(2),
+		Value: "value2",
+	})
+
 	err := s.Discard("key", uint64(1))
 	assert.Nil(t, err)
+
+	var els core.Elements
+	els, err = s.Retrieve("key", uint64(0), uint(1))
+	assert.Equal(t, core.Elements{
+		Offset: uint64(0),
+		Elements: []core.Element{
+			core.Element{
+				Offset: uint64(2),
+				Value: "value2",
+			},
+		},
+	}, els)
 }
 
 func TestServerNext(t *testing.T) {
@@ -58,6 +100,10 @@ func TestServerNext(t *testing.T) {
 
 	offset, err := s.Next("key")
 	assert.Equal(t, uint64(0), offset)
+	assert.Nil(t, err)
+
+	offset, err = s.Next("key")
+	assert.Equal(t, uint64(1), offset)
 	assert.Nil(t, err)
 }
 
