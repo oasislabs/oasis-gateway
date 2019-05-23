@@ -258,3 +258,36 @@ func TestMasterHandlerErrorOnDestroy(t *testing.T) {
 	err = master.Stop()
 	assert.Nil(t, err)
 }
+
+func TestMasterHandlerPanicOnDestroy(t *testing.T) {
+	ctx := context.Background()
+	handler := MasterHandlerFunc(func(ctx context.Context, ev MasterEvent) error {
+		switch req := ev.(type) {
+		case CreateWorkerEvent:
+			req.Props.ErrC = nil
+			req.Props.UserData = nil
+			req.Props.WorkerHandler = &MockWorkerHandler{}
+		case DestroyWorkerEvent:
+			panic("error")
+		default:
+			panic("received unknown master event")
+		}
+
+		return nil
+	})
+	master := NewMaster(MasterProps{
+		MasterHandler: handler,
+	})
+
+	err := master.Start(ctx)
+	assert.Nil(t, err)
+
+	err = master.Create(ctx, "1")
+	assert.Nil(t, err)
+
+	err = master.Destroy(ctx, "1")
+	assert.Error(t, err)
+
+	err = master.Stop()
+	assert.Nil(t, err)
+}
