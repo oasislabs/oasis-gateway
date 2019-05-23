@@ -24,8 +24,8 @@ type ExecuteServiceRequest struct {
 	// Address where the service can be found
 	Address string
 
-	// Key is the identifier of the request issuer
-	Key string
+	// Key is the identifier of the session
+	SessionKey string
 }
 
 // DeployServiceRequest is issued by the user to trigger a service
@@ -37,8 +37,8 @@ type DeployServiceRequest struct {
 	// the deployment of a service
 	Data string
 
-	// Key is the identifier of the request issuer
-	Key string
+	// Key is the identifier of the session
+	SessionKey string
 }
 
 // GetPublicKeyServiceRequest is a request to retrieve the public key
@@ -157,7 +157,7 @@ type PollServiceRequest struct {
 	DiscardPrevious bool
 
 	// Key is the identifier of the request issuer
-	Key string
+	SessionKey string
 }
 
 // SubscribeRequest is a request issued by the client to subscribe to a
