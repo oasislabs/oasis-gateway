@@ -171,8 +171,8 @@ type SubscribeRequest struct {
 	// the address
 	Address string
 
-	// Key is the identifier of the request issuer
-	Key string
+	// Key is the identifier of the session
+	SessionKey string
 }
 
 // PollEventRequest is a request issued by the client to
@@ -195,8 +195,8 @@ type PollEventRequest struct {
 	// the user's key namespace
 	ID uint64
 
-	// Key is the identifier of the request issuer
-	Key string
+	// Key is the identifier of the session
+	SessionKey string
 }
 
 // UnsubscribeRequest is a request issued by the client to subscribe to a
@@ -207,8 +207,8 @@ type UnsubscribeRequest struct {
 	// the user's key namespace
 	ID uint64
 
-	// Key is the identifier of the request issuer
-	Key string
+	// Key is the identifier of the session
+	SessionKey string
 }
 
 type CreateSubscriptionRequest struct {
