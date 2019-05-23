@@ -123,7 +123,7 @@ func (h EventHandler) PollEvent(ctx context.Context, v interface{}) (interface{}
 		return nil, err
 	}
 
-	var events []Event
+	events := make([]Event, 0, len(res.Events))
 	for _, r := range res.Events {
 		switch r := r.(type) {
 		case backend.ErrorEvent:

@@ -31,7 +31,7 @@ type Client interface {
 
 // RequestManager handles the client RPC requests. Most requests
 // are asynchronous and they are handled by returning an identifier
-// that the caller can later on query on to find out the outcome
+// that the caller can later on query to find out the outcome
 // of the request.
 type RequestManager struct {
 	mqueue mqueue.MQueue
