@@ -10,7 +10,6 @@ type AuthData struct {
 type Auth interface {
 	// Authenticate the user from the http request. This should return:
 	// - the expected AAD
-	// - the session key
 	// - the authentication error
-	Authenticate(req *http.Request) (*AuthData, error)
+	Authenticate(req *http.Request) (string, error)
 }

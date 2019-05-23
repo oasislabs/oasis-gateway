@@ -39,7 +39,7 @@ func (h ServiceHandler) DeployService(ctx context.Context, v interface{}) (inter
 	// so a new context is needed to handle the asynchronous request
 	id, err := h.request.DeployServiceAsync(context.Background(), backend.DeployServiceRequest{
 		Data:       req.Data,
-		SessionKey: auth.sessionKey,
+		SessionKey: authData.SessionKey,
 	})
 	if err != nil {
 		h.logger.Debug(ctx, "failed to start request", log.MapFields{
@@ -70,7 +70,7 @@ func (h ServiceHandler) ExecuteService(ctx context.Context, v interface{}) (inte
 	id, err := h.request.ExecuteServiceAsync(context.Background(), backend.ExecuteServiceRequest{
 		Address:    req.Address,
 		Data:       req.Data,
-		SessionKey: authData.sessionKey,
+		SessionKey: authData.SessionKey,
 	})
 	if err != nil {
 		h.logger.Debug(ctx, "failed to start request", log.MapFields{
@@ -95,7 +95,7 @@ func (h ServiceHandler) PollService(ctx context.Context, v interface{}) (interfa
 		Offset:          req.Offset,
 		Count:           req.Count,
 		DiscardPrevious: req.DiscardPrevious,
-		SessionKey:      authData.sessionKey,
+		SessionKey:      authData.SessionKey,
 	})
 	if err != nil {
 		return nil, err

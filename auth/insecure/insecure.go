@@ -3,8 +3,6 @@ package insecure
 import (
 	"errors"
 	"net/http"
-
-	"github.com/oasislabs/developer-gateway/auth/core"
 )
 
 const INSECURE_KEY string = "X-INSECURE-AUTH"
@@ -14,14 +12,11 @@ const INSECURE_KEY string = "X-INSECURE-AUTH"
 // setups with real users
 type InsecureAuth struct{}
 
-func (a InsecureAuth) Authenticate(req *http.Request) (*core.AuthData, error) {
+func (a InsecureAuth) Authenticate(req *http.Request) (string, error) {
 	value := req.Header.Get(INSECURE_KEY)
 	if len(value) == 0 {
-		return nil, errors.New("Verification failed")
+		return "", errors.New("Verification failed")
 	}
-	authData := core.AuthData{
-		ExpectedAAD: "",
-		SessionKey:  value,
-	}
-	return &authData, nil
+
+	return value, nil
 }

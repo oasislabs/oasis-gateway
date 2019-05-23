@@ -67,7 +67,7 @@ func (h EventHandler) Subscribe(ctx context.Context, v interface{}) (interface{}
 	id, err := h.request.Subscribe(ctx, backend.SubscribeRequest{
 		Topic:      req.Events[0],
 		Address:    address,
-		SessionKey: authData.sessionKey,
+		SessionKey: authData.SessionKey,
 	})
 	if err != nil {
 		h.logger.Debug(ctx, "failed to subscribe", log.MapFields{
@@ -89,7 +89,7 @@ func (h EventHandler) Unsubscribe(ctx context.Context, v interface{}) (interface
 
 	err := h.request.Unsubscribe(ctx, backend.UnsubscribeRequest{
 		ID:         req.ID,
-		SessionKey: authData.sessionKey,
+		SessionKey: authData.SessionKey,
 	})
 	if err != nil {
 		h.logger.Debug(ctx, "failed unsubscribe from events", log.MapFields{
@@ -113,7 +113,7 @@ func (h EventHandler) PollEvent(ctx context.Context, v interface{}) (interface{}
 		Count:           req.Count,
 		Offset:          req.Offset,
 		ID:              req.ID,
-		SessionKey:      authData.sessionKey,
+		SessionKey:      authData.SessionKey,
 	})
 	if err != nil {
 		h.logger.Debug(ctx, "failed to poll events from subscription", log.MapFields{
