@@ -3,5 +3,5 @@ package core
 const (
 	ContextAuthDataKey string = "authCoreContextAuthDataKey"
 
-	RequestHeaderSessionKey string = "X-SESSION-KEY"
+	RequestHeaderSessionKey string = "X-OASIS-SESSION-KEY"
 )

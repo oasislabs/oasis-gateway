@@ -5,7 +5,7 @@ import (
 	"net/http"
 )
 
-const INSECURE_KEY string = "X-INSECURE-AUTH"
+const INSECURE_KEY string = "X-OASIS-INSECURE-AUTH"
 
 // InsecureAuth is an insecure authentication mechanism that may be
 // useful for debugging and testing. It should not be used in
