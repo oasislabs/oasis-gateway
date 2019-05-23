@@ -2,6 +2,7 @@ package mem
 
 import (
 	"context"
+	"io/ioutil"
 	"testing"
 
 	"github.com/oasislabs/developer-gateway/log"
@@ -10,12 +11,15 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+var (
+	logger = log.NewLogrus(log.LogrusLoggerProperties{
+		Level: logrus.DebugLevel,
+		Output: ioutil.Discard,
+	})
+)
+
 func initializeServer() (*Server, context.CancelFunc) {
 	ctx, cancel := context.WithCancel(context.Background())
-
-	logger := log.NewLogrus(log.LogrusLoggerProperties{
-		Level: logrus.DebugLevel,
-	})
 	s := NewServer(ctx, logger)
 
 	return s, cancel
@@ -42,7 +46,7 @@ func TestServerRetrieve(t *testing.T) {
 	els, err := s.Retrieve("key", uint64(1), uint(1))
 	assert.Nil(t, err)
 	assert.Equal(t, els, core.Elements{
-		Offset: uint64(1),
+		Offset: uint64(0),
 		Elements: nil,
 	})
 
@@ -62,7 +66,7 @@ func TestServerRetrieve(t *testing.T) {
 		Offset: offset,
 		Elements: []core.Element{
 			core.Element{
-				Offset: offset,
+				Offset: uint64(0),
 				Value: "value",
 			},
 		},
@@ -73,32 +77,18 @@ func TestServerDiscard(t *testing.T) {
 	s, cancel := initializeServer()
 	defer cancel()
 
-	offset, err := s.Next("key")
-	assert.Nil(t, err)
+	var offset uint64
+	var err error
+	for i := 0; i < 3; i++ {
+		offset, err = s.Next("key")
+		assert.Nil(t, err)
 
-	err = s.Insert("key", core.Element{
-		Offset: offset,
-		Value: "value0",
-	})
-	assert.Nil(t, err)
-
-	offset, err = s.Next("key")
-	assert.Nil(t, err)
-
-	err = s.Insert("key", core.Element{
-		Offset: offset,
-		Value: "value1",
-	})
-	assert.Nil(t, err)
-
-	offset, err = s.Next("key")
-	assert.Nil(t, err)
-
-	err = s.Insert("key", core.Element{
-		Offset: offset,
-		Value: "value2",
-	})
-	assert.Nil(t, err)
+		err = s.Insert("key", core.Element{
+			Offset: offset,
+			Value: "value",
+		})
+		assert.Nil(t, err)
+	}
 
 	err = s.Discard("key", uint64(1))
 	assert.Nil(t, err)
@@ -111,11 +101,11 @@ func TestServerDiscard(t *testing.T) {
 		Elements: []core.Element{
 			core.Element{
 				Offset: uint64(1),
-				Value: "value1",
+				Value: "value",
 			},
 			core.Element{
 				Offset: uint64(2),
-				Value: "value2",
+				Value: "value",
 			},
 		},
 	}, els)
