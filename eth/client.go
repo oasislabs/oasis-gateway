@@ -2,7 +2,6 @@ package eth
 
 import (
 	"context"
-	"math/big"
 	"strings"
 
 	ethereum "github.com/ethereum/go-ethereum"
@@ -12,99 +11,6 @@ import (
 	rpc "github.com/ethereum/go-ethereum/rpc"
 	"github.com/oasislabs/developer-gateway/conc"
 )
-
-// EthSubscription abstracts an ethereum.Subscription to be
-// able to pass a chan<- interface{} and to monitor
-// the state of the subscription
-type EthSubscription struct {
-	sub ethereum.Subscription
-	err chan error
-}
-
-// Unsubscribe destroys the subscription
-func (s *EthSubscription) Unsubscribe() {
-	s.sub.Unsubscribe()
-}
-
-// Err returns a channel to retrieve subscription errors.
-// Only one error at most will be sent through this chanel,
-// when the subscription is closed, this channel will be closed
-// so this can be used by a client to monitor whether the
-// subscription is active
-func (s *EthSubscription) Err() <-chan error {
-	return s.err
-}
-
-// LogSubscriber creates log based subscriptions
-// using the underlying clients
-type LogSubscriber struct {
-	FilterQuery ethereum.FilterQuery
-	BlockNumber uint64
-	Index       uint
-}
-
-// Subscribe implementation of Subscriber for LogSubscriber
-func (s *LogSubscriber) Subscribe(
-	ctx context.Context,
-	client Client,
-	c chan<- interface{},
-) (ethereum.Subscription, error) {
-	clog := make(chan types.Log, 64)
-	cerr := make(chan error)
-
-	sub, err := client.SubscribeFilterLogs(ctx, s.FilterQuery, clog)
-	if err != nil {
-		return nil, err
-	}
-
-	go func() {
-		defer func() {
-			// ensure that if the subscriber is started again it will start
-			// from the block from which it stopped
-			s.FilterQuery.FromBlock = big.NewInt(0).SetUint64(s.BlockNumber)
-			close(cerr)
-		}()
-
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case ev, ok := <-clog:
-				if !ok {
-					return
-				}
-
-				// in case events are received that are previous to the offsets
-				// tracked by the subscriber, the events are discarded
-				if ev.BlockNumber < s.BlockNumber ||
-					(ev.BlockNumber == s.BlockNumber && ev.Index <= s.Index) {
-					continue
-				}
-
-				s.BlockNumber = ev.BlockNumber
-				s.Index = ev.Index
-				c <- ev
-			case err, ok := <-sub.Err():
-				if !ok {
-					return
-				}
-
-				cerr <- err
-				return
-			}
-		}
-	}()
-
-	return &EthSubscription{sub: sub, err: cerr}, nil
-}
-
-// Subscriber is an interface for types that creates subscriptions
-// against an ethereum-like backend
-type Subscriber interface {
-	// Subscribe creates a subscription and forwards the received
-	// events on the provided channel
-	Subscribe(context.Context, Client, chan<- interface{}) (ethereum.Subscription, error)
-}
 
 type Client interface {
 	EstimateGas(context.Context, ethereum.CallMsg) (uint64, error)
@@ -143,6 +49,8 @@ func (c *PooledClient) shouldRetryAfterError(err error) bool {
 
 	switch {
 	case strings.Contains(err.Error(), "Requested gas greater than block gas limit"):
+		return false
+	case strings.Contains(err.Error(), "Invalid transaction nonce"):
 		return false
 	default:
 		return true
@@ -235,17 +143,14 @@ func (c *PooledClient) SubscribeFilterLogs(
 	q ethereum.FilterQuery,
 	ch chan<- types.Log,
 ) (ethereum.Subscription, error) {
-	conn, err := c.pool.Conn(ctx)
+	v, err := c.request(ctx, func(conn *Conn) (interface{}, error) {
+		return conn.eclient.SubscribeFilterLogs(ctx, q, ch)
+	})
+
 	if err != nil {
 		return nil, err
 	}
 
-	v, err := conc.RetryWithConfig(ctx, conc.SupplierFunc(func() (interface{}, error) {
-		return conn.eclient.SubscribeFilterLogs(ctx, q, ch)
-	}), c.retryConfig)
-	if err != nil {
-		return nil, err
-	}
 	return v.(ethereum.Subscription), nil
 }
 

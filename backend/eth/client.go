@@ -12,6 +12,7 @@ import (
 
 	ethereum "github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 
@@ -314,8 +315,19 @@ func (c *EthClient) SubscribeRequest(
 	req backend.CreateSubscriptionRequest,
 	ch chan<- interface{},
 ) errors.Err {
+	if req.Topic != "logs" {
+		return errors.New(errors.ErrTopicLogsSupported, nil)
+	}
+
+	if len(req.Address) == 0 {
+		return errors.New(errors.ErrInvalidAddress, nil)
+	}
+
+	address := common.HexToAddress(req.Address)
 	if err := c.subman.Create(ctx, req.SubID, &eth.LogSubscriber{
-		FilterQuery: ethereum.FilterQuery{},
+		FilterQuery: ethereum.FilterQuery{
+			Addresses: []common.Address{address},
+		},
 	}, ch); err != nil {
 		err := errors.New(errors.ErrInternalError, err)
 		c.logger.Debug(ctx, "failed to create subscription", log.MapFields{
@@ -429,19 +441,38 @@ func (c *EthClient) executeTransaction(
 		"address":   req.Address,
 	})
 
+	address := req.Address
+	if len(req.Address) == 0 {
+		address = receipt.ContractAddress.Hex()
+	}
+
 	return &executeTransactionResponse{
 		ID:      req.ID,
-		Address: receipt.ContractAddress.Hex(),
+		Address: address,
 		Output:  nil,
 	}, nil
 }
 
+func (c *EthClient) decodeBytes(s string) ([]byte, errors.Err) {
+	data, err := hexutil.Decode(s)
+	if err != nil {
+		return nil, errors.New(errors.ErrStringNotHex, err)
+	}
+
+	return data, nil
+}
+
 func (c *EthClient) deployService(ctx context.Context, nonce, id uint64, req backend.DeployServiceRequest) (*backend.DeployServiceResponse, errors.Err) {
+	data, err := c.decodeBytes(req.Data)
+	if err != nil {
+		return nil, err
+	}
+
 	res, err := c.executeTransaction(ctx, executeTransactionRequest{
 		Nonce:   nonce,
 		ID:      id,
 		Address: "",
-		Data:    []byte(req.Data),
+		Data:    data,
 	})
 
 	if err != nil {
@@ -452,11 +483,16 @@ func (c *EthClient) deployService(ctx context.Context, nonce, id uint64, req bac
 }
 
 func (c *EthClient) executeService(ctx context.Context, nonce, id uint64, req backend.ExecuteServiceRequest) (*backend.ExecuteServiceResponse, errors.Err) {
+	data, err := c.decodeBytes(req.Data)
+	if err != nil {
+		return nil, err
+	}
+
 	res, err := c.executeTransaction(ctx, executeTransactionRequest{
 		Nonce:   nonce,
 		ID:      id,
 		Address: req.Address,
-		Data:    []byte(req.Data),
+		Data:    data,
 	})
 
 	if err != nil {
@@ -510,12 +546,23 @@ func (c *EthClient) estimateGas(ctx context.Context, id uint64, address string, 
 		From:     crypto.PubkeyToAddress(c.wallet.PrivateKey.PublicKey),
 		To:       to,
 		Gas:      0,
-		GasPrice: big.NewInt(gasPrice),
-		Value:    big.NewInt(0),
+		GasPrice: nil,
+		Value:    nil,
 		Data:     data,
 	})
 
 	if err != nil {
+		c.logger.Debug(ctx, "", log.MapFields{
+			"call_type": "EstimateGasFailure",
+			"id":        id,
+			"address":   address,
+			"err":       err.Error(),
+		})
+		return 0, err
+	}
+
+	if gas == 2251799813685248 {
+		err := stderr.New("gas estimation could not be completed because of execution failure")
 		c.logger.Debug(ctx, "", log.MapFields{
 			"call_type": "EstimateGasFailure",
 			"id":        id,
@@ -534,7 +581,7 @@ func (c *EthClient) estimateGas(ctx context.Context, id uint64, address string, 
 	return gas, nil
 }
 
-func Dial(ctx context.Context, logger log.Logger, properties EthClientProperties) (*EthClient, error) {
+func DialContext(ctx context.Context, logger log.Logger, properties EthClientProperties) (*EthClient, error) {
 	if len(properties.URL) == 0 {
 		return nil, stderr.New("no url provided for eth client")
 	}

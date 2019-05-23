@@ -248,6 +248,18 @@ var (
 		desc:     "Provided invalid key.",
 	}
 
+	ErrTopicLogsSupported = ErrorCode{
+		category: InputError,
+		code:     2012,
+		desc:     "Only logs topic supported for subscriptions.",
+	}
+
+	ErrStringNotHex = ErrorCode{
+		category: InputError,
+		code:     2013,
+		desc:     "Provided string is not a valid hex encoding.",
+	}
+
 	ErrQueueLimitReached = ErrorCode{
 		category: ResourceLimitReached,
 		code:     3001,
