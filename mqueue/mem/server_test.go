@@ -25,9 +25,12 @@ func TestServerInsert(t *testing.T) {
 	s, cancel := initializeServer()
 	defer cancel()
 
-	err := s.Insert("key", core.Element{
-		Offset: uint64(1),
-		Value: "value1",
+	offset, err := s.Next("key")
+	assert.Nil(t, err)
+
+	err = s.Insert("key", core.Element{
+			Offset: offset,
+			Value: "value",
 	})
 	assert.Nil(t, err)
 }
@@ -43,18 +46,22 @@ func TestServerRetrieve(t *testing.T) {
 	})
 	assert.Nil(t, err)
 
+	var offset uint64
+	offset, err = s.Next("key")
+	assert.Nil(t, err)
+
 	s.Insert("key", core.Element{
-		Offset: uint64(1),
-		Value: "value1",
+		Offset: offset,
+		Value: "value",
 	})
 
-	els, err = s.Retrieve("key", uint64(1), uint(1))
+	els, err = s.Retrieve("key", offset, uint(1))
 	assert.Equal(t, core.Elements{
-		Offset: uint64(1),
+		Offset: offset,
 		Elements: []core.Element{
 			core.Element{
-				Offset: uint64(1),
-				Value: "value1",
+				Offset: offset,
+				Value: "value",
 			},
 		},
 	}, els)
@@ -65,27 +72,42 @@ func TestServerDiscard(t *testing.T) {
 	s, cancel := initializeServer()
 	defer cancel()
 
+	offset, err := s.Next("key")
+	assert.Nil(t, err)
+
 	s.Insert("key", core.Element{
-		Offset: uint64(0),
+		Offset: offset,
 		Value: "value0",
 	})
+
+	offset, err = s.Next("key")
+	assert.Nil(t, err)
+
 	s.Insert("key", core.Element{
-		Offset: uint64(1),
+		Offset: offset,
 		Value: "value1",
 	})
+
+	offset, err = s.Next("key")
+	assert.Nil(t, err)
+
 	s.Insert("key", core.Element{
-		Offset: uint64(2),
+		Offset: offset,
 		Value: "value2",
 	})
 
-	err := s.Discard("key", uint64(1))
+	err = s.Discard("key", uint64(1))
 	assert.Nil(t, err)
 
 	var els core.Elements
-	els, err = s.Retrieve("key", uint64(0), uint(1))
+	els, err = s.Retrieve("key", uint64(0), uint(2))
 	assert.Equal(t, core.Elements{
-		Offset: uint64(0),
+		Offset: uint64(1),
 		Elements: []core.Element{
+			core.Element{
+				Offset: uint64(1),
+				Value: "value1",
+			},
 			core.Element{
 				Offset: uint64(2),
 				Value: "value2",
@@ -111,6 +133,9 @@ func TestServerRemove(t *testing.T) {
 	s, cancel := initializeServer()
 	defer cancel()
 
-	err := s.Remove("key")
+	_, err := s.Next("key")
+	assert.Nil(t, err)
+
+	err = s.Remove("key")
 	assert.Nil(t, err)
 }
