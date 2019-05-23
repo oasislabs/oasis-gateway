@@ -2,11 +2,107 @@ package eth
 
 import (
 	"context"
-	"errors"
+	"fmt"
+	"math/big"
 
 	ethereum "github.com/ethereum/go-ethereum"
+	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/oasislabs/developer-gateway/conc"
 	"github.com/oasislabs/developer-gateway/log"
 )
+
+// EthSubscription abstracts an ethereum.Subscription to be
+// able to pass a chan<- interface{} and to monitor
+// the state of the subscription
+type EthSubscription struct {
+	sub ethereum.Subscription
+	err chan error
+}
+
+// Unsubscribe destroys the subscription
+func (s *EthSubscription) Unsubscribe() {
+	s.sub.Unsubscribe()
+}
+
+// Err returns a channel to retrieve subscription errors.
+// Only one error at most will be sent through this chanel,
+// when the subscription is closed, this channel will be closed
+// so this can be used by a client to monitor whether the
+// subscription is active
+func (s *EthSubscription) Err() <-chan error {
+	return s.err
+}
+
+// LogSubscriber creates log based subscriptions
+// using the underlying clients
+type LogSubscriber struct {
+	FilterQuery ethereum.FilterQuery
+	BlockNumber uint64
+	Index       uint
+}
+
+// Subscribe implementation of Subscriber for LogSubscriber
+func (s *LogSubscriber) Subscribe(
+	ctx context.Context,
+	client Client,
+	c chan<- interface{},
+) (ethereum.Subscription, error) {
+	clog := make(chan types.Log, 64)
+	cerr := make(chan error)
+
+	sub, err := client.SubscribeFilterLogs(ctx, s.FilterQuery, clog)
+	if err != nil {
+		return nil, err
+	}
+
+	go func() {
+		defer func() {
+			// ensure that if the subscriber is started again it will start
+			// from the block from which it stopped
+			s.FilterQuery.FromBlock = big.NewInt(0).SetUint64(s.BlockNumber)
+			close(cerr)
+		}()
+
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case ev, ok := <-clog:
+				if !ok {
+					return
+				}
+
+				// in case events are received that are previous to the offsets
+				// tracked by the subscriber, the events are discarded
+				if ev.BlockNumber < s.BlockNumber ||
+					(ev.BlockNumber == s.BlockNumber && ev.Index <= s.Index) {
+					continue
+				}
+
+				s.BlockNumber = ev.BlockNumber
+				s.Index = ev.Index
+				c <- ev
+			case err, ok := <-sub.Err():
+				if !ok {
+					return
+				}
+
+				cerr <- err
+				return
+			}
+		}
+	}()
+
+	return &EthSubscription{sub: sub, err: cerr}, nil
+}
+
+// Subscriber is an interface for types that creates subscriptions
+// against an ethereum-like backend
+type Subscriber interface {
+	// Subscribe creates a subscription and forwards the received
+	// events on the provided channel
+	Subscribe(context.Context, Client, chan<- interface{}) (ethereum.Subscription, error)
+}
 
 // SubscriptionEndEvent is issued to the subscription supervisor
 // when the subscription has been destroyed
@@ -22,10 +118,6 @@ type SubscriptionEndEvent struct {
 // SubscriptionProps are the properties required when
 // creating a subscription
 type SubscriptionProps struct {
-	// Context used by the subscription and that can be used
-	// to signal a cancellation of the subcription
-	Context context.Context
-
 	// Logger used by the subscription
 	Logger log.Logger
 
@@ -43,28 +135,20 @@ type SubscriptionProps struct {
 	// Subscriber used to create the subscription
 	Subscriber Subscriber
 
-	// C is the channel used by the subscription to send the received
-	// events
+	// C channel to receive the events for a subscription
 	C chan<- interface{}
-
-	// Done is called by the subscription when a subscription exits
-	Done chan<- SubscriptionEndEvent
 }
 
 // Subscription abstracts an ethereum subscription into a type
 // that implements automatic dialing and retries
 type Subscription struct {
-	ctx        context.Context
-	cancel     context.CancelFunc
 	logger     log.Logger
 	client     Client
 	sub        ethereum.Subscription
 	subscriber Subscriber
 	url        string
 	key        string
-	done       chan<- SubscriptionEndEvent
 	c          chan<- interface{}
-	consumer   chan interface{}
 }
 
 // NewSubscription creates a new subscription with the
@@ -76,38 +160,27 @@ func NewSubscription(props SubscriptionProps) *Subscription {
 	if props.Client == nil {
 		panic("client must be set")
 	}
-	if props.C == nil {
-		panic("channel must be set")
-	}
 	if props.Subscriber == nil {
 		panic("subscriber must be set")
 	}
-
-	if props.Context == nil {
-		props.Context = context.Background()
+	if props.C == nil {
+		panic("receiving channel must be set")
 	}
 
-	ctx, cancel := context.WithCancel(props.Context)
 	s := &Subscription{
-		ctx:        ctx,
-		cancel:     cancel,
 		logger:     props.Logger.ForClass("eth", "Subscription"),
 		client:     props.Client,
 		url:        props.URL,
 		subscriber: props.Subscriber,
 		key:        props.Key,
-		done:       props.Done,
 		c:          props.C,
-		consumer:   make(chan interface{}, 64),
 	}
-
-	go s.startLoop()
 
 	return s
 }
 
-func (s *Subscription) subscribe() error {
-	sub, err := s.subscriber.Subscribe(s.ctx, s.client, s.c)
+func (s *Subscription) subscribe(ctx context.Context) error {
+	sub, err := s.subscriber.Subscribe(ctx, s.client, s.c)
 	if err != nil {
 		return err
 	}
@@ -122,60 +195,34 @@ func (s *Subscription) Key() string {
 	return s.key
 }
 
-// Unsubscribe stops the subscription
 func (s *Subscription) Unsubscribe() {
-	s.cancel()
+	s.sub.Unsubscribe()
 }
 
-func (s *Subscription) startLoop() {
-	defer func() {
-		close(s.c)
-	}()
-
-	if err := s.subscribe(); err != nil {
-		s.done <- SubscriptionEndEvent{Key: s.key, Error: err}
-		return
+func (s *Subscription) handle(ctx context.Context, ev conc.WorkerEvent) (interface{}, error) {
+	switch ev := ev.(type) {
+	case conc.RequestWorkerEvent:
+		panic("no requests should be issued to the subscription")
+	case conc.ErrorWorkerEvent:
+		err := s.handleError(ctx, ev)
+		return nil, err
+	default:
+		panic("received unexpected event type")
 	}
+}
 
-	for {
-		select {
-		case <-s.ctx.Done():
-			s.done <- SubscriptionEndEvent{Key: s.key, Error: nil}
-			return
-		case err, ok := <-s.sub.Err():
-			if ok {
-				s.logger.Debug(s.ctx, "subscription failed, recreating", log.MapFields{
-					"call_type": "CurrentSubscriptionFailure",
-					"err":       err.Error(),
-				})
-			}
+func (s *Subscription) handleError(ctx context.Context, ev conc.ErrorWorkerEvent) error {
+	s.logger.Debug(ctx, "subscription failed, recreating", log.MapFields{
+		"call_type": "CurrentSubscriptionFailure",
+		"err":       ev.Error.Error(),
+	})
 
-			if err := s.subscribe(); err != nil {
-				s.done <- SubscriptionEndEvent{Key: s.key, Error: err}
-				return
-			}
-		}
-	}
+	return s.subscribe(ctx)
 }
 
 type createSubscriptionRequest struct {
-	Context    context.Context
-	Key        string
-	Err        chan<- error
 	C          chan<- interface{}
 	Subscriber Subscriber
-}
-
-type destroySubscriptionRequest struct {
-	Context context.Context
-	Key     string
-	Err     chan<- error
-}
-
-type existsSubscriptionRequest struct {
-	Context context.Context
-	Key     string
-	Out     chan<- bool
 }
 
 // SubscriptionManagerProps properties used to create the
@@ -195,115 +242,65 @@ type SubscriptionManagerProps struct {
 // SubscriptionManager manages the lifetime
 // of a group of subscriptions
 type SubscriptionManager struct {
-	ctx    context.Context
 	logger log.Logger
-	done   chan SubscriptionEndEvent
-	req    chan interface{}
-	subs   map[string]*Subscription
 	client Client
+	master *conc.Master
 }
 
 // NewSubscriptionManager creates a new subscription manager
 func NewSubscriptionManager(props SubscriptionManagerProps) *SubscriptionManager {
 	m := SubscriptionManager{
-		ctx:    props.Context,
 		logger: props.Logger.ForClass("eth", "SubscriptionManager"),
-		done:   make(chan SubscriptionEndEvent),
-		req:    make(chan interface{}),
-		subs:   make(map[string]*Subscription),
 		client: props.Client,
 	}
 
-	go m.startLoop()
+	m.master = conc.NewMaster(conc.MasterProps{
+		MasterHandler: conc.MasterHandlerFunc(m.handle),
+	})
+
+	if err := m.master.Start(props.Context); err != nil {
+		panic(fmt.Sprintf("failed to start loop %s", err.Error()))
+	}
+
 	return &m
 }
 
-func (m *SubscriptionManager) startLoop() {
-	defer func() {
-		for _, sub := range m.subs {
-			sub.Unsubscribe()
-			m.remove(sub.Key())
-		}
-		close(m.done)
-		close(m.req)
-	}()
-
-	for {
-		select {
-		case <-m.ctx.Done():
-			return
-		case ev, ok := <-m.done:
-			if !ok {
-				return
-			}
-
-			m.remove(ev.Key)
-		case req := <-m.req:
-			m.handleRequest(req)
-		}
-	}
-}
-
-func (m *SubscriptionManager) handleRequest(req interface{}) {
-	switch req := req.(type) {
-	case createSubscriptionRequest:
-		m.create(req)
-	case destroySubscriptionRequest:
-		m.destroy(req)
-	case existsSubscriptionRequest:
-		m.exists(req)
+func (m *SubscriptionManager) handle(ctx context.Context, ev conc.MasterEvent) error {
+	switch ev := ev.(type) {
+	case conc.CreateWorkerEvent:
+		return m.create(ev)
+	case conc.DestroyWorkerEvent:
+		return m.destroy(ev)
 	default:
 		panic("received unknown request")
 	}
 }
 
-func (m *SubscriptionManager) create(req createSubscriptionRequest) {
-	_, ok := m.subs[req.Key]
-	if ok {
-		req.Err <- errors.New("subscription already exists")
-		return
-	}
-
-	m.subs[req.Key] = NewSubscription(SubscriptionProps{
-		Context:    m.ctx,
+func (m *SubscriptionManager) create(ev conc.CreateWorkerEvent) error {
+	req := ev.Value.(createSubscriptionRequest)
+	sub := NewSubscription(SubscriptionProps{
 		Logger:     m.logger,
 		Client:     m.client,
-		Key:        req.Key,
+		Key:        ev.Key,
 		Subscriber: req.Subscriber,
 		C:          req.C,
-		Done:       m.done,
 	})
 
-	req.Err <- nil
-}
-
-func (m *SubscriptionManager) exists(req existsSubscriptionRequest) {
-	_, ok := m.subs[req.Key]
-	req.Out <- ok
-}
-
-func (m *SubscriptionManager) destroy(req destroySubscriptionRequest) {
-	sub, ok := m.subs[req.Key]
-	if !ok {
-		req.Err <- errors.New("subscription does not exist")
-		return
+	if err := sub.subscribe(ev.Context); err != nil {
+		return err
 	}
 
+	ev.Props.ErrC = sub.sub.Err()
+	ev.Props.WorkerHandler = conc.WorkerHandlerFunc(sub.handle)
+	ev.Props.UserData = sub
+
+	return nil
+}
+
+func (m *SubscriptionManager) destroy(ev conc.DestroyWorkerEvent) error {
+	sub := ev.Worker.UserData.(*Subscription)
 	sub.Unsubscribe()
-	req.Err <- nil
-}
-
-func (m *SubscriptionManager) remove(key string) {
-	_, ok := m.subs[key]
-	if !ok {
-		m.logger.Warn(m.ctx, "failed to remove key", log.MapFields{
-			"call_type": "RemoveSubscriptionFailure",
-			"err":       "key does not exist",
-		})
-		return
-	}
-
-	delete(m.subs, key)
+	return nil
 }
 
 // Exists returns true if the subscription exists
@@ -311,13 +308,7 @@ func (m *SubscriptionManager) Exists(
 	ctx context.Context,
 	key string,
 ) bool {
-	out := make(chan bool)
-	m.req <- existsSubscriptionRequest{
-		Context: ctx,
-		Key:     key,
-		Out:     out,
-	}
-	return <-out
+	return m.master.Exists(ctx, key)
 }
 
 // Create a new subscription identified by the
@@ -328,15 +319,18 @@ func (m *SubscriptionManager) Create(
 	subscriber Subscriber,
 	c chan<- interface{},
 ) error {
-	err := make(chan error)
-	m.req <- createSubscriptionRequest{
-		Context:    ctx,
-		Key:        key,
+	if len(key) == 0 {
+		panic("key must be set")
+	}
+
+	if subscriber == nil {
+		panic("subscriber must not be nil")
+	}
+
+	return m.master.Create(ctx, key, createSubscriptionRequest{
 		Subscriber: subscriber,
 		C:          c,
-		Err:        err,
-	}
-	return <-err
+	})
 }
 
 // Destroy an existing subscription identified by
@@ -345,7 +339,5 @@ func (m *SubscriptionManager) Destroy(
 	ctx context.Context,
 	key string,
 ) error {
-	err := make(chan error)
-	m.req <- destroySubscriptionRequest{Context: ctx, Key: key, Err: err}
-	return <-err
+	return m.master.Destroy(ctx, key)
 }

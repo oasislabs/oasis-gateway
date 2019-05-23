@@ -82,8 +82,10 @@ type MasterEvent interface {
 // CreateWorkerEvent is triggered by a master when a new worker
 // is created and available to be sent events to
 type CreateWorkerEvent struct {
-	Key   string
-	Props *CreateWorkerProps
+	Context context.Context
+	Key     string
+	Value   interface{}
+	Props   *CreateWorkerProps
 }
 
 // WorkerKey implementation of MasterEvent for CreateWorkerEvent
@@ -94,7 +96,9 @@ func (e CreateWorkerEvent) WorkerKey() string {
 // DestroyWorkerEvent is triggered by a master when an existing worker
 // is destroyed
 type DestroyWorkerEvent struct {
-	Key string
+	Context context.Context
+	Worker  *Worker
+	Key     string
 }
 
 // WorkerKey implementation of MasterEvent for DestroyWorkerEvent
@@ -184,7 +188,7 @@ func (w *Worker) startLoop(ctx context.Context) {
 			err = errorFromPanic(r)
 		}
 
-		w.doneC <- workerDestroyed{Key: w.key, Cause: err}
+		w.doneC <- workerDestroyed{Context: ctx, Key: w.key, Cause: err}
 	}()
 
 	for {
@@ -253,6 +257,8 @@ func (w *Worker) handleRequest(req workerRequest) {
 // master to signal the end of the worker. If the worker
 // was shutdown because of an error Cause may be set
 type workerDestroyed struct {
+	Context context.Context
+
 	// Key uniquely identifies a worker
 	Key string
 
@@ -285,6 +291,7 @@ type createRequest struct {
 	Context context.Context
 	Key     string
 	Out     chan error
+	Value   interface{}
 }
 
 func (r createRequest) GetContext() context.Context {
@@ -466,9 +473,9 @@ func (m *Master) Stop() error {
 }
 
 // Create a new worker
-func (m *Master) Create(ctx context.Context, key string) error {
+func (m *Master) Create(ctx context.Context, key string, value interface{}) error {
 	out := make(chan error)
-	m.inCh <- createRequest{Context: ctx, Key: key, Out: out}
+	m.inCh <- createRequest{Context: ctx, Key: key, Out: out, Value: value}
 	return <-out
 }
 
@@ -607,8 +614,10 @@ func (m *Master) handleCreateRequest(req createRequest) {
 
 	var props CreateWorkerProps
 	err := m.handler.Handle(req.Context, CreateWorkerEvent{
-		Key:   req.Key,
-		Props: &props,
+		Context: req.Context,
+		Value:   req.Value,
+		Key:     req.Key,
+		Props:   &props,
 	})
 	if err != nil {
 		req.Out <- err
@@ -681,6 +690,8 @@ func (m *Master) removeWorker(ev workerDestroyed) {
 	m.workerCount.Done()
 
 	err = m.handler.Handle(context.Background(), DestroyWorkerEvent{
-		Key: ev.Key,
+		Context: ev.Context,
+		Worker:  w,
+		Key:     ev.Key,
 	})
 }

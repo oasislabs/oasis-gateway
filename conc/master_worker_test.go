@@ -119,7 +119,7 @@ func TestMasterWorkerExists(t *testing.T) {
 	ok := master.Exists(ctx, "1")
 	assert.False(t, ok)
 
-	err = master.Create(ctx, "1")
+	err = master.Create(ctx, "1", nil)
 	assert.Nil(t, err)
 
 	ok = master.Exists(ctx, "1")
@@ -148,7 +148,7 @@ func TestMasterWorkerRequest(t *testing.T) {
 	err := master.Start(ctx)
 	assert.Nil(t, err)
 
-	err = master.Create(ctx, "1")
+	err = master.Create(ctx, "1", nil)
 	assert.Nil(t, err)
 
 	v, err := master.Request(ctx, "1", 0)
@@ -175,7 +175,7 @@ func TestMasterStopShutdownWorkers(t *testing.T) {
 	err := master.Start(ctx)
 	assert.Nil(t, err)
 
-	err = master.Create(ctx, "1")
+	err = master.Create(ctx, "1", nil)
 	assert.Nil(t, err)
 
 	err = master.Stop()
@@ -203,7 +203,7 @@ func TestMasterWorkerPanicOnCreate(t *testing.T) {
 	err := master.Start(ctx)
 	assert.Nil(t, err)
 
-	err = master.Create(ctx, "1")
+	err = master.Create(ctx, "1", nil)
 	assert.Nil(t, err)
 
 	err = master.Stop()
@@ -222,7 +222,7 @@ func TestMasterHandlerErrorOnCreate(t *testing.T) {
 	err := master.Start(ctx)
 	assert.Nil(t, err)
 
-	err = master.Create(ctx, "1")
+	err = master.Create(ctx, "1", nil)
 	assert.Error(t, err)
 }
 
@@ -249,7 +249,7 @@ func TestMasterHandlerErrorOnDestroy(t *testing.T) {
 	err := master.Start(ctx)
 	assert.Nil(t, err)
 
-	err = master.Create(ctx, "1")
+	err = master.Create(ctx, "1", nil)
 	assert.Nil(t, err)
 
 	err = master.Destroy(ctx, "1")
@@ -282,7 +282,7 @@ func TestMasterHandlerPanicOnDestroy(t *testing.T) {
 	err := master.Start(ctx)
 	assert.Nil(t, err)
 
-	err = master.Create(ctx, "1")
+	err = master.Create(ctx, "1", nil)
 	assert.Nil(t, err)
 
 	err = master.Destroy(ctx, "1")

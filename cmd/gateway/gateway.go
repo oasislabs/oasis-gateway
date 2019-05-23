@@ -47,7 +47,7 @@ func createEthClient(config Config) *eth.EthClient {
 		panic(fmt.Sprintf("failed to read private key with error %s", err.Error()))
 	}
 
-	client, err := eth.Dial(rootCtx, logger, eth.EthClientProperties{
+	client, err := eth.DialContext(rootCtx, logger, eth.EthClientProperties{
 		Wallet: eth.Wallet{
 			PrivateKey: privateKey,
 		},
