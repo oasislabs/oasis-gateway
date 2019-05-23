@@ -27,7 +27,6 @@ type EventHandler struct {
 // Subscribe creates a new subscription for the client on the required
 // topics
 func (h EventHandler) Subscribe(ctx context.Context, v interface{}) (interface{}, error) {
-	expectedAAD := ctx.Value(auth.ContextExpectedAADKey).(string)
 	sessionKey := ctx.Value(auth.ContextSessionKey).(string)
 	req := v.(*SubscribeRequest)
 
@@ -85,7 +84,6 @@ func (h EventHandler) Subscribe(ctx context.Context, v interface{}) (interface{}
 // Unsubscribe destroys an existing client subscription and all the
 // resources associated with it
 func (h EventHandler) Unsubscribe(ctx context.Context, v interface{}) (interface{}, error) {
-	expectedAAD := ctx.Value(auth.ContextExpectedAADKey).(string)
 	sessionKey := ctx.Value(auth.ContextSessionKey).(string)
 	req := v.(*UnsubscribeRequest)
 
@@ -107,7 +105,6 @@ func (h EventHandler) Unsubscribe(ctx context.Context, v interface{}) (interface
 // EventPoll allows the user to query for new events associated
 // with a specific subscription
 func (h EventHandler) PollEvent(ctx context.Context, v interface{}) (interface{}, error) {
-	expectedAAD := ctx.Value(auth.ContextExpectedAADKey).(string)
 	sessionKey := ctx.Value(auth.ContextSessionKey).(string)
 	req := v.(*PollEventRequest)
 

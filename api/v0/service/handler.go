@@ -4,6 +4,7 @@ import (
 	"context"
 	stderr "errors"
 
+	"github.com/oasislabs/developer-gateway/api/utils"
 	auth "github.com/oasislabs/developer-gateway/auth/core"
 	backend "github.com/oasislabs/developer-gateway/backend/core"
 	"github.com/oasislabs/developer-gateway/errors"
@@ -33,6 +34,10 @@ func (h ServiceHandler) DeployService(ctx context.Context, v interface{}) (inter
 		h.logger.Debug(ctx, "failed to start request", log.MapFields{
 			"call_type": "DeployServiceFailure",
 		}, err)
+		return nil, err
+	}
+
+	if err := utils.VerifyAAD(req.Data, expectedAAD); err != nil {
 		return nil, err
 	}
 
@@ -67,6 +72,10 @@ func (h ServiceHandler) ExecuteService(ctx context.Context, v interface{}) (inte
 		return nil, err
 	}
 
+	if err := utils.VerifyAAD(req.Data, expectedAAD); err != nil {
+		return nil, err
+	}
+
 	// a context from an http request is cancelled after the response to the request is returned,
 	// so a new context is needed to handle the asynchronous request
 	id, err := h.request.ExecuteServiceAsync(context.Background(), backend.ExecuteServiceRequest{
@@ -93,6 +102,10 @@ func (h ServiceHandler) PollService(ctx context.Context, v interface{}) (interfa
 	req := v.(*PollServiceRequest)
 	if req.Count == 0 {
 		req.Count = 10
+	}
+
+	if err := utils.VerifyAAD(req.Data, expectedAAD); err != nil {
+		return nil, err
 	}
 
 	res, err := h.request.PollService(ctx, backend.PollServiceRequest{
