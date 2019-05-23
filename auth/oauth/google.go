@@ -10,7 +10,6 @@ import (
 
 const (
 	ID_TOKEN_KEY      string = "X-ID-TOKEN"
-	googleUserInfo    string = "https://openidconnect.googleapis.com/v1/userinfo"
 	googleTokenIssuer string = "https://accounts.google.com"
 	googleKeySet      string = "https://www.googleapis.com/oauth2/v3/certs"
 )
