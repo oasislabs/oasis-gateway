@@ -96,16 +96,11 @@ func (h ServiceHandler) ExecuteService(ctx context.Context, v interface{}) (inte
 
 // PollService polls the service response queue to retrieve available responses
 func (h ServiceHandler) PollService(ctx context.Context, v interface{}) (interface{}, error) {
-	expectedAAD := ctx.Value(auth.ContextExpectedAADKey).(string)
 	sessionKey := ctx.Value(auth.ContextSessionKey).(string)
 
 	req := v.(*PollServiceRequest)
 	if req.Count == 0 {
 		req.Count = 10
-	}
-
-	if err := utils.VerifyAAD(req.Data, expectedAAD); err != nil {
-		return nil, err
 	}
 
 	res, err := h.request.PollService(ctx, backend.PollServiceRequest{
