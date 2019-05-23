@@ -102,8 +102,10 @@ func getAuth(authenticator string) core.Auth {
 	switch authenticator {
 	case "oauth":
 		return oauth.GoogleOauth{}
-	default:
+	case "insecure":
 		return insecure.InsecureAuth{}
+	default:
+		panic("A valid authenticator must be specified")
 	}
 }
 
