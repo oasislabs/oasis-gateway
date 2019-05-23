@@ -2,7 +2,7 @@ package core
 
 import "net/http"
 
-type AuthenticationData struct {
+type AuthData struct {
 	ExpectedAAD string
 	SessionKey  string
 }
@@ -12,5 +12,5 @@ type Auth interface {
 	// - the expected AAD
 	// - the session key
 	// - the authentication error
-	Authenticate(req *http.Request) (*AuthenticationData, error)
+	Authenticate(req *http.Request) (*AuthData, error)
 }

@@ -4,7 +4,6 @@ import (
 	"context"
 	stderr "errors"
 
-	"github.com/oasislabs/developer-gateway/api/utils"
 	auth "github.com/oasislabs/developer-gateway/auth/core"
 	backend "github.com/oasislabs/developer-gateway/backend/core"
 	"github.com/oasislabs/developer-gateway/errors"
@@ -25,8 +24,7 @@ type ServiceHandler struct {
 
 // DeployService handles the deployment of new services
 func (h ServiceHandler) DeployService(ctx context.Context, v interface{}) (interface{}, error) {
-	expectedAAD := ctx.Value(auth.ContextExpectedAADKey).(string)
-	sessionKey := ctx.Value(auth.ContextSessionKey).(string)
+	authData := ctx.Value(auth.ContextAuthDataKey).(auth.AuthData)
 	req := v.(*DeployServiceRequest)
 
 	if len(req.Data) == 0 {
@@ -37,15 +35,11 @@ func (h ServiceHandler) DeployService(ctx context.Context, v interface{}) (inter
 		return nil, err
 	}
 
-	if err := utils.VerifyAAD(req.Data, expectedAAD); err != nil {
-		return nil, err
-	}
-
 	// a context from an http request is cancelled after the response to the request is returned,
 	// so a new context is needed to handle the asynchronous request
 	id, err := h.request.DeployServiceAsync(context.Background(), backend.DeployServiceRequest{
 		Data:       req.Data,
-		SessionKey: sessionKey,
+		SessionKey: auth.sessionKey,
 	})
 	if err != nil {
 		h.logger.Debug(ctx, "failed to start request", log.MapFields{
@@ -59,8 +53,7 @@ func (h ServiceHandler) DeployService(ctx context.Context, v interface{}) (inter
 
 // ExecuteService handle the execution of deployed services
 func (h ServiceHandler) ExecuteService(ctx context.Context, v interface{}) (interface{}, error) {
-	expectedAAD := ctx.Value(auth.ContextExpectedAADKey).(string)
-	sessionKey := ctx.Value(auth.ContextSessionKey).(string)
+	authData := ctx.Value(auth.ContextAuthDataKey).(auth.AuthData)
 	req := v.(*ExecuteServiceRequest)
 
 	if len(req.Data) == 0 || len(req.Address) == 0 {
@@ -72,16 +65,12 @@ func (h ServiceHandler) ExecuteService(ctx context.Context, v interface{}) (inte
 		return nil, err
 	}
 
-	if err := utils.VerifyAAD(req.Data, expectedAAD); err != nil {
-		return nil, err
-	}
-
 	// a context from an http request is cancelled after the response to the request is returned,
 	// so a new context is needed to handle the asynchronous request
 	id, err := h.request.ExecuteServiceAsync(context.Background(), backend.ExecuteServiceRequest{
 		Address:    req.Address,
 		Data:       req.Data,
-		SessionKey: sessionKey,
+		SessionKey: authData.sessionKey,
 	})
 	if err != nil {
 		h.logger.Debug(ctx, "failed to start request", log.MapFields{
@@ -96,8 +85,7 @@ func (h ServiceHandler) ExecuteService(ctx context.Context, v interface{}) (inte
 
 // PollService polls the service response queue to retrieve available responses
 func (h ServiceHandler) PollService(ctx context.Context, v interface{}) (interface{}, error) {
-	sessionKey := ctx.Value(auth.ContextSessionKey).(string)
-
+	authData := ctx.Value(auth.ContextAuthDataKey).(auth.AuthData)
 	req := v.(*PollServiceRequest)
 	if req.Count == 0 {
 		req.Count = 10
@@ -107,7 +95,7 @@ func (h ServiceHandler) PollService(ctx context.Context, v interface{}) (interfa
 		Offset:          req.Offset,
 		Count:           req.Count,
 		DiscardPrevious: req.DiscardPrevious,
-		SessionKey:      sessionKey,
+		SessionKey:      authData.sessionKey,
 	})
 	if err != nil {
 		return nil, err

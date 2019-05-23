@@ -27,7 +27,7 @@ type EventHandler struct {
 // Subscribe creates a new subscription for the client on the required
 // topics
 func (h EventHandler) Subscribe(ctx context.Context, v interface{}) (interface{}, error) {
-	sessionKey := ctx.Value(auth.ContextSessionKey).(string)
+	authData := ctx.Value(auth.ContextAuthDataKey).(auth.AuthData)
 	req := v.(*SubscribeRequest)
 
 	if len(req.Events) == 0 {
@@ -67,7 +67,7 @@ func (h EventHandler) Subscribe(ctx context.Context, v interface{}) (interface{}
 	id, err := h.request.Subscribe(ctx, backend.SubscribeRequest{
 		Topic:      req.Events[0],
 		Address:    address,
-		SessionKey: sessionKey,
+		SessionKey: authData.sessionKey,
 	})
 	if err != nil {
 		h.logger.Debug(ctx, "failed to subscribe", log.MapFields{
@@ -84,12 +84,12 @@ func (h EventHandler) Subscribe(ctx context.Context, v interface{}) (interface{}
 // Unsubscribe destroys an existing client subscription and all the
 // resources associated with it
 func (h EventHandler) Unsubscribe(ctx context.Context, v interface{}) (interface{}, error) {
-	sessionKey := ctx.Value(auth.ContextSessionKey).(string)
+	authData := ctx.Value(auth.ContextAuthDataKey).(auth.AuthData)
 	req := v.(*UnsubscribeRequest)
 
 	err := h.request.Unsubscribe(ctx, backend.UnsubscribeRequest{
 		ID:         req.ID,
-		SessionKey: sessionKey,
+		SessionKey: authData.sessionKey,
 	})
 	if err != nil {
 		h.logger.Debug(ctx, "failed unsubscribe from events", log.MapFields{
@@ -105,7 +105,7 @@ func (h EventHandler) Unsubscribe(ctx context.Context, v interface{}) (interface
 // EventPoll allows the user to query for new events associated
 // with a specific subscription
 func (h EventHandler) PollEvent(ctx context.Context, v interface{}) (interface{}, error) {
-	sessionKey := ctx.Value(auth.ContextSessionKey).(string)
+	authData := ctx.Value(auth.ContextAuthDataKey).(auth.AuthData)
 	req := v.(*PollEventRequest)
 
 	res, err := h.request.PollEvent(ctx, backend.PollEventRequest{
@@ -113,7 +113,7 @@ func (h EventHandler) PollEvent(ctx context.Context, v interface{}) (interface{}
 		Count:           req.Count,
 		Offset:          req.Offset,
 		ID:              req.ID,
-		SessionKey:      sessionKey,
+		SessionKey:      authData.sessionKey,
 	})
 	if err != nil {
 		h.logger.Debug(ctx, "failed to poll events from subscription", log.MapFields{

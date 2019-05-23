@@ -14,14 +14,14 @@ const INSECURE_KEY string = "X-INSECURE-AUTH"
 // setups with real users
 type InsecureAuth struct{}
 
-func (a InsecureAuth) Authenticate(req *http.Request) (*core.AuthenticationData, error) {
+func (a InsecureAuth) Authenticate(req *http.Request) (*core.AuthData, error) {
 	value := req.Header.Get(INSECURE_KEY)
 	if len(value) == 0 {
 		return nil, errors.New("Verification failed")
 	}
-	authData := core.AuthenticationData{
+	authData := core.AuthData{
 		ExpectedAAD: "",
-		SessionKey:  "",
+		SessionKey:  value,
 	}
 	return &authData, nil
 }

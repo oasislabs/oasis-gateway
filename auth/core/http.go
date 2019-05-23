@@ -41,7 +41,6 @@ func (m *HttpMiddlewareAuth) ServeHTTP(req *http.Request) (interface{}, error) {
 		return nil, &rpc.HttpError{Cause: nil, StatusCode: http.StatusForbidden}
 	}
 
-	req = req.WithContext(context.WithValue(req.Context(), ContextExpectedAADKey, authData.ExpectedAAD))
-	req = req.WithContext(context.WithValue(req.Context(), ContextSessionKey, authData.SessionKey))
+	req = req.WithContext(context.WithValue(req.Context(), ContextAuthDataKey, authData))
 	return m.next.ServeHTTP(req)
 }

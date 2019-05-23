@@ -23,7 +23,7 @@ type OpenIDClaims struct {
 
 // Authenticates the user using the ID Token receieved from Google.
 // Uses the hash of the access token as the session id.
-func (g GoogleOauth) Authenticate(req *http.Request) (*core.AuthenticationData, error) {
+func (g GoogleOauth) Authenticate(req *http.Request) (*core.AuthData, error) {
 	rawIDToken := req.Header.Get(ID_TOKEN_KEY)
 	keySet := oidc.NewRemoteKeySet(req.Context(), googleKeySet)
 	verifier := oidc.NewVerifier(googleTokenIssuer, keySet, &oidc.Config{SkipClientIDCheck: true})
@@ -39,7 +39,7 @@ func (g GoogleOauth) Authenticate(req *http.Request) (*core.AuthenticationData, 
 	if !claims.EmailVerified {
 		return nil, errors.New("Email is unverified")
 	}
-	authData := core.AuthenticationData{
+	authData := core.AuthData{
 		ExpectedAAD: claims.Email,
 		SessionKey:  idToken.AccessTokenHash,
 	}
