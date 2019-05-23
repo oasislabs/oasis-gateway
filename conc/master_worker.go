@@ -143,7 +143,7 @@ type Worker struct {
 
 	// ShutdownC is a channel used by the worker to signal that it
 	// has been completely shutdown and removed
-	ShutdownC chan interface{}
+	ShutdownC chan error
 
 	// ErrC is an error channel the worker can listen to and report errors
 	// though events in case they happen
@@ -161,10 +161,13 @@ type Worker struct {
 // NewWorker creates a new worker instance
 func NewWorker(ctx context.Context, props WorkerProps) *Worker {
 	w := &Worker{
-		key:       props.Key,
-		handler:   props.WorkerHandler,
-		C:         props.C,
-		ShutdownC: make(chan interface{}),
+		key:     props.Key,
+		handler: props.WorkerHandler,
+		C:       props.C,
+
+		// ShutdownC may be closed with an error if there are no listeners
+		// for it. In that case we should not block
+		ShutdownC: make(chan error, 2),
 		ErrC:      props.ErrC,
 		doneC:     props.DoneC,
 		UserData:  props.UserData,
@@ -246,7 +249,7 @@ func (w *Worker) handleRequest(req workerRequest) {
 	req.Out <- response{Value: v, Error: err}
 }
 
-// workerDestroyed is the event send by a worker to the
+// workerDestroyed is the event sent by a worker to the
 // master to signal the end of the worker. If the worker
 // was shutdown because of an error Cause may be set
 type workerDestroyed struct {
@@ -366,6 +369,9 @@ type Master struct {
 	// ctx is the context that the master uses for the duration
 	// of its Start-Stop span
 	ctx context.Context
+
+	// Error is set in case of exiting with an error
+	Error error
 }
 
 // MasterHandler is the user defined handler to handle events
@@ -476,10 +482,12 @@ func (m *Master) Destroy(ctx context.Context, key string) error {
 	}
 
 	// wait for the worker to destroy
-	// fmt.Println("WAIT FOR CLOSED")
-	// c := res.Value.(<-chan interface{})
-	// <-c
-	// fmt.Println("CLOSED")
+	c := res.Value.(<-chan error)
+	err, ok := <-c
+	if ok && err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -505,20 +513,18 @@ func (m *Master) Request(ctx context.Context, key string, req interface{}) (inte
 func (m *Master) shutdown() {
 	go func() {
 		for ev := range m.doneCh {
-			fmt.Println("REMOVE WORKER: ", ev)
 			m.removeWorker(ev)
 		}
 	}()
 
 	for key := range m.workers {
-		fmt.Println("SHUTDOWN WORKER: ", key)
 		m.shutdownWorker(key)
 	}
 
 	m.workerCount.Wait()
 }
 
-func (m *Master) shutdownWorker(key string) (<-chan interface{}, bool) {
+func (m *Master) shutdownWorker(key string) (<-chan error, bool) {
 	w, ok := m.workers[key]
 	if !ok {
 		return nil, false
@@ -546,11 +552,9 @@ func (m *Master) startLoop(ctx context.Context) {
 			return
 		case ev, ok := <-m.doneCh:
 			if !ok {
-				fmt.Println("DOINE CH CLOSED: ")
 				return
 			}
 
-			fmt.Println("REMOVE WORKER REQUEST: ", ev)
 			m.removeWorker(ev)
 		case req, ok := <-m.inCh:
 			if !ok {
@@ -602,10 +606,14 @@ func (m *Master) handleCreateRequest(req createRequest) {
 	}
 
 	var props CreateWorkerProps
-	m.handler.Handle(req.Context, CreateWorkerEvent{
+	err := m.handler.Handle(req.Context, CreateWorkerEvent{
 		Key:   req.Key,
 		Props: &props,
 	})
+	if err != nil {
+		req.Out <- err
+		return
+	}
 
 	ch := make(chan workerRequest, 64)
 	m.workers[req.Key] = NewWorker(m.ctx, WorkerProps{
@@ -644,19 +652,35 @@ func (m *Master) handleExistsRequest(req existsRequest) {
 }
 
 func (m *Master) removeWorker(ev workerDestroyed) {
-	w, ok := m.shutdownWorkers[ev.Key]
+	var (
+		ok  bool
+		err error
+		w   *Worker
+	)
+
+	defer func() {
+		if r := recover(); r != nil {
+			err = errorFromPanic(r)
+		}
+
+		if err != nil {
+			// in case of an error raise it to the listener so it can be bubbled up
+			// propertly
+			w.ShutdownC <- err
+		}
+
+		close(w.ShutdownC)
+	}()
+
+	w, ok = m.shutdownWorkers[ev.Key]
 	if !ok {
 		return
 	}
 
 	delete(m.shutdownWorkers, ev.Key)
-
-	// signal to listeners that the worker has been successfully
-	// shutdown and removed
-	close(w.ShutdownC)
 	m.workerCount.Done()
 
-	m.handler.Handle(context.Background(), DestroyWorkerEvent{
+	err = m.handler.Handle(context.Background(), DestroyWorkerEvent{
 		Key: ev.Key,
 	})
 }

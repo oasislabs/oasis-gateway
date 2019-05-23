@@ -2,6 +2,7 @@ package conc
 
 import (
 	"context"
+	"errors"
 	"sync/atomic"
 	"testing"
 
@@ -72,7 +73,10 @@ func TestNewMasterStartTwice(t *testing.T) {
 
 	err := master.Start(context.Background())
 	assert.Nil(t, err)
-	defer master.Stop()
+	defer func() {
+		err := master.Stop()
+		assert.Nil(t, err)
+	}()
 
 	err = master.Start(context.Background())
 	assert.Error(t, err)
@@ -181,7 +185,7 @@ func TestMasterStopShutdownWorkers(t *testing.T) {
 	assert.Equal(t, 1, handler.Destroyed())
 }
 
-func TestMasterWorkerPanic(t *testing.T) {
+func TestMasterWorkerPanicOnCreate(t *testing.T) {
 	ctx := context.Background()
 	handler := MasterHandlerFunc(func(ctx context.Context, ev MasterEvent) error {
 		if ev, ok := ev.(CreateWorkerEvent); ok {
@@ -201,6 +205,55 @@ func TestMasterWorkerPanic(t *testing.T) {
 
 	err = master.Create(ctx, "1")
 	assert.Nil(t, err)
+
+	err = master.Stop()
+	assert.Nil(t, err)
+}
+
+func TestMasterHandlerErrorOnCreate(t *testing.T) {
+	ctx := context.Background()
+	handler := MasterHandlerFunc(func(ctx context.Context, ev MasterEvent) error {
+		return errors.New("error")
+	})
+	master := NewMaster(MasterProps{
+		MasterHandler: handler,
+	})
+
+	err := master.Start(ctx)
+	assert.Nil(t, err)
+
+	err = master.Create(ctx, "1")
+	assert.Error(t, err)
+}
+
+func TestMasterHandlerErrorOnDestroy(t *testing.T) {
+	ctx := context.Background()
+	handler := MasterHandlerFunc(func(ctx context.Context, ev MasterEvent) error {
+		switch req := ev.(type) {
+		case CreateWorkerEvent:
+			req.Props.ErrC = nil
+			req.Props.UserData = nil
+			req.Props.WorkerHandler = &MockWorkerHandler{}
+		case DestroyWorkerEvent:
+			return errors.New("error")
+		default:
+			panic("received unknown master event")
+		}
+
+		return nil
+	})
+	master := NewMaster(MasterProps{
+		MasterHandler: handler,
+	})
+
+	err := master.Start(ctx)
+	assert.Nil(t, err)
+
+	err = master.Create(ctx, "1")
+	assert.Nil(t, err)
+
+	err = master.Destroy(ctx, "1")
+	assert.Error(t, err)
 
 	err = master.Stop()
 	assert.Nil(t, err)
