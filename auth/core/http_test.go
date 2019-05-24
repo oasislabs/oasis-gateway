@@ -6,6 +6,7 @@ import (
 
 	"github.com/oasislabs/developer-gateway/auth/insecure"
 	"github.com/oasislabs/developer-gateway/log"
+	"github.com/oasislabs/developer-gateway/rpc"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -31,4 +32,20 @@ func TestServeHTTP(t *testing.T) {
 	authData := response.(AuthData)
 	assert.Equal(t, "insecure-key", authData.ExpectedAAD)
 	assert.Equal(t, "session-key", authData.SessionKey)
+}
+
+func TestServeHTTPNoSessionKey(t *testing.T) {
+	httpMiddlewareAuth := NewHttpMiddlewareAuth(
+		insecure.InsecureAuth{},
+		log.NewLogrus(log.LogrusLoggerProperties{}),
+		&MockHttpMiddleware{})
+
+	req, err := http.NewRequest("POST", "gateway.oasiscloud.io", nil)
+	assert.Nil(t, err)
+	req.Header.Add(insecure.INSECURE_KEY, "insecure-key")
+
+	response, err := httpMiddlewareAuth.ServeHTTP(req)
+	assert.NotNil(t, err)
+	assert.Equal(t, http.StatusForbidden, err.(*rpc.HttpError).StatusCode)
+	assert.Nil(t, response)
 }
