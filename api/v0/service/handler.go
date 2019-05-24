@@ -35,9 +35,9 @@ func (h ServiceHandler) DeployService(ctx context.Context, v interface{}) (inter
 		return nil, err
 	}
 
-	if err := auth.VerifyAAD(req.Data, authData.ExpectedAAD); err != nil {
-		return nil, err
-	}
+	// if err := auth.VerifyAAD(req.Data, authData.ExpectedAAD); err != nil {
+	// 	return nil, err
+	// }
 
 	// a context from an http request is cancelled after the response to the request is returned,
 	// so a new context is needed to handle the asynchronous request
@@ -69,9 +69,9 @@ func (h ServiceHandler) ExecuteService(ctx context.Context, v interface{}) (inte
 		return nil, err
 	}
 
-	if err := auth.VerifyAAD(req.Data, authData.ExpectedAAD); err != nil {
-		return nil, err
-	}
+	// if err := auth.VerifyAAD(req.Data, authData.ExpectedAAD); err != nil {
+	// 	return nil, err
+	// }
 
 	// a context from an http request is cancelled after the response to the request is returned,
 	// so a new context is needed to handle the asynchronous request
