@@ -42,3 +42,22 @@ func TestAuthenticateSuccess(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, email, "test@email.com")
 }
+
+func TestAuthenticateUnverified(t *testing.T) {
+	claims := OpenIDClaims{
+		Email:         "test@email.com",
+		EmailVerified: false,
+	}
+	jsonStr, err := json.Marshal(claims)
+	assert.Nil(t, err)
+
+	req, err := http.NewRequest("POST", "gateway.oasiscloud.io", nil)
+	assert.Nil(t, err)
+	req.Header.Add(ID_TOKEN_KEY, string(jsonStr))
+
+	auth := NewGoogleOauth(&MockIDTokenVerifier{})
+	email, err := auth.Authenticate(req)
+	assert.NotNil(t, err)
+	assert.Equal(t, err.Error(), "Email is unverified")
+	assert.Equal(t, email, "")
+}
