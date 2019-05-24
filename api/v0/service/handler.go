@@ -24,7 +24,7 @@ type ServiceHandler struct {
 
 // DeployService handles the deployment of new services
 func (h ServiceHandler) DeployService(ctx context.Context, v interface{}) (interface{}, error) {
-	authID := ctx.Value(auth.ContextKeyAuthID).(string)
+	authData := ctx.Value(auth.ContextAuthDataKey).(auth.AuthData)
 	req := v.(*DeployServiceRequest)
 
 	if len(req.Data) == 0 {
@@ -38,8 +38,8 @@ func (h ServiceHandler) DeployService(ctx context.Context, v interface{}) (inter
 	// a context from an http request is cancelled after the response to the request is returned,
 	// so a new context is needed to handle the asynchronous request
 	id, err := h.request.DeployServiceAsync(context.Background(), backend.DeployServiceRequest{
-		Data: req.Data,
-		Key:  authID,
+		Data:       req.Data,
+		SessionKey: authData.SessionKey,
 	})
 	if err != nil {
 		h.logger.Debug(ctx, "failed to start request", log.MapFields{
@@ -53,7 +53,7 @@ func (h ServiceHandler) DeployService(ctx context.Context, v interface{}) (inter
 
 // ExecuteService handle the execution of deployed services
 func (h ServiceHandler) ExecuteService(ctx context.Context, v interface{}) (interface{}, error) {
-	authID := ctx.Value(auth.ContextKeyAuthID).(string)
+	authData := ctx.Value(auth.ContextAuthDataKey).(auth.AuthData)
 	req := v.(*ExecuteServiceRequest)
 
 	if len(req.Data) == 0 || len(req.Address) == 0 {
@@ -68,9 +68,9 @@ func (h ServiceHandler) ExecuteService(ctx context.Context, v interface{}) (inte
 	// a context from an http request is cancelled after the response to the request is returned,
 	// so a new context is needed to handle the asynchronous request
 	id, err := h.request.ExecuteServiceAsync(context.Background(), backend.ExecuteServiceRequest{
-		Address: req.Address,
-		Data:    req.Data,
-		Key:     authID,
+		Address:    req.Address,
+		Data:       req.Data,
+		SessionKey: authData.SessionKey,
 	})
 	if err != nil {
 		h.logger.Debug(ctx, "failed to start request", log.MapFields{
@@ -85,8 +85,7 @@ func (h ServiceHandler) ExecuteService(ctx context.Context, v interface{}) (inte
 
 // PollService polls the service response queue to retrieve available responses
 func (h ServiceHandler) PollService(ctx context.Context, v interface{}) (interface{}, error) {
-	authID := ctx.Value(auth.ContextKeyAuthID).(string)
-
+	authData := ctx.Value(auth.ContextAuthDataKey).(auth.AuthData)
 	req := v.(*PollServiceRequest)
 	if req.Count == 0 {
 		req.Count = 10
@@ -96,7 +95,7 @@ func (h ServiceHandler) PollService(ctx context.Context, v interface{}) (interfa
 		Offset:          req.Offset,
 		Count:           req.Count,
 		DiscardPrevious: req.DiscardPrevious,
-		Key:             authID,
+		SessionKey:      authData.SessionKey,
 	})
 	if err != nil {
 		return nil, err

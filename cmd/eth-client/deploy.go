@@ -59,7 +59,7 @@ func bindDeploy(cmd *cobra.Command) {
 	deployCmd.PersistentFlags().StringVar(
 		&props.Request.Data, "data", "", "transaction data for the deployment")
 	deployCmd.PersistentFlags().StringVar(
-		&props.Request.Key, "key", "user", "key is the request issuer. Any non-empty value should work.")
+		&props.Request.SessionKey, "key", "user", "key is the request issuer. Any non-empty value should work.")
 
 	cmd.AddCommand(deployCmd)
 }
