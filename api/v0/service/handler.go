@@ -115,7 +115,7 @@ func (h ServiceHandler) PollService(ctx context.Context, v interface{}) (interfa
 				Address: r.Address,
 				Output:  r.Output,
 			})
-		case backend.DeployServiceResponse:
+		case *backend.DeployServiceResponse:
 			events = append(events, DeployServiceEvent{
 				ID:      r.ID,
 				Address: r.Address,
