@@ -69,7 +69,7 @@ func (s *subscription) Stop() {
 
 func (s *subscription) Start() {
 	defer func() {
-		err := s.mqueue.Remove(s.key)
+		err := s.mqueue.Remove(context.Background(), mqueue.RemoveRequest{Key: s.key})
 		if err != nil {
 			s.logger.Warn(s.ctx, "failed to remove messaging queue", log.MapFields{
 				"call_type": "SubscriptionExitFailure",
@@ -104,7 +104,7 @@ func (s *subscription) Start() {
 			// the queue, the subscription should be closed. In that case,
 			// we should define a mechanism to report the errors back to the client
 
-			id, err := s.mqueue.Next(s.key)
+			id, err := s.mqueue.Next(s.ctx, mqueue.NextRequest{Key: s.key})
 			if err != nil {
 				s.logger.Warn(s.ctx, "failed to find next resource for event", log.MapFields{
 					"call_type": "InsertSubscriptionEventFailure",
@@ -124,13 +124,13 @@ func (s *subscription) Start() {
 				continue
 			}
 
-			if err := s.mqueue.Insert(s.key, mqueue.Element{
+			if err := s.mqueue.Insert(s.ctx, mqueue.InsertRequest{Key: s.key, Element: mqueue.Element{
 				Value: DataEvent{
 					ID:   id,
 					Data: hexutil.Encode(data.Data),
 				},
 				Offset: id,
-			}); err != nil {
+			}}); err != nil {
 				s.logger.Warn(s.ctx, "failed to insert event to resource", log.MapFields{
 					"call_type": "InsertSubscriptionEventFailure",
 					"key":       s.key,

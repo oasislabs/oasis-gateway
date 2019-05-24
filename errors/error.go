@@ -182,6 +182,30 @@ var (
 		desc:     "Internal Error. Please check the status of the service.",
 	}
 
+	ErrQueueRetrieve = ErrorCode{
+		category: InternalError,
+		code:     1028,
+		desc:     "Internal Error. Please check the status of the service.",
+	}
+
+	ErrQueueRemove = ErrorCode{
+		category: InternalError,
+		code:     1029,
+		desc:     "Internal Error. Please check the status of the service.",
+	}
+
+	ErrQueueDiscard = ErrorCode{
+		category: InternalError,
+		code:     1030,
+		desc:     "Internal Error. Please check the status of the service.",
+	}
+
+	ErrQueueInsert = ErrorCode{
+		category: InternalError,
+		code:     1031,
+		desc:     "Internal Error. Please check the status of the service.",
+	}
+
 	ErrOutOfRange = ErrorCode{
 		category: InputError,
 		code:     2001,

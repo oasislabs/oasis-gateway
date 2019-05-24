@@ -94,7 +94,7 @@ func (m *RequestManager) ExecuteServiceAsync(
 		return 0, errors.New(errors.ErrInvalidAddress, nil)
 	}
 
-	id, err := m.mqueue.Next(req.Key)
+	id, err := m.mqueue.Next(ctx, mqueue.NextRequest{req.Key})
 	if err != nil {
 		return 0, err
 	}
@@ -107,7 +107,7 @@ func (m *RequestManager) ExecuteServiceAsync(
 // RequestManager starts a request and provides an identifier for the caller to
 // find the request later on. Deploys a new service
 func (m *RequestManager) DeployServiceAsync(ctx context.Context, req DeployServiceRequest) (uint64, errors.Err) {
-	id, err := m.mqueue.Next(req.Key)
+	id, err := m.mqueue.Next(ctx, mqueue.NextRequest{Key: req.Key})
 	if err != nil {
 		return 0, err
 	}
@@ -149,7 +149,7 @@ func (m *RequestManager) Subscribe(ctx context.Context, req SubscribeRequest) (u
 	// use a queue per subscription to manage the number of queues created. This
 	// also helps us with managing the resources a specific client is using
 	key := req.Key + "-queue"
-	id, err := m.mqueue.Next(key)
+	id, err := m.mqueue.Next(ctx, mqueue.NextRequest{Key: key})
 	if err != nil {
 		return 0, err
 	}
@@ -197,10 +197,10 @@ func (m *RequestManager) doRequest(ctx context.Context, key string, id uint64, f
 	// TODO(stan): in case of error, we should log the error. We should think if there's
 	// a way to report the error in this case. A failure here means that a client will not
 	// receive a response (not even a failure response)
-	_ = m.mqueue.Insert(key, mqueue.Element{
+	_ = m.mqueue.Insert(ctx, mqueue.InsertRequest{Key: key, Element: mqueue.Element{
 		Value:  ev,
 		Offset: id,
-	})
+	}})
 }
 
 // PollService retrieves the responses the RequestManager already got
@@ -217,13 +217,13 @@ func (m *RequestManager) PollEvent(ctx context.Context, req PollEventRequest) (E
 }
 
 func (m *RequestManager) poll(ctx context.Context, key string, offset uint64, count uint, discardPrevious bool) (Events, errors.Err) {
-	els, err := m.mqueue.Retrieve(key, offset, count)
+	els, err := m.mqueue.Retrieve(ctx, mqueue.RetrieveRequest{Key: key, Offset: offset, Count: count})
 	if err != nil {
 		return Events{}, err
 	}
 
 	if discardPrevious {
-		if err := m.mqueue.Discard(key, offset); err != nil {
+		if err := m.mqueue.Discard(ctx, mqueue.DiscardRequest{Key: key, Offset: offset}); err != nil {
 			return Events{}, err
 		}
 	}
@@ -234,10 +234,4 @@ func (m *RequestManager) poll(ctx context.Context, key string, offset uint64, co
 	}
 
 	return Events{Offset: els.Offset, Events: events}, nil
-}
-
-// DiscardResponses discards responses stored by the RequestManager to make space
-// for new requests
-func (m *RequestManager) DiscardResponses(key string, offset uint64) error {
-	return m.mqueue.Discard(key, offset)
 }
