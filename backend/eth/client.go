@@ -439,6 +439,7 @@ func (c *EthClient) executeTransaction(
 		"call_type": "ExecuteTransactionSuccess",
 		"id":        req.ID,
 		"address":   req.Address,
+		"receipt":   receipt,
 	})
 
 	address := req.Address
