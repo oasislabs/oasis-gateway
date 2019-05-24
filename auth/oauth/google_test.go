@@ -9,8 +9,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-const CTX_ID_TOKEN = "id_token"
-
 type MockIDToken struct {
 	claims []byte
 }
@@ -40,7 +38,7 @@ func TestAuthenticateSuccess(t *testing.T) {
 	auth := NewGoogleOauth(&MockIDTokenVerifier{})
 	email, err := auth.Authenticate(req)
 	assert.Nil(t, err)
-	assert.Equal(t, email, "test@email.com")
+	assert.Equal(t, "test@email.com", email)
 }
 
 func TestAuthenticateUnverified(t *testing.T) {
@@ -58,6 +56,6 @@ func TestAuthenticateUnverified(t *testing.T) {
 	auth := NewGoogleOauth(&MockIDTokenVerifier{})
 	email, err := auth.Authenticate(req)
 	assert.NotNil(t, err)
-	assert.Equal(t, err.Error(), "Email is unverified")
-	assert.Equal(t, email, "")
+	assert.Equal(t, "Email is unverified", err.Error())
+	assert.Equal(t, "", email)
 }
