@@ -2,7 +2,6 @@ package eth
 
 import (
 	"context"
-	"crypto/ecdsa"
 	stderr "errors"
 	"fmt"
 	"math/big"
@@ -14,13 +13,13 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/crypto"
 
 	backend "github.com/oasislabs/developer-gateway/backend/core"
 	"github.com/oasislabs/developer-gateway/conc"
 	"github.com/oasislabs/developer-gateway/errors"
 	"github.com/oasislabs/developer-gateway/eth"
 	"github.com/oasislabs/developer-gateway/log"
+	"github.com/oasislabs/developer-gateway/wallet"
 )
 
 const gasPrice int64 = 1000000000
@@ -107,12 +106,8 @@ func (r *deployServiceRequest) OutCh() chan<- ethResponse {
 	return r.Out
 }
 
-type Wallet struct {
-	PrivateKey *ecdsa.PrivateKey
-}
-
 type EthClientProperties struct {
-	Wallet Wallet
+	Wallet wallet.InMemoryWallet
 	URL    string
 }
 
@@ -121,9 +116,8 @@ type EthClient struct {
 	wg     sync.WaitGroup
 	inCh   chan ethRequest
 	logger log.Logger
-	wallet Wallet
+	wallet wallet.InMemoryWallet
 	nonce  uint64
-	signer types.Signer
 	client eth.Client
 	subman *eth.SubscriptionManager
 }
@@ -227,7 +221,7 @@ func (c *EthClient) updateNonce(ctx context.Context) errors.Err {
 	)
 
 	for attempts := 0; attempts < 10; attempts++ {
-		nonce, err = c.Nonce(ctx, crypto.PubkeyToAddress(c.wallet.PrivateKey.PublicKey).Hex())
+		nonce, err = c.Nonce(ctx, c.wallet.Address().Hex())
 		if err != nil {
 			continue
 		}
@@ -386,7 +380,7 @@ func (c *EthClient) executeTransaction(
 			big.NewInt(0), gas, big.NewInt(gasPrice), req.Data)
 	}
 
-	tx, err = types.SignTx(tx, c.signer, c.wallet.PrivateKey)
+	tx, err = c.wallet.SignTransaction(tx)
 	if err != nil {
 		err := errors.New(errors.ErrSignedTx, err)
 		c.logger.Debug(ctx, "failure to sign transaction", log.MapFields{
@@ -543,7 +537,7 @@ func (c *EthClient) estimateGas(ctx context.Context, id uint64, address string, 
 	}
 
 	gas, err := c.client.EstimateGas(ctx, ethereum.CallMsg{
-		From:     crypto.PubkeyToAddress(c.wallet.PrivateKey.PublicKey),
+		From:     c.wallet.Address(),
 		To:       to,
 		Gas:      0,
 		GasPrice: nil,
@@ -607,7 +601,6 @@ func DialContext(ctx context.Context, logger log.Logger, properties EthClientPro
 		inCh:   make(chan ethRequest, 64),
 		logger: logger.ForClass("eth", "EthClient"),
 		nonce:  0,
-		signer: types.FrontierSigner{},
 		wallet: properties.Wallet,
 		client: client,
 		subman: eth.NewSubscriptionManager(eth.SubscriptionManagerProps{

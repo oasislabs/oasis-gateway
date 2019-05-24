@@ -7,6 +7,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/oasislabs/developer-gateway/api/v0/event"
 	"github.com/oasislabs/developer-gateway/api/v0/service"
@@ -17,6 +18,7 @@ import (
 	"github.com/oasislabs/developer-gateway/log"
 	"github.com/oasislabs/developer-gateway/mqueue/mem"
 	"github.com/oasislabs/developer-gateway/rpc"
+	"github.com/oasislabs/developer-gateway/wallet"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/pflag"
 )
@@ -48,8 +50,9 @@ func createEthClient(config Config) *eth.EthClient {
 	}
 
 	client, err := eth.DialContext(rootCtx, logger, eth.EthClientProperties{
-		Wallet: eth.Wallet{
+		Wallet: wallet.InMemoryWallet{
 			PrivateKey: privateKey,
+			Signer: types.FrontierSigner{},
 		},
 		URL: config.EthConfig.URL,
 	})

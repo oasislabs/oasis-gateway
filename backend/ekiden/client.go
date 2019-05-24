@@ -3,7 +3,6 @@ package ekiden
 import (
 	"bytes"
 	"context"
-	"crypto/ecdsa"
 	"encoding/hex"
 	"math/big"
 
@@ -12,18 +11,15 @@ import (
 	"github.com/oasislabs/developer-gateway/backend/core"
 	"github.com/oasislabs/developer-gateway/ekiden"
 	"github.com/oasislabs/developer-gateway/errors"
+	"github.com/oasislabs/developer-gateway/wallet"
 )
-
-type Wallet struct {
-	PrivateKey *ecdsa.PrivateKey
-}
 
 type NodeProps struct {
 	URL string
 }
 
 type ClientProps struct {
-	Wallet
+	Wallet          wallet.InMemoryWallet
 	RuntimeID       []byte
 	RuntimeProps    NodeProps
 	KeyManagerProps NodeProps
@@ -32,9 +28,8 @@ type ClientProps struct {
 type Client struct {
 	runtime    *ekiden.Runtime
 	keyManager *ekiden.Enclave
-	signer     types.Signer
 	runtimeID  []byte
-	wallet     Wallet
+	wallet     wallet.InMemoryWallet
 }
 
 func DialContext(ctx context.Context, props ClientProps) (*Client, errors.Err) {
@@ -54,7 +49,6 @@ func DialContext(ctx context.Context, props ClientProps) (*Client, errors.Err) {
 	return &Client{
 		runtime:    runtime,
 		keyManager: keyManager,
-		signer:     types.FrontierSigner{},
 		runtimeID:  props.RuntimeID,
 		wallet:     props.Wallet,
 	}, nil
@@ -128,7 +122,7 @@ func (c *Client) SubscribeRequest(
 }
 
 func (c *Client) generateTx(tx *types.Transaction) ([]byte, errors.Err) {
-	tx, err := types.SignTx(tx, c.signer, c.wallet.PrivateKey)
+	tx, err := c.wallet.SignTransaction(tx)
 	if err != nil {
 		return nil, errors.New(errors.ErrEkidenSignTx, err)
 	}
