@@ -133,7 +133,7 @@ local test = function()
   assert(cjson.decode(t[2])['offset'] == 3)
 
   mqremove('example')
-  assert(redis.call('exists', 'example') == 0)
+  assert(redis.call('exists', 'example') == 1)
 end
 
 if ARGV[1] == "test" then
