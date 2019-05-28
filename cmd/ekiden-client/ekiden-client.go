@@ -45,6 +45,8 @@ func main() {
 	wallet := wallet.InternalWallet{
 		PrivateKey: privateKey,
 		Signer:     types.FrontierSigner{},
+		Nonce:      0,
+		Client:     nil, // TODO(ennsharma): Assign a client
 	}
 
 	client, err := ekiden.DialContext(ctx, ekiden.ClientProps{

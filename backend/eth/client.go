@@ -106,7 +106,7 @@ func (r *deployServiceRequest) OutCh() chan<- ethResponse {
 }
 
 type EthClientProperties struct {
-	Wallet wallet.InternalWallet
+	Wallet wallet.Wallet
 	URL    string
 }
 
@@ -115,7 +115,7 @@ type EthClient struct {
 	wg     sync.WaitGroup
 	inCh   chan ethRequest
 	logger log.Logger
-	wallet wallet.InternalWallet
+	wallet wallet.Wallet
 	nonce  uint64
 	client eth.Client
 	subman *eth.SubscriptionManager
@@ -546,12 +546,12 @@ func DialContext(ctx context.Context, logger log.Logger, properties EthClientPro
 		inCh:   make(chan ethRequest, 64),
 		logger: logger.ForClass("eth", "EthClient"),
 		nonce:  0,
-		client: properties.Wallet.Client,
+		client: properties.Wallet.Client(),
 		wallet: properties.Wallet,
 		subman: eth.NewSubscriptionManager(eth.SubscriptionManagerProps{
 			Context: ctx,
 			Logger:  logger,
-			Client:  properties.Wallet.Client,
+			Client:  properties.Wallet.Client(),
 		}),
 	}
 

@@ -35,6 +35,7 @@ func dialClient(props ClientProps) (*eth.EthClient, error) {
 	wallet := wallet.InternalWallet{
 		PrivateKey: privateKey,
 		Signer:     types.FrontierSigner{},
+		Nonce:      0,
 		Client:     pooledClient,
 	}
 

@@ -16,6 +16,7 @@ import (
 // and receives responses
 type Wallet interface {
 	Address() common.Address
+	TransactionClient() eth.Client
 	TransactionNonce() uint64
 	UpdateNonce(ctx context.Context) errors.Err
 	SignTransaction(tx *types.Transaction) (*types.Transaction, errors.Err)
@@ -30,6 +31,10 @@ type InternalWallet struct {
 
 func (w InternalWallet) Address() common.Address {
 	return crypto.PubkeyToAddress(w.PrivateKey.PublicKey)
+}
+
+func (w InternalWallet) TransactionClient() eth.Client {
+	return w.Client
 }
 
 func (w InternalWallet) TransactionNonce() uint64 {
