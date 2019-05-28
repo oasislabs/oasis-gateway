@@ -31,7 +31,9 @@ type Elements struct {
 // InsertRequest is the request to insert elements into a queue
 type InsertRequest struct {
 	// Key unique identifier of the queue
-	Key     string
+	Key string
+
+	// Element to be inserted to the queue
 	Element Element
 }
 
@@ -40,16 +42,25 @@ type InsertRequest struct {
 // and has at most Count elements
 type RetrieveRequest struct {
 	// Key unique identifier of the queue
-	Key    string
+	Key string
+
+	// Offset at which the retrieving window should start. Elements
+	// with at a lower offset will not be returned
 	Offset uint64
-	Count  uint
+
+	// Count is the number of elements at most that will be returned as
+	// part of the request
+	Count uint
 }
 
 // DiscardRequest to request the queue to discard all the
 // elements in the queue up to Offset
 type DiscardRequest struct {
 	// Key unique identifier of the queue
-	Key    string
+	Key string
+
+	// Offset that defines which offsets will be discarded. All elements
+	// at a lower offset than this will be discarded
 	Offset uint64
 }
 
