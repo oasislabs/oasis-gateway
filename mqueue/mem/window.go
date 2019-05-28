@@ -1,6 +1,8 @@
 package mem
 
 import (
+	"fmt"
+
 	"github.com/oasislabs/developer-gateway/errors"
 	"github.com/oasislabs/developer-gateway/mqueue/core"
 	stderr "github.com/pkg/errors"
@@ -87,7 +89,8 @@ func (w *SlidingWindow) Get(offset uint64, count uint) (core.Elements, errors.Er
 		offset = w.offset
 	}
 
-	res := core.Elements{Offset: offset, Elements: make([]core.Element, 0, 16)}
+	fmt.Println(offset, w.Offset())
+	res := core.Elements{Offset: w.Offset(), Elements: make([]core.Element, 0, 16)}
 	index := uint(offset - w.offset)
 
 	for i := index; i < count+index && i < uint(len(w.elements)); i++ {

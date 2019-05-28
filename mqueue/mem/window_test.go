@@ -92,7 +92,7 @@ func TestSlidingWindowSetMultipleSlideWithGrowth(t *testing.T) {
 
 	els, err := w.Get(1009, 16)
 	assert.Nil(t, err)
-	assert.Equal(t, uint64(1009), els.Offset)
+	assert.Equal(t, uint64(992), els.Offset)
 	assert.Equal(t, 15, len(els.Elements))
 
 	for i := 0; i < 15; i++ {

@@ -83,6 +83,29 @@ func (h ServiceHandler) ExecuteService(ctx context.Context, v interface{}) (inte
 	return AsyncResponse{ID: id}, nil
 }
 
+func (h ServiceHandler) mapEvent(event backend.Event) Event {
+	switch r := event.(type) {
+	case *backend.ErrorEvent:
+		return ErrorEvent{
+			ID:    r.ID,
+			Cause: r.Cause,
+		}
+	case *backend.ExecuteServiceResponse:
+		return ExecuteServiceEvent{
+			ID:      r.ID,
+			Address: r.Address,
+			Output:  r.Output,
+		}
+	case *backend.DeployServiceResponse:
+		return DeployServiceEvent{
+			ID:      r.ID,
+			Address: r.Address,
+		}
+	default:
+		panic("received unexpected event type from polling service")
+	}
+}
+
 // PollService polls the service response queue to retrieve available responses
 func (h ServiceHandler) PollService(ctx context.Context, v interface{}) (interface{}, error) {
 	authData := ctx.Value(auth.ContextAuthDataKey).(auth.AuthData)
@@ -103,26 +126,7 @@ func (h ServiceHandler) PollService(ctx context.Context, v interface{}) (interfa
 
 	events := make([]Event, 0, len(res.Events))
 	for _, r := range res.Events {
-		switch r := r.(type) {
-		case backend.ErrorEvent:
-			events = append(events, ErrorEvent{
-				ID:    r.ID,
-				Cause: r.Cause,
-			})
-		case backend.ExecuteServiceResponse:
-			events = append(events, ExecuteServiceEvent{
-				ID:      r.ID,
-				Address: r.Address,
-				Output:  r.Output,
-			})
-		case *backend.DeployServiceResponse:
-			events = append(events, DeployServiceEvent{
-				ID:      r.ID,
-				Address: r.Address,
-			})
-		default:
-			panic("received unexpected event type from polling service")
-		}
+		events = append(events, h.mapEvent(r))
 	}
 
 	return PollServiceResponse{Offset: res.Offset, Events: events}, nil
