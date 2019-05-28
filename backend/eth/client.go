@@ -576,6 +576,7 @@ func (c *EthClient) estimateGas(ctx context.Context, id uint64, address string, 
 		"call_type": "EstimateGasSuccess",
 		"id":        id,
 		"address":   address,
+		"gas":       gas,
 	})
 
 	return gas, nil

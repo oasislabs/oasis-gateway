@@ -10,6 +10,8 @@ import (
 	"github.com/oasislabs/developer-gateway/mqueue/core"
 )
 
+const maxInactivityTimeout = time.Duration(10) * time.Minute
+
 type Server struct {
 	master *conc.Master
 	logger log.Logger
@@ -49,7 +51,7 @@ func (s *Server) create(ctx context.Context, ev conc.CreateWorkerEvent) error {
 	ev.Props.ErrC = nil
 	ev.Props.WorkerHandler = conc.WorkerHandlerFunc(worker.handle)
 	ev.Props.UserData = worker
-	ev.Props.MaxInactivity = time.Duration(10) * time.Minute
+	ev.Props.MaxInactivity = maxInactivityTimeout
 
 	return nil
 }

@@ -94,12 +94,12 @@ func (m *RequestManager) ExecuteServiceAsync(
 		return 0, errors.New(errors.ErrInvalidAddress, nil)
 	}
 
-	id, err := m.mqueue.Next(ctx, mqueue.NextRequest{req.Key})
+	id, err := m.mqueue.Next(ctx, mqueue.NextRequest{Key: req.SessionKey})
 	if err != nil {
 		return 0, err
 	}
 
-	go m.doRequest(ctx, req.Key, id, func() (Event, errors.Err) { return m.client.ExecuteService(ctx, id, req) })
+	go m.doRequest(ctx, req.SessionKey, id, func() (Event, errors.Err) { return m.client.ExecuteService(ctx, id, req) })
 
 	return id, nil
 }
@@ -107,12 +107,12 @@ func (m *RequestManager) ExecuteServiceAsync(
 // RequestManager starts a request and provides an identifier for the caller to
 // find the request later on. Deploys a new service
 func (m *RequestManager) DeployServiceAsync(ctx context.Context, req DeployServiceRequest) (uint64, errors.Err) {
-	id, err := m.mqueue.Next(ctx, mqueue.NextRequest{Key: req.Key})
+	id, err := m.mqueue.Next(ctx, mqueue.NextRequest{Key: req.SessionKey})
 	if err != nil {
 		return 0, err
 	}
 
-	go m.doRequest(ctx, req.Key, id, func() (Event, errors.Err) { return m.client.DeployService(ctx, id, req) })
+	go m.doRequest(ctx, req.SessionKey, id, func() (Event, errors.Err) { return m.client.DeployService(ctx, id, req) })
 
 	return id, nil
 }
@@ -121,11 +121,11 @@ func (m *RequestManager) DeployServiceAsync(ctx context.Context, req DeployServi
 // resources. After this operation all events from the subscription stream
 // will be lost.
 func (m *RequestManager) Unsubscribe(ctx context.Context, req UnsubscribeRequest) errors.Err {
-	if len(req.Key) == 0 {
+	if len(req.SessionKey) == 0 {
 		return errors.New(errors.ErrInvalidKey, stderr.New("key cannot be empty"))
 	}
 
-	subID := SubID(req.Key, req.ID)
+	subID := SubID(req.SessionKey, req.ID)
 	if !m.subman.Exists(ctx, subID) {
 		return errors.New(errors.ErrSubscriptionNotFound, stderr.New("cannot unsubscribe from subscription that does not exist"))
 	}
@@ -142,13 +142,13 @@ func (m *RequestManager) Unsubscribe(ctx context.Context, req UnsubscribeRequest
 // Subscribe creates a new subscription using the underlying backend and
 // allocates the necessary resources from the store
 func (m *RequestManager) Subscribe(ctx context.Context, req SubscribeRequest) (uint64, errors.Err) {
-	if len(req.Key) == 0 {
+	if len(req.SessionKey) == 0 {
 		return 0, errors.New(errors.ErrInvalidKey, stderr.New("key cannot be empty"))
 	}
 
 	// use a queue per subscription to manage the number of queues created. This
 	// also helps us with managing the resources a specific client is using
-	key := req.Key + "-queue"
+	key := req.SessionKey + "-queue"
 	id, err := m.mqueue.Next(ctx, mqueue.NextRequest{Key: key})
 	if err != nil {
 		return 0, err
@@ -162,7 +162,7 @@ func (m *RequestManager) Subscribe(ctx context.Context, req SubscribeRequest) (u
 }
 
 func (m *RequestManager) subscribe(ctx context.Context, id uint64, req SubscribeRequest) errors.Err {
-	subID := SubID(req.Key, id)
+	subID := SubID(req.SessionKey, id)
 	// TODO(stan): a request manager should have a context from which the subscription contexts
 	// should derive
 	c := make(chan interface{}, 64)
@@ -206,13 +206,13 @@ func (m *RequestManager) doRequest(ctx context.Context, key string, id uint64, f
 // PollService retrieves the responses the RequestManager already got
 // from the asynchronous requests.
 func (m *RequestManager) PollService(ctx context.Context, req PollServiceRequest) (Events, errors.Err) {
-	return m.poll(ctx, req.Key, req.Offset, req.Count, req.DiscardPrevious)
+	return m.poll(ctx, req.SessionKey, req.Offset, req.Count, req.DiscardPrevious)
 }
 
 // PollEvent retrieves the responses the RequestManager already got
 // from the asynchronous requests.
 func (m *RequestManager) PollEvent(ctx context.Context, req PollEventRequest) (Events, errors.Err) {
-	subID := SubID(req.Key, req.ID)
+	subID := SubID(req.SessionKey, req.ID)
 	return m.poll(ctx, subID, req.Offset, req.Count, req.DiscardPrevious)
 }
 

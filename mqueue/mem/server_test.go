@@ -55,7 +55,7 @@ func TestServerRetrieve(t *testing.T) {
 	offset, err = s.Next(ctx, core.NextRequest{Key: "key"})
 	assert.Nil(t, err)
 
-	err = s.Insert(ctx, core.InsertRequest{"key", core.Element{
+	err = s.Insert(ctx, core.InsertRequest{Key: "key", Element: core.Element{
 		Offset: offset,
 		Value:  "value",
 	}})
@@ -84,7 +84,7 @@ func TestServerDiscard(t *testing.T) {
 		offset, err = s.Next(ctx, core.NextRequest{Key: "key"})
 		assert.Nil(t, err)
 
-		err = s.Insert(ctx, core.InsertRequest{"key", core.Element{
+		err = s.Insert(ctx, core.InsertRequest{Key: "key", Element: core.Element{
 			Offset: offset,
 			Value:  "value",
 		}})

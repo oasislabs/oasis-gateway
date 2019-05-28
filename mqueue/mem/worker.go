@@ -2,16 +2,13 @@ package mem
 
 import (
 	"context"
-	"time"
 
 	"github.com/oasislabs/developer-gateway/conc"
-	"github.com/oasislabs/developer-gateway/errors"
 	"github.com/oasislabs/developer-gateway/mqueue/core"
 )
 
 const (
-	maxElementsPerQueue  = 1024
-	maxInactivityTimeout = 10 * time.Minute
+	maxElementsPerQueue = 1024
 )
 
 type insertRequest struct {
@@ -21,11 +18,6 @@ type insertRequest struct {
 type retrieveRequest struct {
 	Offset uint64
 	Count  uint
-}
-
-type retrieveResponse struct {
-	Elements core.Elements
-	Error    errors.Err
 }
 
 type discardRequest struct {
