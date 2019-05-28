@@ -50,9 +50,9 @@ func createEthClient(config Config) *eth.EthClient {
 	}
 
 	client, err := eth.DialContext(rootCtx, logger, eth.EthClientProperties{
-		Wallet: wallet.InMemoryWallet{
+		Wallet: wallet.InternalWallet{
 			PrivateKey: privateKey,
-			Signer: types.FrontierSigner{},
+			Signer:     types.FrontierSigner{},
 		},
 		URL: config.EthConfig.URL,
 	})

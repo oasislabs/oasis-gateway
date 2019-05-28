@@ -26,7 +26,7 @@ func TestSlidingWindowSet(t *testing.T) {
 	assert.Nil(t, err)
 
 	assert.Equal(t, core.Elements{Offset: 0, Elements: []core.Element{
-		core.Element{Offset: uint64(0), Value: "value"},
+		{Offset: uint64(0), Value: "value"},
 	}}, els)
 }
 

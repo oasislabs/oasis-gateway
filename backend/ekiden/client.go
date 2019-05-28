@@ -19,7 +19,7 @@ type NodeProps struct {
 }
 
 type ClientProps struct {
-	Wallet          wallet.InMemoryWallet
+	Wallet          wallet.Wallet
 	RuntimeID       []byte
 	RuntimeProps    NodeProps
 	KeyManagerProps NodeProps
@@ -29,7 +29,7 @@ type Client struct {
 	runtime    *ekiden.Runtime
 	keyManager *ekiden.Enclave
 	runtimeID  []byte
-	wallet     wallet.InMemoryWallet
+	wallet     wallet.Wallet
 }
 
 func DialContext(ctx context.Context, props ClientProps) (*Client, errors.Err) {

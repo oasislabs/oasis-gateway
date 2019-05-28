@@ -22,8 +22,8 @@ func runtimeIDToBytes(runtimeID uint64) []byte {
 
 func main() {
 	var (
-		walletKey    string
-		runtimeID    uint64
+		walletKey string
+		runtimeID uint64
 	)
 	pflag.StringVar(&walletKey, "wallet", "", "the hex encoded private key of the wallet")
 	pflag.Uint64Var(&runtimeID, "runtimeID", 0, "sets the runtime ID")
@@ -42,9 +42,9 @@ func main() {
 
 	ctx := context.Background()
 
-	wallet := wallet.InMemoryWallet{
+	wallet := wallet.InternalWallet{
 		PrivateKey: privateKey,
-		Signer: types.FrontierSigner{},
+		Signer:     types.FrontierSigner{},
 	}
 
 	client, err := ekiden.DialContext(ctx, ekiden.ClientProps{

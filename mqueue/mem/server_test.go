@@ -13,7 +13,7 @@ import (
 
 var (
 	logger = log.NewLogrus(log.LogrusLoggerProperties{
-		Level: logrus.DebugLevel,
+		Level:  logrus.DebugLevel,
 		Output: ioutil.Discard,
 	})
 )
@@ -33,8 +33,8 @@ func TestServerInsert(t *testing.T) {
 	assert.Nil(t, err)
 
 	err = s.Insert("key", core.Element{
-			Offset: offset,
-			Value: "value",
+		Offset: offset,
+		Value:  "value",
 	})
 	assert.Nil(t, err)
 }
@@ -46,7 +46,7 @@ func TestServerRetrieve(t *testing.T) {
 	els, err := s.Retrieve("key", uint64(1), uint(1))
 	assert.Nil(t, err)
 	assert.Equal(t, els, core.Elements{
-		Offset: uint64(0),
+		Offset:   uint64(0),
 		Elements: nil,
 	})
 
@@ -56,7 +56,7 @@ func TestServerRetrieve(t *testing.T) {
 
 	err = s.Insert("key", core.Element{
 		Offset: offset,
-		Value: "value",
+		Value:  "value",
 	})
 	assert.Nil(t, err)
 
@@ -65,9 +65,9 @@ func TestServerRetrieve(t *testing.T) {
 	assert.Equal(t, core.Elements{
 		Offset: offset,
 		Elements: []core.Element{
-			core.Element{
+			{
 				Offset: uint64(0),
-				Value: "value",
+				Value:  "value",
 			},
 		},
 	}, els)
@@ -85,7 +85,7 @@ func TestServerDiscard(t *testing.T) {
 
 		err = s.Insert("key", core.Element{
 			Offset: offset,
-			Value: "value",
+			Value:  "value",
 		})
 		assert.Nil(t, err)
 	}
@@ -99,13 +99,13 @@ func TestServerDiscard(t *testing.T) {
 	assert.Equal(t, core.Elements{
 		Offset: uint64(1),
 		Elements: []core.Element{
-			core.Element{
+			{
 				Offset: uint64(1),
-				Value: "value",
+				Value:  "value",
 			},
-			core.Element{
+			{
 				Offset: uint64(2),
-				Value: "value",
+				Value:  "value",
 			},
 		},
 	}, els)
@@ -118,7 +118,7 @@ func TestServerNext(t *testing.T) {
 	offset, err := s.Next("key")
 	assert.Nil(t, err)
 	assert.Equal(t, uint64(0), offset)
-	
+
 	offset, err = s.Next("key")
 	assert.Nil(t, err)
 	assert.Equal(t, uint64(1), offset)

@@ -15,7 +15,6 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 
 	backend "github.com/oasislabs/developer-gateway/backend/core"
-	"github.com/oasislabs/developer-gateway/conc"
 	"github.com/oasislabs/developer-gateway/errors"
 	"github.com/oasislabs/developer-gateway/eth"
 	"github.com/oasislabs/developer-gateway/log"
@@ -107,7 +106,7 @@ func (r *deployServiceRequest) OutCh() chan<- ethResponse {
 }
 
 type EthClientProperties struct {
-	Wallet wallet.InMemoryWallet
+	Wallet wallet.InternalWallet
 	URL    string
 }
 
@@ -116,7 +115,7 @@ type EthClient struct {
 	wg     sync.WaitGroup
 	inCh   chan ethRequest
 	logger log.Logger
-	wallet wallet.InMemoryWallet
+	wallet wallet.InternalWallet
 	nonce  uint64
 	client eth.Client
 	subman *eth.SubscriptionManager
@@ -245,7 +244,7 @@ func (c *EthClient) GetPublicKeyService(
 		"address":   req.Address,
 	})
 
-	pk, err := c.client.GetPublicKey(ctx, common.HexToAddress(req.Address))
+	pk, err := c.wallet.Client.GetPublicKey(ctx, common.HexToAddress(req.Address))
 	if err != nil {
 		err := errors.New(errors.ErrInternalError, fmt.Errorf("failed to get public key %s", err.Error()))
 		c.logger.Debug(ctx, "client call failed", log.MapFields{
@@ -392,7 +391,7 @@ func (c *EthClient) executeTransaction(
 		return nil, err
 	}
 
-	if err := c.client.SendTransaction(ctx, tx); err != nil {
+	if err := c.wallet.Client.SendTransaction(ctx, tx); err != nil {
 		// depending on the error received it may be useful to return the error
 		// and have an upper logic to decide whether to retry the request
 		err := errors.New(errors.ErrSendTransaction, err)
@@ -405,7 +404,7 @@ func (c *EthClient) executeTransaction(
 		return nil, err
 	}
 
-	receipt, err := c.client.TransactionReceipt(ctx, tx.Hash())
+	receipt, err := c.wallet.Client.TransactionReceipt(ctx, tx.Hash())
 	if err != nil {
 		err := errors.New(errors.ErrTransactionReceipt, err)
 		c.logger.Debug(ctx, "failure to retrieve transaction receipt", log.MapFields{
@@ -503,7 +502,7 @@ func (c *EthClient) Nonce(ctx context.Context, address string) (uint64, errors.E
 		"address":   address,
 	})
 
-	nonce, err := c.client.PendingNonceAt(ctx, common.HexToAddress(address))
+	nonce, err := c.wallet.Client.PendingNonceAt(ctx, common.HexToAddress(address))
 	if err != nil {
 		err := errors.New(errors.ErrFetchPendingNonce, err)
 		c.logger.Debug(ctx, "PendingNonceAt request failed", log.MapFields{
@@ -536,7 +535,7 @@ func (c *EthClient) estimateGas(ctx context.Context, id uint64, address string, 
 		to = &hex
 	}
 
-	gas, err := c.client.EstimateGas(ctx, ethereum.CallMsg{
+	gas, err := c.wallet.Client.EstimateGas(ctx, ethereum.CallMsg{
 		From:     c.wallet.Address(),
 		To:       to,
 		Gas:      0,
@@ -589,12 +588,6 @@ func DialContext(ctx context.Context, logger log.Logger, properties EthClientPro
 		return nil, stderr.New("Only schemes supported are ws and wss")
 	}
 
-	dialer := eth.NewUniDialer(ctx, properties.URL)
-	client := eth.NewPooledClient(eth.PooledClientProps{
-		Pool:        dialer,
-		RetryConfig: conc.RandomConfig,
-	})
-
 	c := &EthClient{
 		ctx:    ctx,
 		wg:     sync.WaitGroup{},
@@ -602,11 +595,10 @@ func DialContext(ctx context.Context, logger log.Logger, properties EthClientPro
 		logger: logger.ForClass("eth", "EthClient"),
 		nonce:  0,
 		wallet: properties.Wallet,
-		client: client,
 		subman: eth.NewSubscriptionManager(eth.SubscriptionManagerProps{
 			Context: ctx,
 			Logger:  logger,
-			Client:  client,
+			Client:  properties.Wallet.Client,
 		}),
 	}
 
