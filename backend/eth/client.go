@@ -162,7 +162,7 @@ func (c *EthClient) runTransaction(req ethRequest, fn func(uint64) (backend.Even
 
 	if req.GetAttempts() > 0 {
 		// in case of previous failure make sure that the account nonce is correct
-		if err := c.updateNonce(req.GetContext()); err != nil {
+		if err := c.wallet.UpdateNonce(req.GetContext()); err != nil {
 			req.OutCh() <- ethResponse{
 				Response: nil,
 				Error:    err,
@@ -171,8 +171,7 @@ func (c *EthClient) runTransaction(req ethRequest, fn func(uint64) (backend.Even
 		}
 	}
 
-	nonce := c.nonce
-	c.nonce++
+	nonce := c.wallet.TransactionNonce()
 
 	go func() {
 		event, err := fn(nonce)
@@ -213,28 +212,6 @@ func (c *EthClient) request(req ethRequest) {
 	}
 }
 
-func (c *EthClient) updateNonce(ctx context.Context) errors.Err {
-	var (
-		err   errors.Err
-		nonce uint64
-	)
-
-	for attempts := 0; attempts < 10; attempts++ {
-		nonce, err = c.Nonce(ctx, c.wallet.Address().Hex())
-		if err != nil {
-			continue
-		}
-
-		if c.nonce < nonce {
-			c.nonce = nonce
-		}
-
-		return nil
-	}
-
-	return err
-}
-
 func (c *EthClient) GetPublicKeyService(
 	ctx context.Context,
 	req backend.GetPublicKeyServiceRequest,
@@ -244,7 +221,7 @@ func (c *EthClient) GetPublicKeyService(
 		"address":   req.Address,
 	})
 
-	pk, err := c.wallet.Client.GetPublicKey(ctx, common.HexToAddress(req.Address))
+	pk, err := c.client.GetPublicKey(ctx, common.HexToAddress(req.Address))
 	if err != nil {
 		err := errors.New(errors.ErrInternalError, fmt.Errorf("failed to get public key %s", err.Error()))
 		c.logger.Debug(ctx, "client call failed", log.MapFields{
@@ -391,7 +368,7 @@ func (c *EthClient) executeTransaction(
 		return nil, err
 	}
 
-	if err := c.wallet.Client.SendTransaction(ctx, tx); err != nil {
+	if err := c.client.SendTransaction(ctx, tx); err != nil {
 		// depending on the error received it may be useful to return the error
 		// and have an upper logic to decide whether to retry the request
 		err := errors.New(errors.ErrSendTransaction, err)
@@ -404,7 +381,7 @@ func (c *EthClient) executeTransaction(
 		return nil, err
 	}
 
-	receipt, err := c.wallet.Client.TransactionReceipt(ctx, tx.Hash())
+	receipt, err := c.client.TransactionReceipt(ctx, tx.Hash())
 	if err != nil {
 		err := errors.New(errors.ErrTransactionReceipt, err)
 		c.logger.Debug(ctx, "failure to retrieve transaction receipt", log.MapFields{
@@ -496,31 +473,6 @@ func (c *EthClient) executeService(ctx context.Context, nonce, id uint64, req ba
 	return &backend.ExecuteServiceResponse{ID: id, Address: res.Address, Output: ""}, nil
 }
 
-func (c *EthClient) Nonce(ctx context.Context, address string) (uint64, errors.Err) {
-	c.logger.Debug(ctx, "", log.MapFields{
-		"call_type": "NonceAttempt",
-		"address":   address,
-	})
-
-	nonce, err := c.wallet.Client.PendingNonceAt(ctx, common.HexToAddress(address))
-	if err != nil {
-		err := errors.New(errors.ErrFetchPendingNonce, err)
-		c.logger.Debug(ctx, "PendingNonceAt request failed", log.MapFields{
-			"call_type": "NonceFailure",
-			"address":   address,
-		}, err)
-
-		return 0, err
-	}
-
-	c.logger.Debug(ctx, "", log.MapFields{
-		"call_type": "NonceSuccess",
-		"address":   address,
-	})
-
-	return nonce, nil
-}
-
 func (c *EthClient) estimateGas(ctx context.Context, id uint64, address string, data []byte) (uint64, error) {
 	c.logger.Debug(ctx, "", log.MapFields{
 		"call_type": "EstimateGasAttempt",
@@ -535,7 +487,7 @@ func (c *EthClient) estimateGas(ctx context.Context, id uint64, address string, 
 		to = &hex
 	}
 
-	gas, err := c.wallet.Client.EstimateGas(ctx, ethereum.CallMsg{
+	gas, err := c.client.EstimateGas(ctx, ethereum.CallMsg{
 		From:     c.wallet.Address(),
 		To:       to,
 		Gas:      0,
@@ -594,6 +546,7 @@ func DialContext(ctx context.Context, logger log.Logger, properties EthClientPro
 		inCh:   make(chan ethRequest, 64),
 		logger: logger.ForClass("eth", "EthClient"),
 		nonce:  0,
+		client: properties.Wallet.Client,
 		wallet: properties.Wallet,
 		subman: eth.NewSubscriptionManager(eth.SubscriptionManagerProps{
 			Context: ctx,
