@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/oasislabs/developer-gateway/conc"
 	"github.com/oasislabs/developer-gateway/errors"
 	"github.com/oasislabs/developer-gateway/log"
@@ -62,12 +63,13 @@ func (s *Server) destroy(ctx context.Context, ev conc.DestroyWorkerEvent) error 
 }
 
 // Sign signs the provided transaction.
-func (s *Server) Sign(ctx context.Context, req core.SignRequest) errors.Err {
-	if _, err := s.master.Request(ctx, req.Key, signRequest{Transaction: req.Transaction}); err != nil {
-		return errors.New(errors.ErrSignTransaction, err)
+func (s *Server) Sign(ctx context.Context, req core.SignRequest) (*types.Transaction, errors.Err) {
+	tx, err := s.master.Request(ctx, req.Key, signRequest{Transaction: req.Transaction})
+	if err != nil {
+		return nil, errors.New(errors.ErrSignTransaction, err)
 	}
 
-	return nil
+	return tx.(*types.Transaction), nil
 }
 
 func (s *Server) Generate(ctx context.Context, req core.GenerateRequest) errors.Err {
