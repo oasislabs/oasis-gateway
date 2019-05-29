@@ -18,7 +18,7 @@ func (e ErrSerialize) Error() string {
 	return fmt.Sprintf("serialization error  %s", e.Cause)
 }
 
-func isErrSerialize(err error) bool {
+func IsErrSerialize(err error) bool {
 	_, ok := err.(ErrSerialize)
 	return ok
 }

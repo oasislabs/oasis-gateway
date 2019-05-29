@@ -96,7 +96,7 @@ func (m *RequestManager) ExecuteServiceAsync(
 
 	id, err := m.mqueue.Next(ctx, mqueue.NextRequest{Key: req.SessionKey})
 	if err != nil {
-		return 0, err
+		return 0, errors.New(errors.ErrQueueNext, err)
 	}
 
 	go m.doRequest(ctx, req.SessionKey, id, func() (Event, errors.Err) { return m.client.ExecuteService(ctx, id, req) })
@@ -109,7 +109,7 @@ func (m *RequestManager) ExecuteServiceAsync(
 func (m *RequestManager) DeployServiceAsync(ctx context.Context, req DeployServiceRequest) (uint64, errors.Err) {
 	id, err := m.mqueue.Next(ctx, mqueue.NextRequest{Key: req.SessionKey})
 	if err != nil {
-		return 0, err
+		return 0, errors.New(errors.ErrQueueNext, err)
 	}
 
 	go m.doRequest(ctx, req.SessionKey, id, func() (Event, errors.Err) { return m.client.DeployService(ctx, id, req) })
@@ -151,7 +151,7 @@ func (m *RequestManager) Subscribe(ctx context.Context, req SubscribeRequest) (u
 	key := req.SessionKey + "-queue"
 	id, err := m.mqueue.Next(ctx, mqueue.NextRequest{Key: key})
 	if err != nil {
-		return 0, err
+		return 0, errors.New(errors.ErrQueueNext, err)
 	}
 
 	if err := m.subscribe(ctx, id, req); err != nil {
@@ -219,12 +219,12 @@ func (m *RequestManager) PollEvent(ctx context.Context, req PollEventRequest) (E
 func (m *RequestManager) poll(ctx context.Context, key string, offset uint64, count uint, discardPrevious bool) (Events, errors.Err) {
 	els, err := m.mqueue.Retrieve(ctx, mqueue.RetrieveRequest{Key: key, Offset: offset, Count: count})
 	if err != nil {
-		return Events{}, err
+		return Events{}, errors.New(errors.ErrQueueRetrieve, err)
 	}
 
 	if discardPrevious {
 		if err := m.mqueue.Discard(ctx, mqueue.DiscardRequest{Key: key, Offset: offset}); err != nil {
-			return Events{}, err
+			return Events{}, errors.New(errors.ErrQueueDiscard, err)
 		}
 	}
 
