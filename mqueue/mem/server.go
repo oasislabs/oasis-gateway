@@ -46,7 +46,7 @@ func (m *Server) handle(ctx context.Context, ev conc.MasterEvent) error {
 }
 
 func (s *Server) create(ctx context.Context, ev conc.CreateWorkerEvent) error {
-	worker := NewWorker(ev.Key)
+	worker := NewMessageHandler(ev.Key)
 
 	ev.Props.ErrC = nil
 	ev.Props.WorkerHandler = conc.WorkerHandlerFunc(worker.handle)
