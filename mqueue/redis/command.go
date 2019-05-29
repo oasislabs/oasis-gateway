@@ -10,7 +10,7 @@ type command interface {
 
 const (
 	mqnext     op = "return mqnext(KEYS[1])"
-	mqinsert   op = "return mqinsert(KEYS[1], ARGV[1], ARGV[2])"
+	mqinsert   op = "return mqinsert(KEYS[1], ARGV[1], ARGV[2], ARGV[3])"
 	mqretrieve op = "return mqretrieve(KEYS[1], ARGV[1], ARGV[2])"
 	mqdiscard  op = "return mqdiscard(KEYS[1], ARGV[1])"
 	mqremove   op = "return mqremove(KEYS[1])"
@@ -36,6 +36,7 @@ type insertRequest struct {
 	Offset  uint64
 	Key     string
 	Content string
+	Type    string
 }
 
 func (r insertRequest) Op() op {
@@ -47,7 +48,7 @@ func (r insertRequest) Keys() []string {
 }
 
 func (r insertRequest) Args() []interface{} {
-	return []interface{}{r.Offset, r.Content}
+	return []interface{}{r.Offset, r.Type, r.Content}
 }
 
 type retrieveRequest struct {

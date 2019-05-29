@@ -1,10 +1,84 @@
 package core
 
 import (
+	"encoding/json"
 	"fmt"
 
+	"github.com/oasislabs/developer-gateway/errors"
+	mqueue "github.com/oasislabs/developer-gateway/mqueue/core"
 	"github.com/oasislabs/developer-gateway/rpc"
 )
+
+type Event interface {
+	EventID() uint64
+	EventType() EventType
+}
+
+type Events struct {
+	Offset uint64
+	Events []Event
+}
+
+type EventType string
+
+const (
+	DeployServiceEventType  EventType = "deployServiceEventType"
+	ExecuteServiceEventType EventType = "executeServiceEventType"
+	ErrorEventType          EventType = "errorEventType"
+	DataEventType           EventType = "dataEventType"
+)
+
+func (t EventType) String() string {
+	return string(t)
+}
+
+func makeElement(ev Event, offset uint64) (mqueue.Element, error) {
+	p, err := json.Marshal(ev)
+	if err != nil {
+		return mqueue.Element{}, err
+	}
+
+	return mqueue.Element{
+		Offset: offset,
+		Type:   ev.EventType().String(),
+		Value:  string(p),
+	}, nil
+}
+
+func deserializeElement(el mqueue.Element) (Event, errors.Err) {
+	switch EventType(el.Type) {
+	case DeployServiceEventType:
+		var ev DeployServiceResponse
+		if err := json.Unmarshal([]byte(el.Value), &ev); err != nil {
+			return nil, errors.New(errors.ErrDeserializeEvent, err)
+		}
+
+		return ev, nil
+	case ExecuteServiceEventType:
+		var ev ExecuteServiceResponse
+		if err := json.Unmarshal([]byte(el.Value), &ev); err != nil {
+			return nil, errors.New(errors.ErrDeserializeEvent, err)
+		}
+
+		return ev, nil
+	case ErrorEventType:
+		var ev ErrorEvent
+		if err := json.Unmarshal([]byte(el.Value), &ev); err != nil {
+			return nil, errors.New(errors.ErrDeserializeEvent, err)
+		}
+
+		return ev, nil
+	case DataEventType:
+		var ev DataEvent
+		if err := json.Unmarshal([]byte(el.Value), &ev); err != nil {
+			return nil, errors.New(errors.ErrDeserializeEvent, err)
+		}
+
+		return ev, nil
+	default:
+		return nil, errors.New(errors.ErrUnkownEventType, nil)
+	}
+}
 
 // SubID generates a subscription ID that uniquely
 // identifies a subscription within the global namespace
@@ -119,9 +193,14 @@ type DataEvent struct {
 	Data string
 }
 
-// EventID is the implementation of rpc.Event for ExecuteServiceResponse
+// EventID is the implementation of Event for ExecuteServiceResponse
 func (e ExecuteServiceResponse) EventID() uint64 {
 	return e.ID
+}
+
+// EventType is the implementation of Event for ExecuteServiceResponse
+func (e ExecuteServiceResponse) EventType() EventType {
+	return ExecuteServiceEventType
 }
 
 // EventID is the implementation of rpc.Event for DeployServiceResponse
@@ -129,14 +208,29 @@ func (e DeployServiceResponse) EventID() uint64 {
 	return e.ID
 }
 
+// EventType is the implementation of Event for DeployServiceResponse
+func (e DeployServiceResponse) EventType() EventType {
+	return DeployServiceEventType
+}
+
 // EventID is the implementation of rpc.Event for ErrorEvent
 func (e ErrorEvent) EventID() uint64 {
 	return e.ID
 }
 
+// EventType is the implementation of Event for ErrorResponse
+func (e ErrorEvent) EventType() EventType {
+	return ErrorEventType
+}
+
 // EventID is the implementation of rpc.Event for DataEvent
 func (e DataEvent) EventID() uint64 {
 	return e.ID
+}
+
+// EventType is the implementation of Event for ErrorResponse
+func (e DataEvent) EventType() EventType {
+	return DataEventType
 }
 
 // PollServiceRequest is a request issued by a client to

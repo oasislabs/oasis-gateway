@@ -10,7 +10,7 @@ type element struct {
 	Reserved bool
 	Set      bool
 	Offset   uint64
-	Value    interface{}
+	Value    string
 }
 
 var (
@@ -143,7 +143,7 @@ func (w *SlidingWindow) Offset() uint64 {
 // Set sets the value for the element at offset `offset`. If the
 // offset is not in the window's range or the element's state is not
 // reserved or already set an error will be returned
-func (w *SlidingWindow) Set(offset uint64, value interface{}) errors.Err {
+func (w *SlidingWindow) Set(offset uint64, value string) errors.Err {
 	if w.offset > offset || offset > w.offset+uint64(len(w.elements)) {
 		return errors.New(errors.ErrOutOfRange, ErrOffsetOutOfWindow)
 	}
@@ -226,7 +226,7 @@ func (w *SlidingWindow) slide(offset uint64) (uint, errors.Err) {
 		w.elements[i].Set = false
 		w.elements[i].Reserved = false
 		w.elements[i].Offset = 0
-		w.elements[i].Value = nil
+		w.elements[i].Value = ""
 	}
 
 	w.offset += uint64(limit)

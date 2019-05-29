@@ -19,22 +19,24 @@ local mqnext = function(key)
   local len = base_n_len[2]
   local offset = base + len
 
-  assert(redis.call('rpush', key, '{"offset":'.. offset .. ', "set": false}') == len + 1)
+  local payload = cjson.encode({offset = offset, set = false})
+  assert(redis.call('rpush', key, payload) == len + 1)
   return offset
 end
 
--- mqinsert inserts the content for the provided offset over
+-- mqinsert inserts the value for the provided offset over
 -- the window to an already existing element. If the element does
--- not exist, the operation fails. `get_next_offset` must be called
+-- not exist, the operation fails. get_next_offset must be called
 -- so that a specific offset is provided before it can be used
-local mqinsert = function(key, offset, content)
+local mqinsert = function(key, offset, value_type, value)
   local base_n_len = mqbasenlen(key)
   local base = base_n_len[1]
   local len = base_n_len[2]
   local index = offset - base
 
   assert(index >= 0 and index < len)
-  return redis.call('lset', key, index, '{"offset":'  .. offset .. ', "content": ' .. content .. ', "set":true}')
+  local payload = cjson.encode({offset = offset, value = value, value_type = value_type, set = true})
+  return redis.call('lset', key, index, payload)
 end
 
 -- mqretrieve returns a window of elements within the list
@@ -115,10 +117,10 @@ local test = function()
   assert(mqnext('example') == 2)
   assert(mqnext('example') == 3)
 
-  mqinsert('example', 0, '{"data": "my content0"}')
-  mqinsert('example', 1, '{"data": "my content1"}')
-  mqinsert('example', 2, '{"data": "my content2"}')
-  mqinsert('example', 3, '{"data": "my content3"}')
+  mqinsert('example', 0, 'test', '{"data": "my content0"}')
+  mqinsert('example', 1, 'test', '{"data": "my content1"}')
+  mqinsert('example', 2, 'test', '{"data": "my content2"}')
+  mqinsert('example', 3, 'test', '{"data": "my content3"}')
 
   local t = mqretrieve('example', 0, 10)
   assert(cjson.decode(t[1])['offset'] == 0)
@@ -133,7 +135,7 @@ local test = function()
   assert(cjson.decode(t[2])['offset'] == 3)
 
   mqremove('example')
-  assert(redis.call('exists', 'example') == 1)
+  assert(redis.call('exists', 'example') == 0)
 end
 
 if ARGV[1] == "test" then

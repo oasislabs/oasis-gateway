@@ -11,7 +11,12 @@ type Element struct {
 	Offset uint64
 
 	// Value is the arbitrary value stored by the queue
-	Value interface{}
+	Value string
+
+	// Type allows the user to set a string to identify the
+	// type of the value stored. It may be useful when
+	// deserializing
+	Type string
 }
 
 // Elements is an ordered set of elements

@@ -3,7 +3,7 @@ GRPCFILES=$(patsubst %.proto,%.pb.go,$(PROTOFILES))
 
 all:  build test build-cmd
 
-build: build-grpc
+build: build-grpc build-redis-lua
 	go build ./...
 
 build-grpc: $(GRPCFILES)
@@ -22,6 +22,15 @@ build-ekiden-client:
 build-eth-client:
 	go build -o eth-client github.com/oasislabs/developer-gateway/cmd/eth-client
 
+build-redis-lua: mqueue/redis/script.go
+
+mqueue/redis/script.go: mqueue/redis/redis.lua
+	$(echo "package redis" > $<)
+	$(echo "" >> $<)
+	$(echo "const script string = `" >> $<)
+	$(cat $@ >> $<)
+	$(echo "`" >> $<)
+
 lint:
 	go vet ./...
 	golangci-lint run
@@ -37,4 +46,8 @@ show-coverage:
 
 clean:
 	rm -f developer-gateway
+	rm -f ekiden-client
+	rm -f eth-client
+	rm -f $GRPCFILES
+	rm -f mqueue/redis/script.go
 	go clean ./...
