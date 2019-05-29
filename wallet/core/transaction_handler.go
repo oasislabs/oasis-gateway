@@ -20,6 +20,9 @@ type SignRequest struct {
 type GenerateRequest struct {
 	// Key unique identifier of the wallet
 	Key string
+
+	// URL to which the generated wallet's ETH client should connect.
+	URL string
 	
 	// Private key of the wallet
 	PrivateKey *ecdsa.PrivateKey

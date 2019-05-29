@@ -71,7 +71,7 @@ func (s *Server) Sign(ctx context.Context, req core.SignRequest) errors.Err {
 }
 
 func (s *Server) Generate(ctx context.Context, req core.GenerateRequest) errors.Err {
-	if _, err := s.master.Request(ctx, req.Key, generateRequest{PrivateKey: req.PrivateKey}); err != nil {
+	if _, err := s.master.Request(ctx, req.Key, generateRequest{Context: ctx, URL: req.URL, PrivateKey: req.PrivateKey}); err != nil {
 		return errors.New(errors.ErrGenerateWallet, err)
 	}
 
