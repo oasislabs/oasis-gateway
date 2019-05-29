@@ -29,7 +29,7 @@ type generateRequest struct {
 // Worker implements a very simple transaction signing service/
 type Worker struct {
 	key    string
-	wallet core.InternalWallet
+	wallet *core.InternalWallet
 }
 
 // NewWorker creates a new instance of a worker
@@ -82,15 +82,13 @@ func (w *Worker) generate(req generateRequest) errors.Err {
 		RetryConfig: conc.RandomConfig,
 	})
 	logger := log.NewLogrus(log.LogrusLoggerProperties{})
-	wallet := core.InternalWallet{
-		PrivateKey: req.PrivateKey,
-		Signer:     types.FrontierSigner{},
-		Nonce:      0,
-		Client:     pooledClient,
-		Logger:     logger.ForClass("wallet", "InternalWallet"),
-	}
-
-	w.wallet = wallet
+	w.wallet = core.NewWallet(
+		req.PrivateKey,
+		types.FrontierSigner{},
+		0,
+		pooledClient,
+		logger.ForClass("wallet", "InternalWallet"),
+	)
 
 	return nil
 }

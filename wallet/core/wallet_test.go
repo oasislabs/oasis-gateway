@@ -40,11 +40,11 @@ func initializeWallet() (Wallet, error) {
 	logger := log.NewLogrus(log.LogrusLoggerProperties{})
 
 	wallet := &InternalWallet{
-		PrivateKey: privateKey,
-		Signer:     types.FrontierSigner{},
-		Nonce:      0,
-		Client:     pooledClient,
-		Logger:     logger.ForClass("wallet", "InternalWallet"),
+		privateKey: privateKey,
+		signer:     types.FrontierSigner{},
+		nonce:      0,
+		client:     pooledClient,
+		logger:     logger.ForClass("wallet", "InternalWallet"),
 	}
 
 	return wallet, nil
