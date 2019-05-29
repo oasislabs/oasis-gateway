@@ -10,9 +10,9 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-type MockHttpMiddleware struct{}
+type MockHTTPMiddleware struct{}
 
-func (h *MockHttpMiddleware) ServeHTTP(req *http.Request) (interface{}, error) {
+func (h *MockHTTPMiddleware) ServeHTTP(req *http.Request) (interface{}, error) {
 	return req.Context().Value(ContextAuthDataKey), nil
 }
 
@@ -20,29 +20,29 @@ func TestServeHTTP(t *testing.T) {
 	httpMiddlewareAuth := NewHttpMiddlewareAuth(
 		insecure.InsecureAuth{},
 		log.NewLogrus(log.LogrusLoggerProperties{}),
-		&MockHttpMiddleware{})
+		&MockHTTPMiddleware{})
 
 	req, err := http.NewRequest("POST", "gateway.oasiscloud.io", nil)
 	assert.Nil(t, err)
 	req.Header.Add(insecure.INSECURE_KEY, "insecure-key")
-	req.Header.Add(RequestHeaderSessionKey, "session-key")
 
 	response, err := httpMiddlewareAuth.ServeHTTP(req)
 	assert.Nil(t, err)
 	authData := response.(AuthData)
 	assert.Equal(t, "insecure-key", authData.ExpectedAAD)
-	assert.Equal(t, "session-key", authData.SessionKey)
+	assert.NotNil(t, authData.SessionKey)
 }
 
-func TestServeHTTPNoSessionKey(t *testing.T) {
+func TestServeHTTPInvalidSessionKey(t *testing.T) {
 	httpMiddlewareAuth := NewHttpMiddlewareAuth(
 		insecure.InsecureAuth{},
 		log.NewLogrus(log.LogrusLoggerProperties{}),
-		&MockHttpMiddleware{})
+		&MockHTTPMiddleware{})
 
 	req, err := http.NewRequest("POST", "gateway.oasiscloud.io", nil)
 	assert.Nil(t, err)
 	req.Header.Add(insecure.INSECURE_KEY, "insecure-key")
+	req.Header.Add(RequestHeaderSessionKey, "session-key")
 
 	response, err := httpMiddlewareAuth.ServeHTTP(req)
 	assert.NotNil(t, err)

@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 
+	"github.com/google/uuid"
 	"github.com/oasislabs/developer-gateway/log"
 	"github.com/oasislabs/developer-gateway/rpc"
 )
@@ -11,9 +12,10 @@ import (
 const RequestHeaderSessionKey string = "X-OASIS-SESSION-KEY"
 
 type HttpMiddlewareAuth struct {
-	auth   Auth
-	logger log.Logger
-	next   rpc.HttpMiddleware
+	auth     Auth
+	logger   log.Logger
+	next     rpc.HttpMiddleware
+	sessions map[string]string // maps session key to owner AAD
 }
 
 func NewHttpMiddlewareAuth(auth Auth, logger log.Logger, next rpc.HttpMiddleware) *HttpMiddlewareAuth {
@@ -30,9 +32,10 @@ func NewHttpMiddlewareAuth(auth Auth, logger log.Logger, next rpc.HttpMiddleware
 	}
 
 	return &HttpMiddlewareAuth{
-		auth:   auth,
-		logger: logger.ForClass("auth", "HttpMiddlewareAuth"),
-		next:   next,
+		auth:     auth,
+		logger:   logger.ForClass("auth", "HttpMiddlewareAuth"),
+		next:     next,
+		sessions: make(map[string]string),
 	}
 }
 
@@ -42,9 +45,16 @@ func (m *HttpMiddlewareAuth) ServeHTTP(req *http.Request) (interface{}, error) {
 		return nil, &rpc.HttpError{Cause: nil, StatusCode: http.StatusForbidden}
 	}
 
-	// Session key is generated and provided by the client
 	sessionKey := req.Header.Get(RequestHeaderSessionKey)
+	// Clients request new session by leaving sessionKey empty
 	if len(sessionKey) == 0 {
+		sessionKey = uuid.New().String()
+		for _, ok := m.sessions[sessionKey]; ok; sessionKey = uuid.New().String() {
+		}
+		m.sessions[sessionKey] = expectedAAD
+	}
+
+	if m.sessions[sessionKey] != expectedAAD {
 		return nil, &rpc.HttpError{Cause: nil, StatusCode: http.StatusForbidden}
 	}
 
