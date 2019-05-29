@@ -7,7 +7,7 @@ EXIT_CODE=0
 
 # if there is already a redis container, remove it so that
 # a new one can be created
-REDIS_CONTAINER=$(docker ps -a | grep redis | awk '{print $1}')
+REDIS_CONTAINER=$(docker ps -a | grep redis | awk '{print $1}') || true
 if [ ! -z "$REDIS_CONTAINER" ]; then
     docker rm -f "$REDIS_CONTAINER"
 fi
