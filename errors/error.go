@@ -56,7 +56,7 @@ var (
 		desc:     "Internal Error. Please check the status of the service.",
 	}
 
-	ErrFetchPendingNonce = ErrorCode{
+	ErrFetchNonce = ErrorCode{
 		category: InternalError,
 		code:     1007,
 		desc:     "Internal Error. Please check the status of the service.",

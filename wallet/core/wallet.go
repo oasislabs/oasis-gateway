@@ -55,7 +55,7 @@ func (w *InternalWallet) UpdateNonce(ctx context.Context) errors.Err {
 			w.Logger.Debug(ctx, "NonceAt request failed", log.MapFields{
 				"call_type": "NonceFailure",
 				"address":   address,
-			}, errors.New(errors.ErrFetchPendingNonce, err))
+			}, errors.New(errors.ErrFetchNonce, err))
 			continue
 		}
 
@@ -71,11 +71,11 @@ func (w *InternalWallet) UpdateNonce(ctx context.Context) errors.Err {
 		}
 	}
 
-	w.Logger.Debug(ctx, "Exceeded PendingNonceAt request limit", log.MapFields{
+	w.Logger.Debug(ctx, "Exceeded NonceAt request limit", log.MapFields{
 		"call_type": "NonceFailure",
-	}, errors.New(errors.ErrFetchPendingNonce, err))
+	}, errors.New(errors.ErrFetchNonce, err))
 
-	return errors.New(errors.ErrFetchPendingNonce, err)
+	return errors.New(errors.ErrFetchNonce, err)
 }
 
 func (w *InternalWallet) SignTransaction(tx *types.Transaction) (*types.Transaction, errors.Err) {
