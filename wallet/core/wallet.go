@@ -1,4 +1,4 @@
-package wallet
+package core
 
 import (
 	"context"
@@ -31,28 +31,28 @@ type InternalWallet struct {
 	Logger     log.Logger
 }
 
-func (w InternalWallet) Address() common.Address {
+func (w *InternalWallet) Address() common.Address {
 	return crypto.PubkeyToAddress(w.PrivateKey.PublicKey)
 }
 
-func (w InternalWallet) TransactionClient() eth.Client {
+func (w *InternalWallet) TransactionClient() eth.Client {
 	return w.Client
 }
 
-func (w InternalWallet) TransactionNonce() uint64 {
+func (w *InternalWallet) TransactionNonce() uint64 {
 	nonce := w.Nonce
 	w.Nonce++
 	return nonce
 }
 
-func (w InternalWallet) UpdateNonce(ctx context.Context) errors.Err {
+func (w *InternalWallet) UpdateNonce(ctx context.Context) errors.Err {
 	var err error
 	for attempts := 0; attempts < 10; attempts++ {
 
 		address := w.Address().Hex()
-		nonce, err := w.Client.PendingNonceAt(ctx, common.HexToAddress(address))
+		nonce, err := w.Client.NonceAt(ctx, common.HexToAddress(address))
 		if err != nil {
-			w.Logger.Debug(ctx, "PendingNonceAt request failed", log.MapFields{
+			w.Logger.Debug(ctx, "NonceAt request failed", log.MapFields{
 				"call_type": "NonceFailure",
 				"address":   address,
 			}, errors.New(errors.ErrFetchPendingNonce, err))
@@ -78,7 +78,7 @@ func (w InternalWallet) UpdateNonce(ctx context.Context) errors.Err {
 	return errors.New(errors.ErrFetchPendingNonce, err)
 }
 
-func (w InternalWallet) SignTransaction(tx *types.Transaction) (*types.Transaction, errors.Err) {
+func (w *InternalWallet) SignTransaction(tx *types.Transaction) (*types.Transaction, errors.Err) {
 	var err error
 	tx, err = types.SignTx(tx, w.Signer, w.PrivateKey)
 	if err != nil {

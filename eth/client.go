@@ -15,7 +15,7 @@ import (
 type Client interface {
 	EstimateGas(context.Context, ethereum.CallMsg) (uint64, error)
 	GetPublicKey(context.Context, common.Address) (PublicKey, error)
-	PendingNonceAt(context.Context, common.Address) (uint64, error)
+	NonceAt(context.Context, common.Address) (uint64, error)
 	SendTransaction(context.Context, *types.Transaction) error
 	SubscribeFilterLogs(context.Context, ethereum.FilterQuery, chan<- types.Log) (ethereum.Subscription, error)
 	TransactionReceipt(ctx context.Context, txHash common.Hash) (*types.Receipt, error)
@@ -105,7 +105,7 @@ func (c *PooledClient) GetPublicKey(ctx context.Context, address common.Address)
 	return v.(PublicKey), nil
 }
 
-func (c *PooledClient) PendingNonceAt(ctx context.Context, account common.Address) (uint64, error) {
+func (c *PooledClient) NonceAt(ctx context.Context, account common.Address) (uint64, error) {
 	v, err := c.request(ctx, func(conn *Conn) (interface{}, error) {
 		return conn.eclient.NonceAt(ctx, account, nil)
 	})
