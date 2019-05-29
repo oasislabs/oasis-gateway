@@ -72,6 +72,7 @@ func (s *Server) Sign(ctx context.Context, req core.SignRequest) (*types.Transac
 	return tx.(*types.Transaction), nil
 }
 
+// Generates a new wallet for the given key.
 func (s *Server) Generate(ctx context.Context, req core.GenerateRequest) errors.Err {
 	if _, err := s.master.Request(ctx, req.Key, generateRequest{Context: ctx, URL: req.URL, PrivateKey: req.PrivateKey}); err != nil {
 		return errors.New(errors.ErrGenerateWallet, err)
@@ -80,7 +81,7 @@ func (s *Server) Generate(ctx context.Context, req core.GenerateRequest) errors.
 	return nil
 }
 
-// Remove the key's wallet and it's associated resources
+// Remove the key's wallet and it's associated resources.
 func (s *Server) Remove(ctx context.Context, req core.RemoveRequest) errors.Err {
 	if err := s.master.Destroy(ctx, req.Key); err != nil {
 		return errors.New(errors.ErrRemoveWallet, err)
