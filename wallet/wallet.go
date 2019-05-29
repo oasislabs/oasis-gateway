@@ -10,6 +10,7 @@ import (
 
 	"github.com/oasislabs/developer-gateway/errors"
 	"github.com/oasislabs/developer-gateway/eth"
+	"github.com/oasislabs/developer-gateway/log"
 )
 
 // Wallet is an interface for any type that signs transactions
@@ -27,6 +28,7 @@ type InternalWallet struct {
 	Signer     types.Signer
 	Nonce			 uint64
 	Client     eth.Client
+	Logger     log.Logger
 }
 
 func (w InternalWallet) Address() common.Address {
@@ -47,17 +49,31 @@ func (w InternalWallet) UpdateNonce(ctx context.Context) errors.Err {
 	var err error
 	for attempts := 0; attempts < 10; attempts++ {
 
-		// TODO(ennsharma): Add logging
-		nonce, err := w.Client.PendingNonceAt(ctx, common.HexToAddress(w.Address().Hex()))
+		address := w.Address().Hex()
+		nonce, err := w.Client.PendingNonceAt(ctx, common.HexToAddress(address))
 		if err != nil {
+			w.Logger.Debug(ctx, "PendingNonceAt request failed", log.MapFields{
+				"call_type": "NonceFailure",
+				"address":   address,
+			}, errors.New(errors.ErrFetchPendingNonce, err))
 			continue
 		}
 
 		if w.Nonce < nonce {
 			w.Nonce = nonce
+
+			w.Logger.Debug(ctx, "", log.MapFields{
+				"call_type": "NonceSuccess",
+				"address":   address,
+			})
+
 			return nil
 		}
 	}
+
+	w.Logger.Debug(ctx, "Exceeded PendingNonceAt request limit", log.MapFields{
+		"call_type": "NonceFailure",
+	}, errors.New(errors.ErrFetchPendingNonce, err))
 
 	return errors.New(errors.ErrFetchPendingNonce, err)
 }

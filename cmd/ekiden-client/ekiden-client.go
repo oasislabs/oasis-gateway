@@ -30,7 +30,7 @@ func main() {
 	pflag.Parse()
 
 	if len(walletKey) == 0 {
-		fmt.Println("-wallet needs to be set")
+		fmt.Println("-walletKey needs to be set")
 		os.Exit(1)
 	}
 

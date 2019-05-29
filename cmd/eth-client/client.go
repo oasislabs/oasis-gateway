@@ -31,15 +31,17 @@ func dialClient(props ClientProps) (*eth.EthClient, error) {
 		Pool:        dialer,
 		RetryConfig: conc.RandomConfig,
 	})
+	logger := log.NewLogrus(log.LogrusLoggerProperties{})
 
 	wallet := wallet.InternalWallet{
 		PrivateKey: privateKey,
 		Signer:     types.FrontierSigner{},
 		Nonce:      0,
 		Client:     pooledClient,
+		Logger:     logger.ForClass("wallet", "InternalWallet"),
 	}
 
-	client, err := eth.DialContext(ctx, log.NewLogrus(log.LogrusLoggerProperties{}), eth.EthClientProperties{
+	client, err := eth.DialContext(ctx, logger, eth.EthClientProperties{
 		Wallet: wallet,
 		URL:    props.URL,
 	})

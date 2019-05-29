@@ -268,7 +268,7 @@ func NewSubscriptionManager(props SubscriptionManagerProps) *SubscriptionManager
 func (m *SubscriptionManager) handle(ctx context.Context, ev conc.MasterEvent) error {
 	switch ev := ev.(type) {
 	case conc.CreateWorkerEvent:
-		return m.create(ev)
+		return m.create(ctx, ev)
 	case conc.DestroyWorkerEvent:
 		return m.destroy(ev)
 	default:
@@ -276,7 +276,7 @@ func (m *SubscriptionManager) handle(ctx context.Context, ev conc.MasterEvent) e
 	}
 }
 
-func (m *SubscriptionManager) create(ev conc.CreateWorkerEvent) error {
+func (m *SubscriptionManager) create(ctx context.Context, ev conc.CreateWorkerEvent) error {
 	req := ev.Value.(createSubscriptionRequest)
 	sub := NewSubscription(SubscriptionProps{
 		Logger:     m.logger,
@@ -286,7 +286,7 @@ func (m *SubscriptionManager) create(ev conc.CreateWorkerEvent) error {
 		C:          req.C,
 	})
 
-	if err := sub.subscribe(ev.Context); err != nil {
+	if err := sub.subscribe(ctx); err != nil {
 		return err
 	}
 

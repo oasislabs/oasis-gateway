@@ -7,6 +7,7 @@ import (
 	"runtime/debug"
 	"sync"
 	"sync/atomic"
+	"time"
 )
 
 const (
@@ -71,6 +72,11 @@ type CreateWorkerProps struct {
 	// UserData is data that the user can attach to the worker in case any
 	// external context is required
 	UserData interface{}
+
+	// MaxInactivity is the maximum time the worker is allowed to exist
+	// without serving any request. When this time expires the worker
+	// should destroy itself
+	MaxInactivity time.Duration
 }
 
 // MasterEvent is the interface implemented by all events triggered
@@ -82,10 +88,9 @@ type MasterEvent interface {
 // CreateWorkerEvent is triggered by a master when a new worker
 // is created and available to be sent events to
 type CreateWorkerEvent struct {
-	Context context.Context
-	Key     string
-	Value   interface{}
-	Props   *CreateWorkerProps
+	Key   string
+	Value interface{}
+	Props *CreateWorkerProps
 }
 
 // WorkerKey implementation of MasterEvent for CreateWorkerEvent
@@ -96,9 +101,8 @@ func (e CreateWorkerEvent) WorkerKey() string {
 // DestroyWorkerEvent is triggered by a master when an existing worker
 // is destroyed
 type DestroyWorkerEvent struct {
-	Context context.Context
-	Worker  *Worker
-	Key     string
+	Worker *Worker
+	Key    string
 }
 
 // WorkerKey implementation of MasterEvent for DestroyWorkerEvent
@@ -129,12 +133,26 @@ type WorkerProps struct {
 	// UserData is data that the user can attach to the worker in case any
 	// external context is required
 	UserData interface{}
+
+	// MaxInactivity is the maximum time the worker is allowed to exist
+	// without serving any request. When this time expires the worker
+	// should destroy itself
+	MaxInactivity time.Duration
 }
 
 // Worker handles requests issued by the master in a separate
 // goroutine and gives back results. Its lifetime is managed
 // by the Master
 type Worker struct {
+	// lastEventTimestamp is the timestamp at which the worker handled
+	// the latest event
+	lastEventTimestamp int64
+
+	// maxInactivity is the maximum time the worker is allowed to exist
+	// without serving any request. When this time expires the worker
+	// should destroy itself
+	maxInactivity time.Duration
+
 	// key is the string that uniquely identifies a worker
 	key string
 
@@ -164,10 +182,16 @@ type Worker struct {
 
 // NewWorker creates a new worker instance
 func NewWorker(ctx context.Context, props WorkerProps) *Worker {
+	if props.MaxInactivity == 0 {
+		props.MaxInactivity = time.Duration(1) * time.Hour
+	}
+
 	w := &Worker{
-		key:     props.Key,
-		handler: props.WorkerHandler,
-		C:       props.C,
+		lastEventTimestamp: time.Now().Unix(),
+		maxInactivity:      props.MaxInactivity,
+		key:                props.Key,
+		handler:            props.WorkerHandler,
+		C:                  props.C,
 
 		// ShutdownC may be closed with an error if there are no listeners
 		// for it. In that case we should not block
@@ -176,14 +200,18 @@ func NewWorker(ctx context.Context, props WorkerProps) *Worker {
 		doneC:     props.DoneC,
 		UserData:  props.UserData,
 	}
+
 	go w.startLoop(ctx)
 	return w
 }
 
 func (w *Worker) startLoop(ctx context.Context) {
+	timer := time.NewTimer(w.maxInactivity)
 	var err error
 
 	defer func() {
+		timer.Stop()
+
 		if r := recover(); r != nil {
 			err = errorFromPanic(r)
 		}
@@ -195,6 +223,16 @@ func (w *Worker) startLoop(ctx context.Context) {
 		select {
 		case <-ctx.Done():
 			return
+		case <-timer.C:
+			current := time.Now().Unix()
+			if time.Duration(current-w.lastEventTimestamp) > w.maxInactivity {
+				return
+
+			} else {
+				if ok := timer.Reset(w.maxInactivity); ok {
+					panic("resetting timer when it was already running")
+				}
+			}
 		case err, ok := <-w.ErrC:
 			if !ok {
 				return
@@ -338,6 +376,10 @@ type request interface {
 // Master manages a set of workers and distributes workers
 // amongst them. It also keeps track of the workers lifetimes
 type Master struct {
+	// createWorkerOnRequest creates a worker if a request is received by
+	// a worker and the worker was not created beforehand
+	createWorkerOnRequest bool
+
 	// shutdownCh is the channel used by the Master to signal
 	// a shutdown to itself
 	shutdownCh chan interface{}
@@ -415,15 +457,22 @@ type MasterProps struct {
 	// MasterHandler is the handler the master will use to provide access
 	// to the master events
 	MasterHandler MasterHandler
+
+	// CreateWorkerOnRequest creates a worker if a request is received by
+	// a worker and the worker was not created beforehand. Should only be
+	// used if a worker does not need a specific request passed on to the
+	// CreateWorkerEvent handler
+	CreateWorkerOnRequest bool
 }
 
 // NewMaster creates a new master
 func NewMaster(props MasterProps) *Master {
 	return &Master{
-		handler:         props.MasterHandler,
-		workers:         make(map[string]*Worker),
-		shutdownWorkers: make(map[string]*Worker),
-		state:           stopped,
+		createWorkerOnRequest: props.CreateWorkerOnRequest,
+		handler:               props.MasterHandler,
+		workers:               make(map[string]*Worker),
+		shutdownWorkers:       make(map[string]*Worker),
+		state:                 stopped,
 	}
 }
 
@@ -461,6 +510,9 @@ func (m *Master) Stop() error {
 	close(m.inCh)
 	close(m.doneCh)
 	if len(m.workers) > 0 {
+		panic("failed to shutdown all workers gracefully")
+	}
+	if len(m.shutdownWorkers) > 0 {
 		panic("failed to shutdown all workers gracefully")
 	}
 
@@ -518,14 +570,25 @@ func (m *Master) Request(ctx context.Context, key string, req interface{}) (inte
 // they are using. This method should only be called outside
 // the event loop
 func (m *Master) shutdown() {
-	go func() {
-		for ev := range m.doneCh {
-			m.removeWorker(ev)
+	// shutdown the next 16 workers. This works because
+	// shutdownWorker does not write to any channel, it only
+	// closes the input channel of a worker to trigger
+	// the worker to shutdown itself.
+	for i := 0; i < 16; i++ {
+		for key := range m.workers {
+			m.shutdownWorker(key)
 		}
-	}()
+	}
 
-	for key := range m.workers {
-		m.shutdownWorker(key)
+	// remove all workers that have already been
+	// dismissed and have notified the master
+	for ev := range m.doneCh {
+		m.removeWorker(ev)
+
+		// if there are no more workers to shutdown
+		if len(m.shutdownWorkers) == 0 {
+			break
+		}
 	}
 
 	m.workerCount.Wait()
@@ -590,43 +653,52 @@ func (m *Master) handleRequest(req request) {
 
 func (m *Master) handleWorkerRequest(req workerRequest) {
 	w, ok := m.workers[req.Key]
-	if !ok {
+	if !ok && !m.createWorkerOnRequest {
 		req.Out <- response{Value: nil, Error: errors.New("worker does not exist")}
 		return
+
+	} else if !ok && m.createWorkerOnRequest {
+		if err := m.createWorker(req.Context, req.Key, nil); err != nil {
+			req.Out <- response{Value: nil, Error: err}
+			return
+		}
+
+		w, ok = m.workers[req.Key]
+		if !ok {
+			panic("worker had just been added to the list of active workers")
+		}
 	}
 
 	w.C <- req
 }
 
-func (m *Master) handleCreateRequest(req createRequest) {
+func (m *Master) createWorker(ctx context.Context, key string, value interface{}) (err error) {
 	defer func() {
 		if r := recover(); r != nil {
-			err := errorFromPanic(r)
-			req.Out <- err
+			err = errorFromPanic(r)
 		}
 	}()
 
-	_, ok := m.workers[req.Key]
+	_, ok := m.workers[key]
 	if ok {
-		req.Out <- errors.New("worker already exists")
+		err = errors.New("worker already exists")
 		return
 	}
 
 	var props CreateWorkerProps
-	err := m.handler.Handle(req.Context, CreateWorkerEvent{
-		Context: req.Context,
-		Value:   req.Value,
-		Key:     req.Key,
-		Props:   &props,
+	err = m.handler.Handle(ctx, CreateWorkerEvent{
+		Value: value,
+		Key:   key,
+		Props: &props,
 	})
 	if err != nil {
-		req.Out <- err
 		return
 	}
 
 	ch := make(chan workerRequest, 64)
-	m.workers[req.Key] = NewWorker(m.ctx, WorkerProps{
-		Key:           req.Key,
+	m.workers[key] = NewWorker(m.ctx, WorkerProps{
+		MaxInactivity: props.MaxInactivity,
+		Key:           key,
 		DoneC:         m.doneCh,
 		WorkerHandler: props.WorkerHandler,
 		UserData:      props.UserData,
@@ -635,7 +707,11 @@ func (m *Master) handleCreateRequest(req createRequest) {
 	})
 
 	m.workerCount.Add(1)
-	req.Out <- nil
+	return nil
+}
+
+func (m *Master) handleCreateRequest(req createRequest) {
+	req.Out <- m.createWorker(req.Context, req.Key, req.Value)
 }
 
 func (m *Master) handleDestroyRequest(req destroyRequest) {
@@ -690,8 +766,7 @@ func (m *Master) removeWorker(ev workerDestroyed) {
 	m.workerCount.Done()
 
 	err = m.handler.Handle(context.Background(), DestroyWorkerEvent{
-		Context: ev.Context,
-		Worker:  w,
-		Key:     ev.Key,
+		Worker: w,
+		Key:    ev.Key,
 	})
 }

@@ -107,7 +107,7 @@ func (c *PooledClient) GetPublicKey(ctx context.Context, address common.Address)
 
 func (c *PooledClient) PendingNonceAt(ctx context.Context, account common.Address) (uint64, error) {
 	v, err := c.request(ctx, func(conn *Conn) (interface{}, error) {
-		return conn.eclient.PendingNonceAt(ctx, account)
+		return conn.eclient.NonceAt(ctx, account, nil)
 	})
 
 	if err != nil {

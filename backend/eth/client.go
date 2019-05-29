@@ -521,6 +521,7 @@ func (c *EthClient) estimateGas(ctx context.Context, id uint64, address string, 
 		"call_type": "EstimateGasSuccess",
 		"id":        id,
 		"address":   address,
+		"gas":       gas,
 	})
 
 	return gas, nil
@@ -546,12 +547,12 @@ func DialContext(ctx context.Context, logger log.Logger, properties EthClientPro
 		inCh:   make(chan ethRequest, 64),
 		logger: logger.ForClass("eth", "EthClient"),
 		nonce:  0,
-		client: properties.Wallet.Client(),
+		client: properties.Wallet.TransactionClient(),
 		wallet: properties.Wallet,
 		subman: eth.NewSubscriptionManager(eth.SubscriptionManagerProps{
 			Context: ctx,
 			Logger:  logger,
-			Client:  properties.Wallet.Client(),
+			Client:  properties.Wallet.TransactionClient(),
 		}),
 	}
 
