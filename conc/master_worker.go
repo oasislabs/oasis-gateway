@@ -138,12 +138,6 @@ type MasterHandler interface {
 	Handle(ctx context.Context, ev MasterEvent) error
 }
 
-// WorkerHandler is the user defined handler to handle events
-// targeting a worker
-type WorkerHandler interface {
-	Handle(ctx context.Context, req WorkerEvent) (interface{}, error)
-}
-
 // MasterHandlerFunc is the implementation of MasterHandler for functions
 type MasterHandlerFunc func(ctx context.Context, ev MasterEvent) error
 

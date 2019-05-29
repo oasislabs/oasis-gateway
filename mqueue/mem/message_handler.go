@@ -26,16 +26,16 @@ type discardRequest struct {
 
 type nextRequest struct{}
 
-// RequestHandler implements a very simple messaging queue-like
+// MessageHandler implements a very simple messaging queue-like
 // functionality serving requests for a single queue.
-type RequestHandler struct {
+type MessageHandler struct {
 	key    string
 	window SlidingWindow
 }
 
-// NewRequestHandler creates a new instance of a worker
-func NewRequestHandler(key string) *RequestHandler {
-	w := &RequestHandler{
+// NewMessageHandler creates a new instance of a worker
+func NewMessageHandler(key string) *MessageHandler {
+	w := &MessageHandler{
 		key:    key,
 		window: NewSlidingWindow(SlidingWindowProps{MaxSize: maxElementsPerQueue}),
 	}
@@ -43,7 +43,7 @@ func NewRequestHandler(key string) *RequestHandler {
 	return w
 }
 
-func (w *RequestHandler) handle(ctx context.Context, ev conc.WorkerEvent) (interface{}, error) {
+func (w *MessageHandler) handle(ctx context.Context, ev conc.WorkerEvent) (interface{}, error) {
 	switch ev := ev.(type) {
 	case conc.RequestWorkerEvent:
 		return w.handleRequestEvent(ctx, ev)
@@ -54,7 +54,7 @@ func (w *RequestHandler) handle(ctx context.Context, ev conc.WorkerEvent) (inter
 	}
 }
 
-func (w *RequestHandler) handleRequestEvent(ctx context.Context, ev conc.RequestWorkerEvent) (interface{}, error) {
+func (w *MessageHandler) handleRequestEvent(ctx context.Context, ev conc.RequestWorkerEvent) (interface{}, error) {
 	switch req := ev.Value.(type) {
 	case insertRequest:
 		err := w.insert(req)
@@ -71,26 +71,26 @@ func (w *RequestHandler) handleRequestEvent(ctx context.Context, ev conc.Request
 	}
 }
 
-func (w *RequestHandler) handleErrorEvent(ctx context.Context, ev conc.ErrorWorkerEvent) (interface{}, error) {
+func (w *MessageHandler) handleErrorEvent(ctx context.Context, ev conc.ErrorWorkerEvent) (interface{}, error) {
 	// a worker should not be passing errors to the conc.Worker so
 	// in that case the error is returned and the execution of the
 	// worker should halt
 	return nil, ev.Error
 }
 
-func (w *RequestHandler) insert(req insertRequest) error {
+func (w *MessageHandler) insert(req insertRequest) error {
 	return w.window.Set(req.Element.Offset, req.Element.Value)
 }
 
-func (w *RequestHandler) retrieve(req retrieveRequest) (core.Elements, error) {
+func (w *MessageHandler) retrieve(req retrieveRequest) (core.Elements, error) {
 	return w.window.Get(req.Offset, req.Count)
 }
 
-func (w *RequestHandler) discard(req discardRequest) error {
+func (w *MessageHandler) discard(req discardRequest) error {
 	_, err := w.window.Slide(req.Offset)
 	return err
 }
 
-func (w *RequestHandler) next(req nextRequest) (uint64, error) {
+func (w *MessageHandler) next(req nextRequest) (uint64, error) {
 	return w.window.ReserveNext()
 }

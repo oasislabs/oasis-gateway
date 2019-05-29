@@ -74,6 +74,12 @@ func (e RequestWorkerEvent) GetWorker() *Worker {
 	return e.Worker
 }
 
+// WorkerHandler is the user defined handler to handle events
+// targeting a worker
+type WorkerHandler interface {
+	Handle(ctx context.Context, req WorkerEvent) (interface{}, error)
+}
+
 // WorkerHandlerFunc is the implementation of MasterHandler for functions
 type WorkerHandlerFunc func(ctx context.Context, ev WorkerEvent) (interface{}, error)
 
