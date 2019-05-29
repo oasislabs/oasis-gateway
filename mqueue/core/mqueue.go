@@ -2,8 +2,6 @@ package core
 
 import (
 	"context"
-
-	"github.com/oasislabs/developer-gateway/errors"
 )
 
 // Element represents an element of the OrderedQueue
@@ -84,19 +82,19 @@ type RemoveRequest struct {
 // for each queue they have.
 type MQueue interface {
 	// Insert inserts the element to the provided offset.
-	Insert(context.Context, InsertRequest) errors.Err
+	Insert(context.Context, InsertRequest) error
 
 	// Retrieve all available elements from the
 	// messaging queue after the provided offset
-	Retrieve(context.Context, RetrieveRequest) (Elements, errors.Err)
+	Retrieve(context.Context, RetrieveRequest) (Elements, error)
 
 	// Discard all elements that have a prior or equal
 	// offset to the provided offset
-	Discard(context.Context, DiscardRequest) errors.Err
+	Discard(context.Context, DiscardRequest) error
 
 	// Next element offset that can be used for the queue.
-	Next(context.Context, NextRequest) (uint64, errors.Err)
+	Next(context.Context, NextRequest) (uint64, error)
 
 	// Remove the queue and associated resources with the key
-	Remove(context.Context, RemoveRequest) errors.Err
+	Remove(context.Context, RemoveRequest) error
 }
