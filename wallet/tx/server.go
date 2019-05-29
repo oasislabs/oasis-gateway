@@ -64,16 +64,24 @@ func (s *Server) destroy(ctx context.Context, ev conc.DestroyWorkerEvent) error 
 // Sign signs the provided transaction.
 func (s *Server) Sign(ctx context.Context, req core.SignRequest) errors.Err {
 	if _, err := s.master.Request(ctx, req.Key, signRequest{Transaction: req.Transaction}); err != nil {
-		return errors.New(errors.ErrSignedTx, err)
+		return errors.New(errors.ErrSignTransaction, err)
 	}
 
 	return nil
 }
 
-// Remove the key's queue and it's associated resources
+func (s *Server) Generate(ctx context.Context, req core.GenerateRequest) errors.Err {
+	if _, err := s.master.Request(ctx, req.Key, generateRequest{PrivateKey: req.PrivateKey}); err != nil {
+		return errors.New(errors.ErrGenerateWallet, err)
+	}
+
+	return nil
+}
+
+// Remove the key's wallet and it's associated resources
 func (s *Server) Remove(ctx context.Context, req core.RemoveRequest) errors.Err {
 	if err := s.master.Destroy(ctx, req.Key); err != nil {
-		return errors.New(errors.ErrQueueRemove, err)
+		return errors.New(errors.ErrRemoveWallet, err)
 	}
 
 	return nil

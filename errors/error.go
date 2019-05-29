@@ -206,6 +206,24 @@ var (
 		desc:     "Internal Error. Please check the status of the service.",
 	}
 
+	ErrSignTransaction = ErrorCode{
+		category: NotFound,
+		code:     1032,
+		desc:     "Internal Error. Please check the status of the service.",
+	}
+
+	ErrGenerateWallet = ErrorCode{
+		category: NotFound,
+		code:     1033,
+		desc:     "Internal Error. Please check the status of the service.",
+	}
+
+	ErrRemoveWallet = ErrorCode{
+		category: NotFound,
+		code:     1034,
+		desc:     "Internal Error. Please check the status of the service.",
+	}
+
 	ErrOutOfRange = ErrorCode{
 		category: InputError,
 		code:     2001,

@@ -2,9 +2,11 @@ package tx
 
 import (
 	"context"
+	"crypto/ecdsa"
 
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/oasislabs/developer-gateway/conc"
+	"github.com/oasislabs/developer-gateway/errors"
 	"github.com/oasislabs/developer-gateway/wallet/core"
 )
 
@@ -16,23 +18,20 @@ type signRequest struct {
 	Transaction *types.Transaction
 }
 
+type generateRequest struct {
+	PrivateKey *ecdsa.PrivateKey
+}
+
 // Worker implements a very simple transaction signing service/
 type Worker struct {
 	key    string
-	wallet core.Wallet
+	wallet core.InternalWallet
 }
 
 // NewWorker creates a new instance of a worker
 func NewWorker(key string) *Worker {
 	w := &Worker{
 		key:    key,
-		wallet: core.InternalWallet{
-			PrivateKey: // TODO(ennsharma) initialize these fields 
-			Signer:
-			Nonce:
-			Client:
-			Logger: 
-		},
 	}
 
 	return w
@@ -52,7 +51,9 @@ func (w *Worker) handle(ctx context.Context, ev conc.WorkerEvent) (interface{}, 
 func (w *Worker) handleRequestEvent(ctx context.Context, ev conc.RequestWorkerEvent) (interface{}, error) {
 	switch req := ev.Value.(type) {
 	case signRequest:
-		err := w.sign(req)
+		return w.sign(req)
+	case generateRequest:
+		err := w.generate(req)
 		return nil, err
 	default:
 		panic("invalid request received for worker")
@@ -68,4 +69,17 @@ func (w *Worker) handleErrorEvent(ctx context.Context, ev conc.ErrorWorkerEvent)
 
 func (w *Worker) sign(req signRequest) (*types.Transaction, errors.Err) {
 	return w.wallet.SignTransaction(req.Transaction)
+}
+
+func (w *Worker) generate(req generateRequest) errors.Err {
+	// TODO: add logger and ethclient
+	wallet := core.InternalWallet{
+		PrivateKey: req.PrivateKey,
+		Signer:     types.FrontierSigner{},
+		Nonce:      0,
+	}
+
+	w.wallet = wallet
+
+	return nil
 }
