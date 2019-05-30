@@ -334,11 +334,15 @@ func BenchmarkMasterExecuteMultipleWorkers(b *testing.B) {
 			id := fmt.Sprintf("%d", i)
 			err := master.Create(ctx, id, nil)
 			assert.Nil(b, err)
-			defer master.Destroy(ctx, id)
+			defer func() {
+				err := master.Destroy(ctx, id)
+				assert.Nil(b, err)
+			}()
 		}
 
 		for i := 0; i < b.N; i++ {
-			master.Execute(ctx, i)
+			_, err := master.Execute(ctx, i)
+			assert.Nil(b, err)
 		}
 	})
 }
@@ -349,12 +353,16 @@ func BenchmarkMasterRequestMultipleWorkers(b *testing.B) {
 			id := fmt.Sprintf("%d", i)
 			err := master.Create(ctx, id, nil)
 			assert.Nil(b, err)
-			defer master.Destroy(ctx, id)
+			defer func() {
+				err := master.Destroy(ctx, id)
+				assert.Nil(b, err)
+			}()
 		}
 
 		for i := 0; i < b.N; i++ {
 			id := fmt.Sprintf("%d", i%16)
-			master.Request(ctx, id, i)
+			_, err := master.Request(ctx, id, i)
+			assert.Nil(b, err)
 		}
 	})
 }
