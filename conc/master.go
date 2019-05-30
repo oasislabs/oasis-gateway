@@ -228,6 +228,11 @@ func (m *Master) Stop() error {
 
 // Create a new worker
 func (m *Master) Create(ctx context.Context, key string, value interface{}) error {
+	ok := atomic.CompareAndSwapUint32(&m.state, started, started)
+	if !ok {
+		return errors.New("master is not started")
+	}
+
 	out := make(chan error)
 	m.inCh <- createRequest{Context: ctx, Key: key, Out: out, Value: value}
 	return <-out
@@ -235,6 +240,11 @@ func (m *Master) Create(ctx context.Context, key string, value interface{}) erro
 
 // Destroy an existing worker
 func (m *Master) Destroy(ctx context.Context, key string) error {
+	ok := atomic.CompareAndSwapUint32(&m.state, started, started)
+	if !ok {
+		return errors.New("master is not started")
+	}
+
 	out := make(chan response)
 	m.inCh <- destroyRequest{Context: ctx, Key: key, Out: out}
 	res := <-out
@@ -253,15 +263,25 @@ func (m *Master) Destroy(ctx context.Context, key string) error {
 }
 
 // Exists returns true if the worker exists, false otherwise
-func (m *Master) Exists(ctx context.Context, key string) bool {
+func (m *Master) Exists(ctx context.Context, key string) (bool, error) {
+	ok := atomic.CompareAndSwapUint32(&m.state, started, started)
+	if !ok {
+		return false, errors.New("master is not started")
+	}
+
 	out := make(chan bool)
 	m.inCh <- existsRequest{Context: ctx, Key: key, Out: out}
-	return <-out
+	return <-out, nil
 }
 
 // Request sends a request to a specific worker and returns back
 // the response
 func (m *Master) Request(ctx context.Context, key string, req interface{}) (interface{}, error) {
+	ok := atomic.CompareAndSwapUint32(&m.state, started, started)
+	if !ok {
+		return nil, errors.New("master is not started")
+	}
+
 	out := make(chan response)
 	m.inCh <- workerRequest{Context: ctx, Key: key, Value: req, Out: out}
 	res := <-out
@@ -271,6 +291,11 @@ func (m *Master) Request(ctx context.Context, key string, req interface{}) (inte
 // Execute sends a request that will be caught by any worker which
 // is available and execute it
 func (m *Master) Execute(ctx context.Context, req interface{}) (interface{}, error) {
+	ok := atomic.CompareAndSwapUint32(&m.state, started, started)
+	if !ok {
+		return nil, errors.New("master is not started")
+	}
+
 	out := make(chan response)
 	m.inCh <- executeRequest{Context: ctx, Value: req, Out: out}
 	res := <-out

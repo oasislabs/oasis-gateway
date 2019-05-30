@@ -132,19 +132,22 @@ func TestMasterWorkerExists(t *testing.T) {
 	err := master.Start(ctx)
 	assert.Nil(t, err)
 
-	ok := master.Exists(ctx, "1")
+	ok, err := master.Exists(ctx, "1")
+	assert.Nil(t, err)
 	assert.False(t, ok)
 
 	err = master.Create(ctx, "1", nil)
 	assert.Nil(t, err)
 
-	ok = master.Exists(ctx, "1")
+	ok, err = master.Exists(ctx, "1")
+	assert.Nil(t, err)
 	assert.True(t, ok)
 
 	err = master.Destroy(ctx, "1")
 	assert.Nil(t, err)
 
-	ok = master.Exists(ctx, "1")
+	ok, err = master.Exists(ctx, "1")
+	assert.Nil(t, err)
 	assert.False(t, ok)
 
 	err = master.Stop()
