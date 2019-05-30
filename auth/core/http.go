@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/oasislabs/developer-gateway/errors"
 	"github.com/oasislabs/developer-gateway/log"
 	"github.com/oasislabs/developer-gateway/rpc"
 )
@@ -51,7 +52,13 @@ func (m *HttpMiddlewareAuth) ServeHTTP(req *http.Request) (interface{}, error) {
 		return nil, &rpc.HttpError{Cause: nil, StatusCode: http.StatusForbidden}
 	}
 
-	hasher.Write([]byte(expectedAAD))
+	if _, err = hasher.Write([]byte(expectedAAD)); err != nil {
+		e := errors.New(errors.ErrInvalidAAD, err)
+		return nil, &rpc.HttpError{
+			Cause:      &e,
+			StatusCode: http.StatusForbidden,
+		}
+	}
 	aadHash := string(hasher.Sum(nil))
 
 	authData := AuthData{

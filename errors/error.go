@@ -302,6 +302,12 @@ var (
 		desc:     "Provided string is not a valid hex encoding.",
 	}
 
+	ErrInvalidAAD = ErrorCode{
+		category: InputError,
+		code:     2014,
+		desc:     "Provided AAD is not valid.",
+	}
+
 	ErrQueueLimitReached = ErrorCode{
 		category: ResourceLimitReached,
 		code:     3001,
