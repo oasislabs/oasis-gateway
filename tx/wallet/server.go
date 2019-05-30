@@ -1,4 +1,4 @@
-package tx
+package wallet
 
 import (
 	"context"
@@ -8,7 +8,7 @@ import (
 	"github.com/oasislabs/developer-gateway/conc"
 	"github.com/oasislabs/developer-gateway/errors"
 	"github.com/oasislabs/developer-gateway/log"
-	"github.com/oasislabs/developer-gateway/wallet/core"
+	"github.com/oasislabs/developer-gateway/tx/core"
 )
 
 const maxInactivityTimeout = time.Duration(10) * time.Minute

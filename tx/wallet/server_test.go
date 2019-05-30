@@ -1,4 +1,4 @@
-package tx
+package wallet
 
 import (
 	"context"
@@ -11,7 +11,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/oasislabs/developer-gateway/log"
-	"github.com/oasislabs/developer-gateway/wallet/core"
+	"github.com/oasislabs/developer-gateway/tx/core"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 )

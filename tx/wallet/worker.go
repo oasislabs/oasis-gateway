@@ -1,4 +1,4 @@
-package tx
+package wallet
 
 import (
 	"context"
@@ -9,7 +9,6 @@ import (
 	"github.com/oasislabs/developer-gateway/errors"
 	ethereum "github.com/oasislabs/developer-gateway/eth"
 	"github.com/oasislabs/developer-gateway/log"
-	"github.com/oasislabs/developer-gateway/wallet/core"
 )
 
 const (
@@ -28,8 +27,8 @@ type generateRequest struct {
 
 // Worker implements a very simple transaction signing service/
 type Worker struct {
-	key    string
-	wallet *core.InternalWallet
+	key      string
+	executor *TransactionExecutor
 }
 
 // NewWorker creates a new instance of a worker
@@ -72,7 +71,7 @@ func (w *Worker) handleErrorEvent(ctx context.Context, ev conc.ErrorWorkerEvent)
 }
 
 func (w *Worker) sign(req signRequest) (*types.Transaction, errors.Err) {
-	return w.wallet.SignTransaction(req.Transaction)
+	return w.executor.SignTransaction(req.Transaction)
 }
 
 func (w *Worker) generate(req generateRequest) errors.Err {
@@ -82,7 +81,7 @@ func (w *Worker) generate(req generateRequest) errors.Err {
 		RetryConfig: conc.RandomConfig,
 	})
 	logger := log.NewLogrus(log.LogrusLoggerProperties{})
-	w.wallet = core.NewWallet(
+	w.executor = NewTransactionExecutor(
 		req.PrivateKey,
 		types.FrontierSigner{},
 		0,
