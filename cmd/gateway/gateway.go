@@ -12,12 +12,15 @@ import (
 	"github.com/oasislabs/developer-gateway/api/v0/event"
 	"github.com/oasislabs/developer-gateway/api/v0/service"
 	"github.com/oasislabs/developer-gateway/auth/core"
+	auth "github.com/oasislabs/developer-gateway/auth/core"
 	"github.com/oasislabs/developer-gateway/auth/insecure"
 	"github.com/oasislabs/developer-gateway/auth/oauth"
 	backend "github.com/oasislabs/developer-gateway/backend/core"
 	"github.com/oasislabs/developer-gateway/backend/eth"
 	"github.com/oasislabs/developer-gateway/log"
+	mqueue "github.com/oasislabs/developer-gateway/mqueue/core"
 	"github.com/oasislabs/developer-gateway/mqueue/mem"
+	"github.com/oasislabs/developer-gateway/mqueue/redis"
 	"github.com/oasislabs/developer-gateway/rpc"
 	"github.com/oasislabs/developer-gateway/wallet"
 	"github.com/sirupsen/logrus"
@@ -66,14 +69,61 @@ func createEthClient(config Config) *eth.EthClient {
 }
 
 func createRequestManager(ctx context.Context, config Config) *backend.RequestManager {
+	mqueue := createMQueue(ctx, config.MQueueConfig)
 	return backend.NewRequestManager(backend.RequestManagerProperties{
-		MQueue: mem.NewServer(ctx, logger),
+		MQueue: mqueue,
 		Client: createEthClient(config),
 		Logger: logger,
 	})
 }
 
-func createRouter(services Services, auth core.Auth) *rpc.HttpRouter {
+func createRedisMQueue(ctx context.Context, config MQueueConfig) mqueue.MQueue {
+	if config.Backend != "redis" {
+		panic("attempt to create redis backend when it is not in configuration")
+	}
+
+	switch config.Mode {
+	case "single":
+		m, err := redis.NewSingleMQueue(redis.SingleInstanceProps{
+			Props: redis.Props{
+				Context: ctx,
+				Logger:  logger,
+			},
+			Addr: config.Addr,
+		})
+		if err != nil {
+			panic(fmt.Sprintf("failed to start redis mqueue %s", err.Error()))
+		}
+		return m
+	case "cluster":
+		m, err := redis.NewClusterMQueue(redis.ClusterProps{
+			Props: redis.Props{
+				Context: ctx,
+				Logger:  logger,
+			},
+			Addrs: config.Addrs,
+		})
+		if err != nil {
+			panic(fmt.Sprintf("failed to start redis mqueue %s", err.Error()))
+		}
+		return m
+	default:
+		panic(fmt.Sprintf("unknown redis mode %s", config.Mode))
+	}
+}
+
+func createMQueue(ctx context.Context, config MQueueConfig) mqueue.MQueue {
+	switch config.Backend {
+	case "redis":
+		return createRedisMQueue(ctx, config)
+	case "mem":
+		return mem.NewServer(ctx, logger)
+	default:
+		panic(fmt.Sprintf("unknown mqueue backend %s", config.Backend))
+	}
+}
+
+func createRouter(services Services, verifier auth.Auth) *rpc.HttpRouter {
 	binder := rpc.NewHttpBinder(rpc.HttpBinderProperties{
 		Encoder: rpc.JsonEncoder{},
 		Logger:  logger,
@@ -85,7 +135,7 @@ func createRouter(services Services, auth core.Auth) *rpc.HttpRouter {
 				Factory: factory,
 			})
 
-			return core.NewHttpMiddlewareAuth(auth, logger, jsonHandler)
+			return auth.NewHttpMiddlewareAuth(verifier, logger, jsonHandler)
 		}),
 	})
 
@@ -119,7 +169,7 @@ func main() {
 	)
 
 	pflag.StringVar(&configFile, "config",
-		"cmd/gateway/config/production.toml",
+		"cmd/gateway/config/testing.toml",
 		"configuration file for the gateway")
 	pflag.StringVar(&authenticator, "auth",
 		"insecure",

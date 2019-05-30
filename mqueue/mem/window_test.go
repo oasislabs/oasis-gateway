@@ -1,6 +1,7 @@
 package mem
 
 import (
+	"strconv"
 	"testing"
 
 	"github.com/oasislabs/developer-gateway/mqueue/core"
@@ -58,7 +59,7 @@ func TestSlidingWindowSetMultipleSlideFixed(t *testing.T) {
 		assert.Nil(t, err)
 		assert.Equal(t, uint64(i), next)
 
-		err = w.Set(next, i)
+		err = w.Set(next, strconv.Itoa(i))
 		assert.Nil(t, err)
 	}
 
@@ -68,7 +69,7 @@ func TestSlidingWindowSetMultipleSlideFixed(t *testing.T) {
 	assert.Equal(t, 4, len(els.Elements))
 
 	for i := 0; i < 4; i++ {
-		assert.Equal(t, i+1020, els.Elements[i].Value)
+		assert.Equal(t, strconv.Itoa(i+1020), els.Elements[i].Value)
 	}
 }
 
@@ -86,7 +87,7 @@ func TestSlidingWindowSetMultipleSlideWithGrowth(t *testing.T) {
 		assert.Nil(t, err)
 		assert.Equal(t, uint64(i), next)
 
-		err = w.Set(next, i)
+		err = w.Set(next, strconv.Itoa(i))
 		assert.Nil(t, err)
 	}
 
@@ -96,7 +97,7 @@ func TestSlidingWindowSetMultipleSlideWithGrowth(t *testing.T) {
 	assert.Equal(t, 15, len(els.Elements))
 
 	for i := 0; i < 15; i++ {
-		assert.Equal(t, i+1009, els.Elements[i].Value)
+		assert.Equal(t, strconv.Itoa(i+1009), els.Elements[i].Value)
 	}
 }
 
@@ -119,7 +120,7 @@ func TestSlidingWindowReserveToLimit(t *testing.T) {
 		assert.Nil(t, err)
 		assert.Equal(t, uint64(i), next)
 
-		err = w.Set(next, i)
+		err = w.Set(next, strconv.Itoa(i))
 		assert.Nil(t, err)
 	}
 
@@ -138,7 +139,7 @@ func TestSlidingWindowSlideAll(t *testing.T) {
 		assert.Nil(t, err)
 		assert.Equal(t, uint64(i), next)
 
-		err = w.Set(next, i)
+		err = w.Set(next, strconv.Itoa(i))
 		assert.Nil(t, err)
 	}
 

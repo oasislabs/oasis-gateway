@@ -3,21 +3,13 @@ package core
 import (
 	"context"
 	stderr "errors"
+	"fmt"
 
 	"github.com/oasislabs/developer-gateway/errors"
 	"github.com/oasislabs/developer-gateway/log"
 	mqueue "github.com/oasislabs/developer-gateway/mqueue/core"
 	"github.com/oasislabs/developer-gateway/rpc"
 )
-
-type Event interface {
-	EventID() uint64
-}
-
-type Events struct {
-	Offset uint64
-	Events []Event
-}
 
 // Client is an interface for any type that sends requests and
 // receives responses
@@ -96,7 +88,7 @@ func (m *RequestManager) ExecuteServiceAsync(
 
 	id, err := m.mqueue.Next(ctx, mqueue.NextRequest{Key: req.SessionKey})
 	if err != nil {
-		return 0, err
+		return 0, errors.New(errors.ErrQueueNext, err)
 	}
 
 	go m.doRequest(ctx, req.SessionKey, id, func() (Event, errors.Err) { return m.client.ExecuteService(ctx, id, req) })
@@ -109,7 +101,7 @@ func (m *RequestManager) ExecuteServiceAsync(
 func (m *RequestManager) DeployServiceAsync(ctx context.Context, req DeployServiceRequest) (uint64, errors.Err) {
 	id, err := m.mqueue.Next(ctx, mqueue.NextRequest{Key: req.SessionKey})
 	if err != nil {
-		return 0, err
+		return 0, errors.New(errors.ErrQueueNext, err)
 	}
 
 	go m.doRequest(ctx, req.SessionKey, id, func() (Event, errors.Err) { return m.client.DeployService(ctx, id, req) })
@@ -151,7 +143,7 @@ func (m *RequestManager) Subscribe(ctx context.Context, req SubscribeRequest) (u
 	key := req.SessionKey + "-queue"
 	id, err := m.mqueue.Next(ctx, mqueue.NextRequest{Key: key})
 	if err != nil {
-		return 0, err
+		return 0, errors.New(errors.ErrQueueNext, err)
 	}
 
 	if err := m.subscribe(ctx, id, req); err != nil {
@@ -194,13 +186,12 @@ func (m *RequestManager) doRequest(ctx context.Context, key string, id uint64, f
 		}
 	}
 
-	// TODO(stan): in case of error, we should log the error. We should think if there's
-	// a way to report the error in this case. A failure here means that a client will not
-	// receive a response (not even a failure response)
-	_ = m.mqueue.Insert(ctx, mqueue.InsertRequest{Key: key, Element: mqueue.Element{
-		Value:  ev,
-		Offset: id,
-	}})
+	el, derr := makeElement(ev, id)
+	if derr != nil {
+		panic(fmt.Sprintf("failed to marshal event %s", derr.Error()))
+	}
+
+	_ = m.mqueue.Insert(ctx, mqueue.InsertRequest{Key: key, Element: el})
 }
 
 // PollService retrieves the responses the RequestManager already got
@@ -219,18 +210,23 @@ func (m *RequestManager) PollEvent(ctx context.Context, req PollEventRequest) (E
 func (m *RequestManager) poll(ctx context.Context, key string, offset uint64, count uint, discardPrevious bool) (Events, errors.Err) {
 	els, err := m.mqueue.Retrieve(ctx, mqueue.RetrieveRequest{Key: key, Offset: offset, Count: count})
 	if err != nil {
-		return Events{}, err
+		return Events{}, errors.New(errors.ErrQueueRetrieve, err)
 	}
 
 	if discardPrevious {
 		if err := m.mqueue.Discard(ctx, mqueue.DiscardRequest{Key: key, Offset: offset}); err != nil {
-			return Events{}, err
+			return Events{}, errors.New(errors.ErrQueueDiscard, err)
 		}
 	}
 
 	var events []Event
 	for _, el := range els.Elements {
-		events = append(events, el.Value.(Event))
+		ev, err := deserializeElement(el)
+		if err != nil {
+			return Events{}, err
+		}
+
+		events = append(events, ev)
 	}
 
 	return Events{Offset: els.Offset, Events: events}, nil

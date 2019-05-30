@@ -9,6 +9,7 @@ require (
 	github.com/deckarep/golang-set v1.7.1 // indirect
 	github.com/ethereum/go-ethereum v1.8.27
 	github.com/flynn/noise v0.0.0-20180327030543-2492fe189ae6
+	github.com/go-redis/redis v6.15.2+incompatible
 	github.com/go-stack/stack v1.8.0 // indirect
 	github.com/golang/protobuf v1.3.1
 	github.com/pkg/errors v0.8.1

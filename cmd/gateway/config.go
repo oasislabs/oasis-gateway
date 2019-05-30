@@ -23,6 +23,13 @@ type ConfigProvider interface {
 	Get() Config
 }
 
+type MQueueConfig struct {
+	Backend string   `mapstructure:"backend"`
+	Mode    string   `mapstructure:"mode"`
+	Addr    string   `mapstructure:"addr"`
+	Addrs   []string `mapstructure:"addrs"`
+}
+
 // BindConfig is the configuration for binding the exposed APIs
 // to the computer network interface
 type BindConfig struct {
@@ -69,8 +76,9 @@ type EthConfig struct {
 type Config struct {
 	Bind BindConfig `mapstructure:"bind"`
 	// Wallet is the configured wallet for the application
-	Wallet    WalletConfig `mapstructure:"wallet"`
-	EthConfig EthConfig    `mapstructure:"eth"`
+	Wallet       WalletConfig `mapstructure:"wallet"`
+	EthConfig    EthConfig    `mapstructure:"eth"`
+	MQueueConfig MQueueConfig `mapstructure:"mqueue"`
 }
 
 // ParseSimpleConfig parses a configuration file and returns

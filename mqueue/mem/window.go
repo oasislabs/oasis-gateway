@@ -1,8 +1,6 @@
 package mem
 
 import (
-	"fmt"
-
 	"github.com/oasislabs/developer-gateway/errors"
 	"github.com/oasislabs/developer-gateway/mqueue/core"
 	stderr "github.com/pkg/errors"
@@ -12,7 +10,7 @@ type element struct {
 	Reserved bool
 	Set      bool
 	Offset   uint64
-	Value    interface{}
+	Value    string
 }
 
 var (
@@ -89,7 +87,6 @@ func (w *SlidingWindow) Get(offset uint64, count uint) (core.Elements, errors.Er
 		offset = w.offset
 	}
 
-	fmt.Println(offset, w.Offset())
 	res := core.Elements{Offset: w.Offset(), Elements: make([]core.Element, 0, 16)}
 	index := uint(offset - w.offset)
 
@@ -146,7 +143,7 @@ func (w *SlidingWindow) Offset() uint64 {
 // Set sets the value for the element at offset `offset`. If the
 // offset is not in the window's range or the element's state is not
 // reserved or already set an error will be returned
-func (w *SlidingWindow) Set(offset uint64, value interface{}) errors.Err {
+func (w *SlidingWindow) Set(offset uint64, value string) errors.Err {
 	if w.offset > offset || offset > w.offset+uint64(len(w.elements)) {
 		return errors.New(errors.ErrOutOfRange, ErrOffsetOutOfWindow)
 	}
@@ -229,7 +226,7 @@ func (w *SlidingWindow) slide(offset uint64) (uint, errors.Err) {
 		w.elements[i].Set = false
 		w.elements[i].Reserved = false
 		w.elements[i].Offset = 0
-		w.elements[i].Value = nil
+		w.elements[i].Value = ""
 	}
 
 	w.offset += uint64(limit)

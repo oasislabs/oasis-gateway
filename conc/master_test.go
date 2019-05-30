@@ -3,11 +3,27 @@ package conc
 import (
 	"context"
 	"errors"
+	"fmt"
 	"sync/atomic"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
+
+func ScopedMaster(t assert.TestingT, fn func(ctx context.Context, m *Master)) {
+	ctx := context.Background()
+	master := NewMaster(MasterProps{
+		MasterHandler: &MockMasterHandler{},
+	})
+
+	err := master.Start(ctx)
+	assert.Nil(t, err)
+
+	fn(ctx, master)
+
+	err = master.Stop()
+	assert.Nil(t, err)
+}
 
 type MockMasterHandler struct {
 	created   int32
@@ -290,4 +306,71 @@ func TestMasterHandlerPanicOnDestroy(t *testing.T) {
 
 	err = master.Stop()
 	assert.Nil(t, err)
+}
+
+func TestMasterExecuteNoWorkers(t *testing.T) {
+	ScopedMaster(t, func(ctx context.Context, master *Master) {
+		_, err := master.Execute(ctx, 0)
+		assert.Error(t, err)
+	})
+}
+
+func TestMasterExecuteSingleWorker(t *testing.T) {
+	ScopedMaster(t, func(ctx context.Context, master *Master) {
+		err := master.Create(ctx, "1", nil)
+		assert.Nil(t, err)
+
+		v, err := master.Execute(ctx, 0)
+		assert.Nil(t, err)
+		assert.Equal(t, 1, v)
+
+		err = master.Destroy(ctx, "1")
+		assert.Nil(t, err)
+	})
+}
+
+func BenchmarkMasterExecuteMultipleWorkers(b *testing.B) {
+	ScopedMaster(b, func(ctx context.Context, master *Master) {
+		for i := 0; i < 16; i++ {
+			id := fmt.Sprintf("%d", i)
+			err := master.Create(ctx, id, nil)
+			assert.Nil(b, err)
+			defer func() {
+				err := master.Destroy(ctx, id)
+				assert.Nil(b, err)
+			}()
+		}
+
+		for i := 0; i < b.N; i++ {
+			_, err := master.Execute(ctx, i)
+			if err != nil {
+				b.FailNow()
+			}
+		}
+	})
+}
+
+func BenchmarkMasterRequestMultipleWorkers(b *testing.B) {
+	ScopedMaster(b, func(ctx context.Context, master *Master) {
+		ids := make(map[int]string)
+		workers := 16
+		for i := 0; i < workers; i++ {
+			id := fmt.Sprintf("%d", i)
+			ids[i] = id
+			err := master.Create(ctx, id, nil)
+			assert.Nil(b, err)
+			defer func() {
+				err := master.Destroy(ctx, id)
+				assert.Nil(b, err)
+			}()
+		}
+
+		for i := 0; i < b.N; i++ {
+			id := ids[i%workers]
+			_, err := master.Request(ctx, id, i)
+			if err != nil {
+				b.FailNow()
+			}
+		}
+	})
 }
