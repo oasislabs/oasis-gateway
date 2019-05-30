@@ -37,4 +37,7 @@ show-coverage:
 
 clean:
 	rm -f developer-gateway
+	rm -f ekiden-client
+	rm -f eth-client
+	rm -f $GRPCFILES
 	go clean ./...

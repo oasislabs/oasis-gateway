@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/oasislabs/developer-gateway/conc"
-	"github.com/oasislabs/developer-gateway/errors"
 	"github.com/oasislabs/developer-gateway/log"
 	"github.com/oasislabs/developer-gateway/mqueue/core"
 )
@@ -62,20 +61,17 @@ func (s *Server) destroy(ctx context.Context, ev conc.DestroyWorkerEvent) error 
 }
 
 // Insert inserts the element to the provided offset.
-func (s *Server) Insert(ctx context.Context, req core.InsertRequest) errors.Err {
-	if _, err := s.master.Request(ctx, req.Key, insertRequest{Element: req.Element}); err != nil {
-		return errors.New(errors.ErrQueueInsert, err)
-	}
-
-	return nil
+func (s *Server) Insert(ctx context.Context, req core.InsertRequest) error {
+	_, err := s.master.Request(ctx, req.Key, insertRequest{Element: req.Element})
+	return err
 }
 
 // Retrieve all available elements from the
 // messaging queue after the provided offset
-func (s *Server) Retrieve(ctx context.Context, req core.RetrieveRequest) (core.Elements, errors.Err) {
+func (s *Server) Retrieve(ctx context.Context, req core.RetrieveRequest) (core.Elements, error) {
 	v, err := s.master.Request(ctx, req.Key, retrieveRequest{Offset: req.Offset, Count: req.Count})
 	if err != nil {
-		return core.Elements{}, errors.New(errors.ErrQueueRetrieve, err)
+		return core.Elements{}, err
 	}
 
 	return v.(core.Elements), nil
@@ -83,29 +79,22 @@ func (s *Server) Retrieve(ctx context.Context, req core.RetrieveRequest) (core.E
 
 // Discard all elements that have a prior or equal
 // offset to the provided offset
-func (s *Server) Discard(ctx context.Context, req core.DiscardRequest) errors.Err {
-	if _, err := s.master.Request(ctx, req.Key, discardRequest{Offset: req.Offset}); err != nil {
-		return errors.New(errors.ErrQueueDiscard, err)
-	}
-
-	return nil
+func (s *Server) Discard(ctx context.Context, req core.DiscardRequest) error {
+	_, err := s.master.Request(ctx, req.Key, discardRequest{Offset: req.Offset})
+	return err
 }
 
 // Next element offset that can be used for the queue.
-func (s *Server) Next(ctx context.Context, req core.NextRequest) (uint64, errors.Err) {
+func (s *Server) Next(ctx context.Context, req core.NextRequest) (uint64, error) {
 	v, err := s.master.Request(ctx, req.Key, nextRequest{})
 	if err != nil {
-		return 0, errors.New(errors.ErrQueueRetrieve, err)
+		return 0, err
 	}
 
 	return v.(uint64), nil
 }
 
 // Remove the key's queue and it's associated resources
-func (s *Server) Remove(ctx context.Context, req core.RemoveRequest) errors.Err {
-	if err := s.master.Destroy(ctx, req.Key); err != nil {
-		return errors.New(errors.ErrQueueRemove, err)
-	}
-
-	return nil
+func (s *Server) Remove(ctx context.Context, req core.RemoveRequest) error {
+	return s.master.Destroy(ctx, req.Key)
 }

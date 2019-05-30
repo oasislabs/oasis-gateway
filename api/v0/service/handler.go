@@ -85,18 +85,18 @@ func (h ServiceHandler) ExecuteService(ctx context.Context, v interface{}) (inte
 
 func (h ServiceHandler) mapEvent(event backend.Event) Event {
 	switch r := event.(type) {
-	case *backend.ErrorEvent:
+	case backend.ErrorEvent:
 		return ErrorEvent{
 			ID:    r.ID,
 			Cause: r.Cause,
 		}
-	case *backend.ExecuteServiceResponse:
+	case backend.ExecuteServiceResponse:
 		return ExecuteServiceEvent{
 			ID:      r.ID,
 			Address: r.Address,
 			Output:  r.Output,
 		}
-	case *backend.DeployServiceResponse:
+	case backend.DeployServiceResponse:
 		return DeployServiceEvent{
 			ID:      r.ID,
 			Address: r.Address,

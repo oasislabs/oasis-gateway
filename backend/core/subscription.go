@@ -124,13 +124,21 @@ func (s *subscription) Start() {
 				continue
 			}
 
-			if err := s.mqueue.Insert(s.ctx, mqueue.InsertRequest{Key: s.key, Element: mqueue.Element{
-				Value: DataEvent{
-					ID:   id,
-					Data: hexutil.Encode(data.Data),
-				},
-				Offset: id,
-			}}); err != nil {
+			el, err := makeElement(DataEvent{
+				ID:   id,
+				Data: hexutil.Encode(data.Data),
+			}, id)
+			if err != nil {
+				s.logger.Warn(s.ctx, "failed to serialize event", log.MapFields{
+					"call_type": "InsertSubscriptionEventFailure",
+					"key":       s.key,
+					"type":      fmt.Sprintf("%+v", ev),
+					"err":       err.Error(),
+				})
+				continue
+			}
+
+			if err := s.mqueue.Insert(s.ctx, mqueue.InsertRequest{Key: s.key, Element: el}); err != nil {
 				s.logger.Warn(s.ctx, "failed to insert event to resource", log.MapFields{
 					"call_type": "InsertSubscriptionEventFailure",
 					"key":       s.key,

@@ -206,6 +206,24 @@ var (
 		desc:     "Internal Error. Please check the status of the service.",
 	}
 
+	ErrQueueNext = ErrorCode{
+		category: InternalError,
+		code:     1032,
+		desc:     "Internal Error. Please check the status of the service.",
+	}
+
+	ErrUnkownEventType = ErrorCode{
+		category: InternalError,
+		code:     1033,
+		desc:     "Internal Error. Please check the status of the service.",
+	}
+
+	ErrDeserializeEvent = ErrorCode{
+		category: InternalError,
+		code:     1034,
+		desc:     "Internal Error. Please check the status of the service.",
+	}
+
 	ErrOutOfRange = ErrorCode{
 		category: InputError,
 		code:     2001,
