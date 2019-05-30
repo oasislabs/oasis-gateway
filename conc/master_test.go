@@ -311,6 +311,55 @@ func TestMasterHandlerPanicOnDestroy(t *testing.T) {
 	assert.Nil(t, err)
 }
 
+func TestMasterCreateNoStart(t *testing.T) {
+	ctx := context.Background()
+	master := NewMaster(MasterProps{
+		MasterHandler: &MockMasterHandler{},
+	})
+
+	err := master.Create(ctx, "1", nil)
+	assert.Error(t, err)
+}
+
+func TestMasterDestroyNoStart(t *testing.T) {
+	ctx := context.Background()
+	master := NewMaster(MasterProps{
+		MasterHandler: &MockMasterHandler{},
+	})
+
+	err := master.Destroy(ctx, "1")
+	assert.Error(t, err)
+}
+func TestMasterExistsNoStart(t *testing.T) {
+	ctx := context.Background()
+	master := NewMaster(MasterProps{
+		MasterHandler: &MockMasterHandler{},
+	})
+
+	_, err := master.Exists(ctx, "1")
+	assert.Error(t, err)
+}
+
+func TestMasterRequestNoStart(t *testing.T) {
+	ctx := context.Background()
+	master := NewMaster(MasterProps{
+		MasterHandler: &MockMasterHandler{},
+	})
+
+	_, err := master.Request(ctx, "1", 0)
+	assert.Error(t, err)
+}
+
+func TestMasterExecuteNoStart(t *testing.T) {
+	ctx := context.Background()
+	master := NewMaster(MasterProps{
+		MasterHandler: &MockMasterHandler{},
+	})
+
+	_, err := master.Execute(ctx, 0)
+	assert.Error(t, err)
+}
+
 func TestMasterExecuteNoWorkers(t *testing.T) {
 	ScopedMaster(t, func(ctx context.Context, master *Master) {
 		_, err := master.Execute(ctx, 0)
