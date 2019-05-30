@@ -4,9 +4,11 @@ import (
 	"context"
 	"fmt"
 	"io/ioutil"
+	"math/big"
 	"strings"
 	"testing"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 
@@ -39,13 +41,13 @@ func initializeWallet() (Wallet, error) {
 	})
 	logger := log.NewLogrus(log.LogrusLoggerProperties{})
 
-	wallet := &InternalWallet{
-		privateKey: privateKey,
-		signer:     types.FrontierSigner{},
-		nonce:      0,
-		client:     pooledClient,
-		logger:     logger.ForClass("wallet", "InternalWallet"),
-	}
+	wallet := NewWallet(
+		privateKey,
+		types.FrontierSigner{},
+		0,
+		pooledClient,
+		logger.ForClass("wallet", "InternalWallet"),
+	)
 
 	return wallet, nil
 }
@@ -59,14 +61,15 @@ func TestAddress(t *testing.T) {
 }
 
 func TestTransactionClient(t *testing.T) {
-  wallet, err := initializeWallet()
+	wallet, err := initializeWallet()
 	assert.Nil(t, err)
 
-	wallet.Address()
+	client := wallet.TransactionClient()
+	assert.NotNil(t, client)
 }
 
 func TestTransactionNonce(t *testing.T) {
-  wallet, err := initializeWallet()
+	wallet, err := initializeWallet()
 	assert.Nil(t, err)
 
 	var nonce uint64
@@ -74,4 +77,29 @@ func TestTransactionNonce(t *testing.T) {
 		nonce = wallet.TransactionNonce()
 		assert.Equal(t, uint64(i), nonce)
 	}
+}
+
+func TestSignTransaction(t *testing.T) {
+	wallet, err := initializeWallet()
+	assert.Nil(t, err)
+
+	// Build a mock transaction
+	gas := uint64(1000000)
+	gasPrice := int64(1000000000)
+	tx := types.NewTransaction(
+		0,
+		common.HexToAddress("0x6f6704e5a10332af6672e50b3d9754dc460dfa4d"),
+		big.NewInt(0),
+		gas,
+		big.NewInt(gasPrice),
+		[]byte("data"),
+	)
+
+	tx, err = wallet.SignTransaction(tx)
+	assert.Nil(t, err)
+
+	V, R, S := tx.RawSignatureValues()
+	assert.NotEqual(t, new(big.Int), V)
+	assert.NotEqual(t, new(big.Int), R)
+	assert.NotEqual(t, new(big.Int), S)
 }

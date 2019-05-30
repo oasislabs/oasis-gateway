@@ -26,7 +26,7 @@ type Wallet interface {
 type InternalWallet struct {
 	privateKey *ecdsa.PrivateKey
 	signer     types.Signer
-	nonce			 uint64
+	nonce      uint64
 	client     eth.Client
 	logger     log.Logger
 }

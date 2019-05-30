@@ -10,7 +10,7 @@ import (
 
 // SignRequest is the request to sign a transaction
 type SignRequest struct {
-	// Key unique identifier of the queue
+	// Key unique identifier of the wallet
 	Key string
 
 	// Transaction to be signed
@@ -23,7 +23,7 @@ type GenerateRequest struct {
 
 	// URL to which the generated wallet's ETH client should connect.
 	URL string
-	
+
 	// Private key of the wallet
 	PrivateKey *ecdsa.PrivateKey
 }

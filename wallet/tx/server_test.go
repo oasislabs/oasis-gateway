@@ -72,13 +72,13 @@ func TestServerSign(t *testing.T) {
 		big.NewInt(gasPrice),
 		[]byte("data"),
 	)
-	
+
 	tx, err = s.Sign(ctx, core.SignRequest{
 		Key:         "key",
 		Transaction: tx,
 	})
 	assert.Nil(t, err)
-	
+
 	V, R, S := tx.RawSignatureValues()
 	assert.NotEqual(t, new(big.Int), V)
 	assert.NotEqual(t, new(big.Int), R)

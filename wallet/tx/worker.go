@@ -6,9 +6,9 @@ import (
 
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/oasislabs/developer-gateway/conc"
+	"github.com/oasislabs/developer-gateway/errors"
 	ethereum "github.com/oasislabs/developer-gateway/eth"
 	"github.com/oasislabs/developer-gateway/log"
-	"github.com/oasislabs/developer-gateway/errors"
 	"github.com/oasislabs/developer-gateway/wallet/core"
 )
 
@@ -35,7 +35,7 @@ type Worker struct {
 // NewWorker creates a new instance of a worker
 func NewWorker(key string) *Worker {
 	w := &Worker{
-		key:    key,
+		key: key,
 	}
 
 	return w
