@@ -14,6 +14,9 @@
 # Self defined configuration files
 *.toml
 
+# DB generated files
+*.rdb
+
 # Binaries generated
 developer-gateway
 ekiden-client

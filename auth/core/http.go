@@ -8,6 +8,8 @@ import (
 	"github.com/oasislabs/developer-gateway/rpc"
 )
 
+const RequestHeaderSessionKey string = "X-OASIS-SESSION-KEY"
+
 type HttpMiddlewareAuth struct {
 	auth   Auth
 	logger log.Logger
