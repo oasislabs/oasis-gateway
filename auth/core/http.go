@@ -11,7 +11,7 @@ import (
 	"github.com/oasislabs/developer-gateway/rpc"
 )
 
-const RequestHeaderSessionKey string = "X-OASIS-SESSION-KEY"
+const sessionKeyFormat = "%s:%s"
 
 var hasher = sha1.New()
 
