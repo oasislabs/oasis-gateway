@@ -79,7 +79,6 @@ func (r existsRequest) WorkerKey() string {
 
 type request interface {
 	GetContext() context.Context
-	WorkerKey() string
 }
 
 // Master manages a set of workers and distributes workers
@@ -115,6 +114,12 @@ type Master struct {
 	// state keeps track of whether the master is running. It
 	// needs to be accessed in a thread safe manner.
 	state uint32
+
+	// sharedCh is a shared channel between the master and
+	// its workers. This channel can be used by the master to
+	// send a request to any worker. When a request is send through
+	// this channel, any worker that is available can pick it up
+	sharedCh chan executeRequest
 
 	// inCh is the channel used by the master to pass on requests
 	// from external goroutines to the event loop
@@ -183,6 +188,7 @@ func (m *Master) Start(ctx context.Context) error {
 		return errors.New("master is not stopped")
 	}
 
+	m.sharedCh = make(chan executeRequest, 64)
 	m.doneCh = make(chan workerDestroyed, 64)
 	m.shutdownCh = make(chan interface{})
 	m.inCh = make(chan request)
@@ -202,6 +208,7 @@ func (m *Master) Stop() error {
 	close(m.shutdownCh)
 	m.workerCount.Wait()
 
+	close(m.sharedCh)
 	close(m.inCh)
 	close(m.doneCh)
 	if len(m.workers) > 0 {
@@ -261,18 +268,22 @@ func (m *Master) Request(ctx context.Context, key string, req interface{}) (inte
 	return res.Value, res.Error
 }
 
+// Execute sends a request that will be caught by any worker which
+// is available and execute it
+func (m *Master) Execute(ctx context.Context, req interface{}) (interface{}, error) {
+	out := make(chan response)
+	m.inCh <- executeRequest{Context: ctx, Value: req, Out: out}
+	res := <-out
+	return res.Value, res.Error
+}
+
 // shutdown closes all the workers and frees the resources
 // they are using. This method should only be called outside
 // the event loop
 func (m *Master) shutdown() {
-	// shutdown the next 16 workers. This works because
-	// shutdownWorker does not write to any channel, it only
-	// closes the input channel of a worker to trigger
-	// the worker to shutdown itself.
-	for i := 0; i < 16; i++ {
-		for key := range m.workers {
-			m.shutdownWorker(key)
-		}
+	// shutdown all the workers.
+	for key := range m.workers {
+		m.shutdownWorker(key)
 	}
 
 	// remove all workers that have already been
@@ -341,6 +352,8 @@ func (m *Master) handleRequest(req request) {
 		m.handleDestroyRequest(req)
 	case existsRequest:
 		m.handleExistsRequest(req)
+	case executeRequest:
+		m.handleExecuteRequest(req)
 	default:
 		panic("received unexpected request")
 	}
@@ -365,6 +378,15 @@ func (m *Master) handleWorkerRequest(req workerRequest) {
 	}
 
 	w.C <- req
+}
+
+func (m *Master) handleExecuteRequest(req executeRequest) {
+	if len(m.workers) == 0 {
+		req.Out <- response{Value: nil, Error: errors.New("no workers available to handle the execute request")}
+		return
+	}
+
+	m.sharedCh <- req
 }
 
 func (m *Master) createWorker(ctx context.Context, key string, value interface{}) (err error) {
@@ -399,6 +421,7 @@ func (m *Master) createWorker(ctx context.Context, key string, value interface{}
 		UserData:      props.UserData,
 		ErrC:          props.ErrC,
 		C:             ch,
+		SharedC:       m.sharedCh,
 	})
 
 	m.workerCount.Add(1)

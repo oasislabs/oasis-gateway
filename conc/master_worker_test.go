@@ -3,11 +3,27 @@ package conc
 import (
 	"context"
 	"errors"
+	"fmt"
 	"sync/atomic"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
+
+func ScopedMaster(t assert.TestingT, fn func(ctx context.Context, m *Master)) {
+	ctx := context.Background()
+	master := NewMaster(MasterProps{
+		MasterHandler: &MockMasterHandler{},
+	})
+
+	err := master.Start(ctx)
+	assert.Nil(t, err)
+
+	fn(ctx, master)
+
+	err = master.Stop()
+	assert.Nil(t, err)
+}
 
 type MockMasterHandler struct {
 	created   int32
@@ -290,4 +306,55 @@ func TestMasterHandlerPanicOnDestroy(t *testing.T) {
 
 	err = master.Stop()
 	assert.Nil(t, err)
+}
+
+func TestMasterExecuteNoWorkers(t *testing.T) {
+	ScopedMaster(t, func(ctx context.Context, master *Master) {
+		_, err := master.Execute(ctx, 0)
+		assert.Error(t, err)
+	})
+}
+
+func TestMasterExecuteSingleWorker(t *testing.T) {
+	ScopedMaster(t, func(ctx context.Context, master *Master) {
+		err := master.Create(ctx, "1", nil)
+		assert.Nil(t, err)
+
+		_, err = master.Execute(ctx, 0)
+		assert.Nil(t, err)
+
+		err = master.Destroy(ctx, "1")
+		assert.Nil(t, err)
+	})
+}
+
+func BenchmarkMasterExecuteMultipleWorkers(b *testing.B) {
+	ScopedMaster(b, func(ctx context.Context, master *Master) {
+		for i := 0; i < 16; i++ {
+			id := fmt.Sprintf("%d", i)
+			err := master.Create(ctx, id, nil)
+			assert.Nil(b, err)
+			defer master.Destroy(ctx, id)
+		}
+
+		for i := 0; i < b.N; i++ {
+			master.Execute(ctx, i)
+		}
+	})
+}
+
+func BenchmarkMasterRequestMultipleWorkers(b *testing.B) {
+	ScopedMaster(b, func(ctx context.Context, master *Master) {
+		for i := 0; i < 16; i++ {
+			id := fmt.Sprintf("%d", i)
+			err := master.Create(ctx, id, nil)
+			assert.Nil(b, err)
+			defer master.Destroy(ctx, id)
+		}
+
+		for i := 0; i < b.N; i++ {
+			id := fmt.Sprintf("%d", i%16)
+			master.Request(ctx, id, i)
+		}
+	})
 }

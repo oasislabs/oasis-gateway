@@ -25,6 +25,10 @@ type Worker struct {
 	// a worker needs to handle
 	handler WorkerHandler
 
+	// SharedC is the shared channel between the master and the worker
+	// for requests met by the worker who is available
+	SharedC <-chan executeRequest
+
 	// C is the channel the worker only reads from
 	C chan workerRequest
 
@@ -154,6 +158,10 @@ type WorkerProps struct {
 	// though events in case they happen
 	ErrC <-chan error
 
+	// SharedC is the shared channel between the master and the worker
+	// for requests met by the worker who is available
+	SharedC <-chan executeRequest
+
 	// UserData is data that the user can attach to the worker in case any
 	// external context is required
 	UserData interface{}
@@ -190,12 +198,18 @@ type workerRequest struct {
 	Out     chan response
 }
 
+type executeRequest struct {
+	Context context.Context
+	Value   interface{}
+	Out     chan response
+}
+
 func (r workerRequest) GetContext() context.Context {
 	return r.Context
 }
 
-func (r workerRequest) WorkerKey() string {
-	return r.Key
+func (r executeRequest) GetContext() context.Context {
+	return r.Context
 }
 
 // NewWorker creates a new worker instance
@@ -209,6 +223,7 @@ func NewWorker(ctx context.Context, props WorkerProps) *Worker {
 		maxInactivity:      props.MaxInactivity,
 		key:                props.Key,
 		handler:            props.WorkerHandler,
+		SharedC:            props.SharedC,
 		C:                  props.C,
 
 		// ShutdownC may be closed with an error if there are no listeners
@@ -261,6 +276,12 @@ func (w *Worker) startLoop(ctx context.Context) {
 				return
 			}
 
+		case req, ok := <-w.SharedC:
+			if !ok {
+				return
+			}
+
+			w.handleExecute(req)
 		case req, ok := <-w.C:
 			if !ok {
 				return
@@ -286,6 +307,15 @@ func (w *Worker) handleError(req error) (err error) {
 	})
 
 	return err
+}
+
+func (w *Worker) handleExecute(req executeRequest) {
+	w.handleRequest(workerRequest{
+		Context: req.Context,
+		Key:     w.key,
+		Value:   req.Value,
+		Out:     req.Out,
+	})
 }
 
 func (w *Worker) handleRequest(req workerRequest) {
