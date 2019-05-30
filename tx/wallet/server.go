@@ -7,6 +7,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/oasislabs/developer-gateway/conc"
 	"github.com/oasislabs/developer-gateway/errors"
+	"github.com/oasislabs/developer-gateway/eth"
 	"github.com/oasislabs/developer-gateway/log"
 	"github.com/oasislabs/developer-gateway/tx/core"
 )
@@ -15,11 +16,13 @@ const maxInactivityTimeout = time.Duration(10) * time.Minute
 
 type Server struct {
 	master *conc.Master
+	client eth.Client
 	logger log.Logger
 }
 
-func NewServer(ctx context.Context, logger log.Logger) *Server {
+func NewServer(ctx context.Context, logger log.Logger, client eth.Client) *Server {
 	s := &Server{
+		client: client,
 		logger: logger.ForClass("wallet/tx", "Server"),
 	}
 
@@ -47,7 +50,7 @@ func (m *Server) handle(ctx context.Context, ev conc.MasterEvent) error {
 }
 
 func (s *Server) create(ctx context.Context, ev conc.CreateWorkerEvent) error {
-	worker := NewWorker(ev.Key)
+	worker := NewWorker(ev.Key, s.client)
 
 	ev.Props.ErrC = nil
 	ev.Props.WorkerHandler = conc.WorkerHandlerFunc(worker.handle)
@@ -74,7 +77,7 @@ func (s *Server) Sign(ctx context.Context, req core.SignRequest) (*types.Transac
 
 // Generates a new wallet for the given key.
 func (s *Server) Generate(ctx context.Context, req core.GenerateRequest) errors.Err {
-	if _, err := s.master.Request(ctx, req.Key, generateRequest{Context: ctx, URL: req.URL, PrivateKey: req.PrivateKey}); err != nil {
+	if _, err := s.master.Request(ctx, req.Key, generateRequest{Context: ctx, PrivateKey: req.PrivateKey}); err != nil {
 		return errors.New(errors.ErrGenerateWallet, err)
 	}
 

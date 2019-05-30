@@ -18,7 +18,7 @@ import (
 	"github.com/oasislabs/developer-gateway/errors"
 	"github.com/oasislabs/developer-gateway/eth"
 	"github.com/oasislabs/developer-gateway/log"
-	"github.com/oasislabs/developer-gateway/wallet"
+	tx "github.com/oasislabs/developer-gateway/tx/core"
 )
 
 const gasPrice int64 = 1000000000
@@ -106,19 +106,19 @@ func (r *deployServiceRequest) OutCh() chan<- ethResponse {
 }
 
 type EthClientProperties struct {
-	Wallet wallet.Wallet
-	URL    string
+	Handler tx.TransactionHandler
+	URL     string
 }
 
 type EthClient struct {
-	ctx    context.Context
-	wg     sync.WaitGroup
-	inCh   chan ethRequest
-	logger log.Logger
-	wallet wallet.Wallet
-	nonce  uint64
-	client eth.Client
-	subman *eth.SubscriptionManager
+	ctx     context.Context
+	wg      sync.WaitGroup
+	inCh    chan ethRequest
+	logger  log.Logger
+	handler tx.TransactionHandler
+	nonce   uint64
+	client  eth.Client
+	subman  *eth.SubscriptionManager
 }
 
 func (c *EthClient) startLoop(ctx context.Context) {
@@ -547,12 +547,12 @@ func DialContext(ctx context.Context, logger log.Logger, properties EthClientPro
 		inCh:   make(chan ethRequest, 64),
 		logger: logger.ForClass("eth", "EthClient"),
 		nonce:  0,
-		client: properties.Wallet.TransactionClient(),
-		wallet: properties.Wallet,
+		client: properties.Client,
+		handler: properties.Handler,
 		subman: eth.NewSubscriptionManager(eth.SubscriptionManagerProps{
 			Context: ctx,
 			Logger:  logger,
-			Client:  properties.Wallet.TransactionClient(),
+			Client:  properties.Client,
 		}),
 	}
 

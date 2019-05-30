@@ -7,7 +7,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/oasislabs/developer-gateway/conc"
 	"github.com/oasislabs/developer-gateway/errors"
-	ethereum "github.com/oasislabs/developer-gateway/eth"
+	"github.com/oasislabs/developer-gateway/eth"
 	"github.com/oasislabs/developer-gateway/log"
 )
 
@@ -21,20 +21,21 @@ type signRequest struct {
 
 type generateRequest struct {
 	Context    context.Context
-	URL        string
 	PrivateKey *ecdsa.PrivateKey
 }
 
 // Worker implements a very simple transaction signing service/
 type Worker struct {
 	key      string
+	client   eth.Client
 	executor *TransactionExecutor
 }
 
 // NewWorker creates a new instance of a worker
-func NewWorker(key string) *Worker {
+func NewWorker(key string, client eth.Client) *Worker {
 	w := &Worker{
-		key: key,
+		key:    key,
+		client: client,
 	}
 
 	return w
@@ -75,17 +76,12 @@ func (w *Worker) sign(req signRequest) (*types.Transaction, errors.Err) {
 }
 
 func (w *Worker) generate(req generateRequest) errors.Err {
-	dialer := ethereum.NewUniDialer(req.Context, req.URL)
-	pooledClient := ethereum.NewPooledClient(ethereum.PooledClientProps{
-		Pool:        dialer,
-		RetryConfig: conc.RandomConfig,
-	})
 	logger := log.NewLogrus(log.LogrusLoggerProperties{})
 	w.executor = NewTransactionExecutor(
 		req.PrivateKey,
 		types.FrontierSigner{},
 		0,
-		pooledClient,
+		w.client,
 		logger.ForClass("wallet", "InternalWallet"),
 	)
 

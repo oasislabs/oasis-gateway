@@ -10,6 +10,8 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/oasislabs/developer-gateway/conc"
+	"github.com/oasislabs/developer-gateway/eth"
 	"github.com/oasislabs/developer-gateway/log"
 	"github.com/oasislabs/developer-gateway/tx/core"
 	"github.com/sirupsen/logrus"
@@ -25,8 +27,13 @@ var (
 )
 
 func initializeServer() (*Server, context.CancelFunc) {
+	dialer := eth.NewUniDialer(ctx, "https://localhost:1111")
+	client := eth.NewPooledClient(eth.PooledClientProps{
+		Pool:        dialer,
+		RetryConfig: conc.RandomConfig,
+	})
 	ctx, cancel := context.WithCancel(context.Background())
-	s := NewServer(ctx, logger)
+	s := NewServer(ctx, logger, client)
 
 	return s, cancel
 }
@@ -40,7 +47,6 @@ func TestServerGenerate(t *testing.T) {
 
 	err = s.Generate(ctx, core.GenerateRequest{
 		Key:        "key",
-		URL:        "http://localhost:1111",
 		PrivateKey: privateKey,
 	})
 	assert.Nil(t, err)
@@ -56,7 +62,6 @@ func TestServerSign(t *testing.T) {
 
 	err = s.Generate(ctx, core.GenerateRequest{
 		Key:        "key",
-		URL:        "http://localhost:1111",
 		PrivateKey: privateKey,
 	})
 	assert.Nil(t, err)
