@@ -303,14 +303,6 @@ func (m *SubscriptionManager) destroy(ev conc.DestroyWorkerEvent) error {
 	return nil
 }
 
-// Exists returns true if the subscription exists
-func (m *SubscriptionManager) Exists(
-	ctx context.Context,
-	key string,
-) bool {
-	return m.master.Exists(ctx, key)
-}
-
 // Create a new subscription identified by the
 // specified key
 func (m *SubscriptionManager) Create(
