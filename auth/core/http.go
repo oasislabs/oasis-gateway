@@ -2,6 +2,7 @@ package core
 
 import (
 	"context"
+	"crypto/sha1"
 	"fmt"
 	"net/http"
 
@@ -10,6 +11,8 @@ import (
 )
 
 const RequestHeaderSessionKey string = "X-OASIS-SESSION-KEY"
+
+var hasher = sha1.New()
 
 type HttpMiddlewareAuth struct {
 	auth   Auth
@@ -48,9 +51,12 @@ func (m *HttpMiddlewareAuth) ServeHTTP(req *http.Request) (interface{}, error) {
 		return nil, &rpc.HttpError{Cause: nil, StatusCode: http.StatusForbidden}
 	}
 
+	hasher.Write([]byte(expectedAAD))
+	aadHash := string(hasher.Sum(nil))
+
 	authData := AuthData{
 		ExpectedAAD: expectedAAD,
-		SessionKey:  fmt.Sprintf(sessionKeyFormat, expectedAAD, sessionKey),
+		SessionKey:  fmt.Sprintf(sessionKeyFormat, aadHash, sessionKey),
 	}
 
 	req = req.WithContext(context.WithValue(req.Context(), ContextAuthDataKey, authData))
