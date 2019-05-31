@@ -14,7 +14,7 @@ func TestDeployServiceEmptyData(t *testing.T) {
 		Data: "",
 	})
 
-	assert.Equal(t, &rpc.Error{ErrorCode: 2007, Description: "Input cannot be empty."}, err)
+	assert.Equal(t, &rpc.Error{ErrorCode: 7002, Description: "Failed to verify AAD in transaction data."}, err)
 }
 
 func TestDeployServiceErr(t *testing.T) {

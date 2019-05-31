@@ -12,16 +12,32 @@ const (
 	nonceLength        = 5
 )
 
+var ErrDataTooShort = errors.New("Payload data is too short")
+
+// TrustedPayloadVerifier for payloads that use a runtime in which
+// the payloads cannot be verified
+type TrustedPayloadVerifier struct{}
+
+func (TrustedPayloadVerifier) Verify(data string, expectedAAD string) error {
+	if len(data) == 0 {
+		return ErrDataTooShort
+	}
+	return nil
+}
+
+type DeoxysPayloadVerifier struct{}
+
 // Verify the provided AAD in the transaction data with the expected AAD
 // Transaction data is expected to be in the following format:
 //   pk || cipher length || aad length || cipher || aad || nonce
 //   - pk is expected to be 16 bytes
 //   - cipher length and aad length are uint64 encoded in big endian
 //   - nonce is expected to be 5 bytes
-func Verify(data string, expectedAAD string) error {
+func (DeoxysPayloadVerifier) Verify(data string, expectedAAD string) error {
 	if len(data) < cipherOffset {
-		return errors.New("Data is too short")
+		return ErrDataTooShort
 	}
+
 	cipherLength := binary.BigEndian.Uint64([]byte(data[cipherLengthOffset:aadLengthOffset]))
 	aadLength := binary.BigEndian.Uint64([]byte(data[aadLengthOffset:cipherOffset]))
 

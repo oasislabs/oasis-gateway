@@ -37,11 +37,11 @@ func generateData(pk, cipher, aad, nonce string) (string, error) {
 		nonce), nil
 }
 
-func TestVerify(t *testing.T) {
+func TestVerifyOK(t *testing.T) {
 	data, err := generateData(pk, cipertext, expectedAAD, nonce)
 	assert.Nil(t, err)
 
-	err = Verify(data, expectedAAD)
+	err = DeoxysPayloadVerifier{}.Verify(data, expectedAAD)
 	assert.Nil(t, err)
 }
 
@@ -49,22 +49,25 @@ func TestVerifyMissingLengths(t *testing.T) {
 	data, err := generateData(pk, cipertext, expectedAAD, nonce)
 	assert.Nil(t, err)
 
-	err = Verify(data[0:28], expectedAAD)
-	assert.Error(t, err, "Data is too short")
+	err = DeoxysPayloadVerifier{}.Verify(data[0:28], expectedAAD)
+	assert.Error(t, err)
+	assert.Equal(t, "Payload data is too short", err.Error())
 }
 
 func TestVerifyMissingNonce(t *testing.T) {
 	data, err := generateData(pk, cipertext, expectedAAD, nonce)
 	assert.Nil(t, err)
 
-	err = Verify(data[:len(data)-5], expectedAAD)
-	assert.Error(t, err, "Missing data")
+	err = DeoxysPayloadVerifier{}.Verify(data[:len(data)-5], expectedAAD)
+	assert.Error(t, err)
+	assert.Equal(t, "Missing data", err.Error())
 }
 
 func TestVerifyMismatchedAAD(t *testing.T) {
 	data, err := generateData(pk, cipertext, expectedAAD, nonce)
 	assert.Nil(t, err)
 
-	err = Verify(data, "wrongAAD")
-	assert.Error(t, err, "AAD does not match")
+	err = DeoxysPayloadVerifier{}.Verify(data, "wrongAAD")
+	assert.Error(t, err)
+	assert.Equal(t, "AAD does not match", err.Error())
 }
