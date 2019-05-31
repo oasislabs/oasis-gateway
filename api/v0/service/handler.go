@@ -35,6 +35,10 @@ func (h ServiceHandler) DeployService(ctx context.Context, v interface{}) (inter
 		return nil, err
 	}
 
+	if err := auth.Verify(req.Data, authData.ExpectedAAD) {
+		
+	}
+
 	// a context from an http request is cancelled after the response to the request is returned,
 	// so a new context is needed to handle the asynchronous request
 	id, err := h.request.DeployServiceAsync(context.Background(), backend.DeployServiceRequest{
