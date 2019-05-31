@@ -2,7 +2,7 @@ package core
 
 import (
 	"context"
-	"crypto/sha1"
+	"crypto/sha256"
 	"fmt"
 	"net/http"
 
@@ -11,9 +11,10 @@ import (
 	"github.com/oasislabs/developer-gateway/rpc"
 )
 
-const sessionKeyFormat = "%s:%s"
-
-var hasher = sha1.New()
+const (
+	sessionKeyFormat               = "%s:%s"
+	RequestHeaderSessionKey string = "X-OASIS-SESSION-KEY"
+)
 
 type HttpMiddlewareAuth struct {
 	auth   Auth
@@ -52,12 +53,9 @@ func (m *HttpMiddlewareAuth) ServeHTTP(req *http.Request) (interface{}, error) {
 		return nil, &rpc.HttpError{Cause: nil, StatusCode: http.StatusForbidden}
 	}
 
+	hasher := sha256.New()
 	if _, err = hasher.Write([]byte(expectedAAD)); err != nil {
-		e := errors.New(errors.ErrInvalidAAD, err)
-		return nil, &rpc.HttpError{
-			Cause:      &e,
-			StatusCode: http.StatusForbidden,
-		}
+		return nil, rpc.HttpForbidden(context.TODO(), errors.New(errors.ErrInvalidAAD, err))
 	}
 	aadHash := string(hasher.Sum(nil))
 

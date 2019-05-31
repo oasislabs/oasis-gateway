@@ -302,12 +302,6 @@ var (
 		desc:     "Provided string is not a valid hex encoding.",
 	}
 
-	ErrInvalidAAD = ErrorCode{
-		category: InputError,
-		code:     2014,
-		desc:     "Provided AAD is not valid.",
-	}
-
 	ErrQueueLimitReached = ErrorCode{
 		category: ResourceLimitReached,
 		code:     3001,
@@ -343,6 +337,12 @@ var (
 		category: NotFound,
 		code:     6002,
 		desc:     "Subscription not found.",
+	}
+
+	ErrInvalidAAD = ErrorCode{
+		category: AuthenticationError,
+		code:     7001,
+		desc:     "Provided AAD is not valid.",
 	}
 )
 
@@ -381,6 +381,10 @@ const (
 	// NotImplemented refers to errors in which the client attempts to
 	// execute an action that has not yet been implemented by the server
 	NotImplemented Category = "Not Implemented"
+
+	// AuthenticationError refers to errors in which the client
+	// cannot be authenticated
+	AuthenticationError Category = "AuthenticationError"
 )
 
 // Error is the implementation of an error for this package. It contains
