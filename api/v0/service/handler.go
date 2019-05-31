@@ -27,12 +27,13 @@ func (h ServiceHandler) DeployService(ctx context.Context, v interface{}) (inter
 	authData := ctx.Value(auth.ContextAuthDataKey).(auth.AuthData)
 	req := v.(*DeployServiceRequest)
 
-	if len(req.Data) == 0 {
-		err := errors.New(errors.ErrEmptyInput, stderr.New("data field has not been set"))
-		h.logger.Debug(ctx, "failed to start request", log.MapFields{
-			"call_type": "DeployServiceFailure",
-		}, err)
-		return nil, err
+	if err := auth.Verify(req.Data, authData.ExpectedAAD); err != nil {
+		e := errors.New(errors.ErrFailedAADVerification, err)
+		h.logger.Debug(ctx, "failed to verify AAD", log.MapFields{
+			"expectedAAD": authData.ExpectedAAD,
+			"err":         e,
+		})
+		return nil, e
 	}
 
 	// a context from an http request is cancelled after the response to the request is returned,
@@ -56,13 +57,13 @@ func (h ServiceHandler) ExecuteService(ctx context.Context, v interface{}) (inte
 	authData := ctx.Value(auth.ContextAuthDataKey).(auth.AuthData)
 	req := v.(*ExecuteServiceRequest)
 
-	if len(req.Data) == 0 || len(req.Address) == 0 {
-		err := errors.New(errors.ErrEmptyInput, stderr.New("data or address field have not been set"))
-		h.logger.Debug(ctx, "failed to start request", log.MapFields{
-			"call_type": "ExecuteServiceFailure",
-			"address":   req.Address,
-		}, err)
-		return nil, err
+	if err := auth.Verify(req.Data, authData.ExpectedAAD); err != nil {
+		e := errors.New(errors.ErrFailedAADVerification, err)
+		h.logger.Debug(ctx, "failed to verify AAD", log.MapFields{
+			"expectedAAD": authData.ExpectedAAD,
+			"err":         e,
+		})
+		return nil, e
 	}
 
 	// a context from an http request is cancelled after the response to the request is returned,
