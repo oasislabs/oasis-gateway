@@ -12,14 +12,16 @@ import (
 )
 
 type Services struct {
-	Logger  log.Logger
-	Request *backend.RequestManager
+	Logger   log.Logger
+	Request  *backend.RequestManager
+	Verifier auth.Verifier
 }
 
 // ServiceHandler implements the handlers for service management
 type ServiceHandler struct {
-	logger  log.Logger
-	request *backend.RequestManager
+	logger   log.Logger
+	request  *backend.RequestManager
+	verifier auth.Verifier
 }
 
 // DeployService handles the deployment of new services
@@ -27,7 +29,7 @@ func (h ServiceHandler) DeployService(ctx context.Context, v interface{}) (inter
 	authData := ctx.Value(auth.ContextAuthDataKey).(auth.AuthData)
 	req := v.(*DeployServiceRequest)
 
-	if err := auth.Verify(req.Data, authData.ExpectedAAD); err != nil {
+	if err := h.verifier.Verify(req.Data, authData.ExpectedAAD); err != nil {
 		e := errors.New(errors.ErrFailedAADVerification, err)
 		h.logger.Debug(ctx, "failed to verify AAD", log.MapFields{
 			"expectedAAD": authData.ExpectedAAD,
@@ -57,7 +59,7 @@ func (h ServiceHandler) ExecuteService(ctx context.Context, v interface{}) (inte
 	authData := ctx.Value(auth.ContextAuthDataKey).(auth.AuthData)
 	req := v.(*ExecuteServiceRequest)
 
-	if err := auth.Verify(req.Data, authData.ExpectedAAD); err != nil {
+	if err := h.verifier.Verify(req.Data, authData.ExpectedAAD); err != nil {
 		e := errors.New(errors.ErrFailedAADVerification, err)
 		h.logger.Debug(ctx, "failed to verify AAD", log.MapFields{
 			"expectedAAD": authData.ExpectedAAD,
@@ -185,8 +187,9 @@ func BindHandler(services Services, binder rpc.HandlerBinder) {
 	}
 
 	handler := ServiceHandler{
-		logger:  services.Logger.ForClass("service", "handler"),
-		request: services.Request,
+		logger:   services.Logger.ForClass("service", "handler"),
+		request:  services.Request,
+		verifier: services.Verifier,
 	}
 
 	binder.Bind("POST", "/v0/api/service/deploy", rpc.HandlerFunc(handler.DeployService),

@@ -582,6 +582,27 @@ func (c *EthClient) estimateGas(ctx context.Context, id uint64, address string, 
 	return gas, nil
 }
 
+func NewClient(ctx context.Context, logger log.Logger, wallet Wallet, client eth.Client) *EthClient {
+	c := &EthClient{
+		ctx:    ctx,
+		wg:     sync.WaitGroup{},
+		inCh:   make(chan ethRequest, 64),
+		logger: logger.ForClass("eth", "EthClient"),
+		nonce:  0,
+		signer: types.FrontierSigner{},
+		wallet: wallet,
+		client: client,
+		subman: eth.NewSubscriptionManager(eth.SubscriptionManagerProps{
+			Context: ctx,
+			Logger:  logger,
+			Client:  client,
+		}),
+	}
+
+	c.startLoop(ctx)
+	return c
+}
+
 func DialContext(ctx context.Context, logger log.Logger, properties EthClientProperties) (*EthClient, error) {
 	if len(properties.URL) == 0 {
 		return nil, stderr.New("no url provided for eth client")
@@ -602,22 +623,5 @@ func DialContext(ctx context.Context, logger log.Logger, properties EthClientPro
 		RetryConfig: conc.RandomConfig,
 	})
 
-	c := &EthClient{
-		ctx:    ctx,
-		wg:     sync.WaitGroup{},
-		inCh:   make(chan ethRequest, 64),
-		logger: logger.ForClass("eth", "EthClient"),
-		nonce:  0,
-		signer: types.FrontierSigner{},
-		wallet: properties.Wallet,
-		client: client,
-		subman: eth.NewSubscriptionManager(eth.SubscriptionManagerProps{
-			Context: ctx,
-			Logger:  logger,
-			Client:  client,
-		}),
-	}
-
-	c.startLoop(ctx)
-	return c, nil
+	return NewClient(ctx, logger, properties.Wallet, client), nil
 }

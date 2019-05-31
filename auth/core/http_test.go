@@ -24,7 +24,7 @@ func TestServeHTTP(t *testing.T) {
 
 	req, err := http.NewRequest("POST", "gateway.oasiscloud.io", nil)
 	assert.Nil(t, err)
-	req.Header.Add(insecure.INSECURE_KEY, "insecure-key")
+	req.Header.Add(insecure.HeaderKey, "insecure-key")
 	req.Header.Add(RequestHeaderSessionKey, "session-key")
 
 	response, err := httpMiddlewareAuth.ServeHTTP(req)
@@ -42,7 +42,7 @@ func TestServeHTTPInvalidSessionKey(t *testing.T) {
 
 	req, err := http.NewRequest("POST", "gateway.oasiscloud.io", nil)
 	assert.Nil(t, err)
-	req.Header.Add(insecure.INSECURE_KEY, "insecure-key")
+	req.Header.Add(insecure.HeaderKey, "insecure-key")
 
 	response, err := httpMiddlewareAuth.ServeHTTP(req)
 	assert.NotNil(t, err)
@@ -58,7 +58,7 @@ func TestServeHTTPNonMatchingSessionKeys(t *testing.T) {
 
 	req1, err := http.NewRequest("POST", "gateway.oasiscloud.io", nil)
 	assert.Nil(t, err)
-	req1.Header.Add(insecure.INSECURE_KEY, "user-1")
+	req1.Header.Add(insecure.HeaderKey, "user-1")
 	req1.Header.Add(RequestHeaderSessionKey, "session-key")
 
 	response1, err := httpMiddlewareAuth.ServeHTTP(req1)
@@ -67,7 +67,7 @@ func TestServeHTTPNonMatchingSessionKeys(t *testing.T) {
 
 	req2, err := http.NewRequest("POST", "gateway.oasiscloud.io", nil)
 	assert.Nil(t, err)
-	req2.Header.Add(insecure.INSECURE_KEY, "user-2")
+	req2.Header.Add(insecure.HeaderKey, "user-2")
 	req2.Header.Add(RequestHeaderSessionKey, "session-key")
 
 	response2, err := httpMiddlewareAuth.ServeHTTP(req2)

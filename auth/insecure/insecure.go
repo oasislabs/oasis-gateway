@@ -5,7 +5,7 @@ import (
 	"net/http"
 )
 
-const INSECURE_KEY string = "X-OASIS-INSECURE-AUTH"
+const HeaderKey string = "X-OASIS-INSECURE-AUTH"
 
 // InsecureAuth is an insecure authentication mechanism that may be
 // useful for debugging and testing. It should not be used in
@@ -13,7 +13,7 @@ const INSECURE_KEY string = "X-OASIS-INSECURE-AUTH"
 type InsecureAuth struct{}
 
 func (a InsecureAuth) Authenticate(req *http.Request) (string, error) {
-	value := req.Header.Get(INSECURE_KEY)
+	value := req.Header.Get(HeaderKey)
 	if len(value) == 0 {
 		return "", errors.New("Verification failed")
 	}
