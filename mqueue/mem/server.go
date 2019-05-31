@@ -2,7 +2,6 @@ package mem
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/oasislabs/developer-gateway/conc"
@@ -63,7 +62,6 @@ func (s *Server) destroy(ctx context.Context, ev conc.DestroyWorkerEvent) error 
 
 // Insert inserts the element to the provided offset.
 func (s *Server) Insert(ctx context.Context, req core.InsertRequest) error {
-	fmt.Println("INSERT ", string(req.Element.Value))
 	_, err := s.master.Request(ctx, req.Key, insertRequest{Element: req.Element})
 	return err
 }
@@ -74,10 +72,6 @@ func (s *Server) Retrieve(ctx context.Context, req core.RetrieveRequest) (core.E
 	v, err := s.master.Request(ctx, req.Key, retrieveRequest{Offset: req.Offset, Count: req.Count})
 	if err != nil {
 		return core.Elements{}, err
-	}
-
-	for _, el := range v.(core.Elements).Elements {
-		fmt.Println("RETRIEVE ", string(el.Value))
 	}
 
 	return v.(core.Elements), nil

@@ -2,6 +2,7 @@ package tests
 
 import (
 	"fmt"
+	"io/ioutil"
 	"os"
 
 	"github.com/oasislabs/developer-gateway/gateway"
@@ -50,6 +51,6 @@ func InitializeWithConfig(configFile string) (*rpc.HttpRouter, error) {
 		return nil, err
 	}
 
-	// gateway.RootLogger.SetOutput(ioutil.Discard)
+	gateway.RootLogger.SetOutput(ioutil.Discard)
 	return gateway.NewRouter(services), nil
 }

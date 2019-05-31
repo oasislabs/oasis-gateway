@@ -33,7 +33,6 @@ func (t EventType) String() string {
 }
 
 func makeElement(ev Event, offset uint64) (mqueue.Element, error) {
-	fmt.Println("MAKING ELEMENT: ", ev, ev.EventType().String())
 	p, err := json.Marshal(ev)
 	if err != nil {
 		return mqueue.Element{}, err

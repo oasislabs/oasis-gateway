@@ -8,10 +8,23 @@ import (
 	"net/http"
 	"net/http/httptest"
 
+	"github.com/google/uuid"
 	auth "github.com/oasislabs/developer-gateway/auth/core"
 	"github.com/oasislabs/developer-gateway/auth/insecure"
 	"github.com/oasislabs/developer-gateway/rpc"
 )
+
+type SimpleDeserializer struct {
+	O interface{}
+}
+
+func (d *SimpleDeserializer) Deserialize(data []byte) error {
+	return json.Unmarshal(data, d.O)
+}
+
+type Deserializer interface {
+	Deserialize([]byte) error
+}
 
 type Request struct {
 	Route   Route
@@ -29,9 +42,15 @@ type Route struct {
 	Path   string
 }
 
-type Client struct{}
+func NewClient() Client {
+	return Client{Session: uuid.New().String()}
+}
 
-func (c Client) Request(res interface{}, req interface{}, route Route) error {
+type Client struct {
+	Session string
+}
+
+func (c Client) RequestWithDeserializer(de Deserializer, req interface{}, route Route) error {
 	p, err := json.Marshal(req)
 	if err != nil {
 		panic(fmt.Sprintf("failed to marshal request body %s", err.Error()))
@@ -42,10 +61,13 @@ func (c Client) Request(res interface{}, req interface{}, route Route) error {
 		Body:  p,
 		Headers: map[string]string{
 			insecure.HeaderKey:           "mykey",
-			auth.RequestHeaderSessionKey: "mysession",
+			auth.RequestHeaderSessionKey: c.Session,
 			"Content-type":               "application/json",
 		},
 	})
+	if err != nil {
+		return err
+	}
 
 	if result.Code != http.StatusOK {
 		var rpcError rpc.Error
@@ -56,11 +78,15 @@ func (c Client) Request(res interface{}, req interface{}, route Route) error {
 		return &rpcError
 	}
 
-	if err := json.Unmarshal(result.Body, &res); err != nil {
+	if err := de.Deserialize(result.Body); err != nil {
 		panic(fmt.Sprintf("failed to unmarshal response body %s", err.Error()))
 	}
 
 	return nil
+}
+
+func (c Client) Request(res interface{}, req interface{}, route Route) error {
+	return c.RequestWithDeserializer(&SimpleDeserializer{O: res}, req, route)
 }
 
 func ServeHTTP(router *rpc.HttpRouter, request Request) (Response, error) {

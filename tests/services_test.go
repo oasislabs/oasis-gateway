@@ -1,7 +1,6 @@
 package tests
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/oasislabs/developer-gateway/api/v0/service"
@@ -10,27 +9,54 @@ import (
 )
 
 func TestDeployServiceEmptyData(t *testing.T) {
-	_, err := ServiceClient{}.DeployService(service.DeployServiceRequest{
+	client := NewServiceClient()
+	_, err := client.DeployService(service.DeployServiceRequest{
 		Data: "",
 	})
 
 	assert.Equal(t, &rpc.Error{ErrorCode: 2007, Description: "Input cannot be empty."}, err)
 }
 
-func TestDeployService(t *testing.T) {
-	client := ServiceClient{}
+func TestDeployServiceErr(t *testing.T) {
+	client := NewServiceClient()
 	deployRes, err := client.DeployService(service.DeployServiceRequest{
-		Data: "0x98503a1f1275ddfc8621778e5477aed91290df0cbf2e7796363e9aa4c4d9b0c130f27c3bf55264e9ffe9c01d90ca216e5161171ed51878fd8993c16410a87d59642ad75eeac7a24ca018a42811684264bedb517f59e71ab2d27a38086bd0f4c47d39c255",
+		Data: TransactionDataErr,
 	})
 	assert.Nil(t, err)
 	assert.Equal(t, uint64(0), deployRes.ID)
 
-	fmt.Println("ATTEMPTING")
+	pollRes, err := client.PollServiceUntilNotEmpty(service.PollServiceRequest{
+		Offset: 0,
+	})
+
+	assert.Nil(t, err)
+	assert.Equal(t, uint64(0), pollRes.Offset)
+	assert.Equal(t, 1, len(pollRes.Events))
+	assert.Equal(t, service.ErrorEvent{
+		ID: 0x0,
+		Cause: rpc.Error{
+			ErrorCode:   1002,
+			Description: "Internal Error. Please check the status of the service.",
+		}}, pollRes.Events[0])
+}
+
+func TestDeployServiceOK(t *testing.T) {
+	client := NewServiceClient()
+	deployRes, err := client.DeployService(service.DeployServiceRequest{
+		Data: TransactionDataOK,
+	})
+	assert.Nil(t, err)
+	assert.Equal(t, uint64(0), deployRes.ID)
+
 	pollRes, err := client.PollServiceUntilNotEmpty(service.PollServiceRequest{
 		Offset: deployRes.ID,
 	})
 
-	fmt.Println(pollRes)
 	assert.Nil(t, err)
-	assert.Nil(t, pollRes)
+	assert.Equal(t, uint64(0), pollRes.Offset)
+	assert.Equal(t, 1, len(pollRes.Events))
+	assert.Equal(t, service.DeployServiceEvent{
+		ID:      0,
+		Address: "0x0000000000000000000000000000000000000000",
+	}, pollRes.Events[0])
 }
