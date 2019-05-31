@@ -50,8 +50,7 @@ func TestVerifyMissingLengths(t *testing.T) {
 	assert.Nil(t, err)
 
 	err = Verify(data[0:28], expectedAAD)
-	assert.NotNil(t, err)
-	assert.Equal(t, err.Error(), "Data is too short")
+	assert.Error(t, err, "Data is too short")
 }
 
 func TestVerifyMissingNonce(t *testing.T) {
@@ -59,8 +58,7 @@ func TestVerifyMissingNonce(t *testing.T) {
 	assert.Nil(t, err)
 
 	err = Verify(data[:len(data)-5], expectedAAD)
-	assert.NotNil(t, err)
-	assert.Equal(t, err.Error(), "Missing data")
+	assert.Error(t, err, "Missing data")
 }
 
 func TestVerifyMismatchedAAD(t *testing.T) {
@@ -68,6 +66,5 @@ func TestVerifyMismatchedAAD(t *testing.T) {
 	assert.Nil(t, err)
 
 	err = Verify(data, "wrongAAD")
-	assert.NotNil(t, err)
-	assert.Equal(t, err.Error(), "AAD does not match")
+	assert.Error(t, err, "AAD does not match")
 }
