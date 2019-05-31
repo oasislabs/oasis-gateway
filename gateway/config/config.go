@@ -1,4 +1,4 @@
-package main
+package config
 
 import (
 	"fmt"
@@ -72,6 +72,12 @@ type EthConfig struct {
 	URL string `mapstructure:"url"`
 }
 
+// AuthConfig sets the configuration for the authentication
+// mechanism to use
+type AuthConfig struct {
+	Provider string `mapstructure:"provider"`
+}
+
 // Config is the general application's configuration
 type Config struct {
 	Bind BindConfig `mapstructure:"bind"`
@@ -79,6 +85,7 @@ type Config struct {
 	Wallet       WalletConfig `mapstructure:"wallet"`
 	EthConfig    EthConfig    `mapstructure:"eth"`
 	MQueueConfig MQueueConfig `mapstructure:"mqueue"`
+	AuthConfig   AuthConfig   `mapstructure:"auth"`
 }
 
 // ParseSimpleConfig parses a configuration file and returns

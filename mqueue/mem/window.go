@@ -11,6 +11,7 @@ type element struct {
 	Set      bool
 	Offset   uint64
 	Value    string
+	Type     string
 }
 
 var (
@@ -96,6 +97,7 @@ func (w *SlidingWindow) Get(offset uint64, count uint) (core.Elements, errors.Er
 			res.Elements = append(res.Elements, core.Element{
 				Offset: element.Offset,
 				Value:  element.Value,
+				Type:   element.Type,
 			})
 		}
 	}
@@ -143,7 +145,7 @@ func (w *SlidingWindow) Offset() uint64 {
 // Set sets the value for the element at offset `offset`. If the
 // offset is not in the window's range or the element's state is not
 // reserved or already set an error will be returned
-func (w *SlidingWindow) Set(offset uint64, value string) errors.Err {
+func (w *SlidingWindow) Set(offset uint64, t, value string) errors.Err {
 	if w.offset > offset || offset > w.offset+uint64(len(w.elements)) {
 		return errors.New(errors.ErrOutOfRange, ErrOffsetOutOfWindow)
 	}
@@ -158,6 +160,7 @@ func (w *SlidingWindow) Set(offset uint64, value string) errors.Err {
 	}
 
 	w.elements[index].Set = true
+	w.elements[index].Type = t
 	w.elements[index].Value = value
 
 	if w.nextUnsetIndex == index {

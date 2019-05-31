@@ -389,6 +389,16 @@ func (h *HttpJsonHandler) ServeHTTP(req *http.Request) (interface{}, error) {
 		return nil, errors.New(errors.ErrDeserializeJSON, nil)
 	}
 
+	if body != nil && (req.Body == nil || req.ContentLength == 0) {
+		h.logger.Debug(req.Context(), "received request body for handler that does not expect a request body", log.MapFields{
+			"path":           req.URL.EscapedPath(),
+			"method":         req.Method,
+			"content_length": req.ContentLength,
+			"call_type":      "HttpJsonRequestHandleFailure",
+		})
+		return nil, errors.New(errors.ErrDeserializeJSON, nil)
+	}
+
 	if body != nil {
 		if err := h.decoder.DecodeWithLimit(req.Body, body, rw.ReadLimitProps{
 			Limit:        req.ContentLength,

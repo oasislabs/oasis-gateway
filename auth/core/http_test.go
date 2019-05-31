@@ -24,7 +24,7 @@ func TestServeHTTP(t *testing.T) {
 
 	req, err := http.NewRequest("POST", "gateway.oasiscloud.io", nil)
 	assert.Nil(t, err)
-	req.Header.Add(insecure.INSECURE_KEY, "insecure-key")
+	req.Header.Add(insecure.HeaderKey, "insecure-key")
 	req.Header.Add(RequestHeaderSessionKey, "session-key")
 
 	response, err := httpMiddlewareAuth.ServeHTTP(req)
@@ -42,7 +42,7 @@ func TestServeHTTPNoSessionKey(t *testing.T) {
 
 	req, err := http.NewRequest("POST", "gateway.oasiscloud.io", nil)
 	assert.Nil(t, err)
-	req.Header.Add(insecure.INSECURE_KEY, "insecure-key")
+	req.Header.Add(insecure.HeaderKey, "insecure-key")
 
 	response, err := httpMiddlewareAuth.ServeHTTP(req)
 	assert.NotNil(t, err)

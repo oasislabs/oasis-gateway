@@ -79,7 +79,7 @@ func (w *MessageHandler) handleErrorEvent(ctx context.Context, ev conc.ErrorWork
 }
 
 func (w *MessageHandler) insert(req insertRequest) error {
-	return w.window.Set(req.Element.Offset, req.Element.Value)
+	return w.window.Set(req.Element.Offset, req.Element.Type, req.Element.Value)
 }
 
 func (w *MessageHandler) retrieve(req retrieveRequest) (core.Elements, error) {

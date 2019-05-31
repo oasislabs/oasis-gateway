@@ -26,7 +26,6 @@ type ServiceHandler struct {
 func (h ServiceHandler) DeployService(ctx context.Context, v interface{}) (interface{}, error) {
 	authData := ctx.Value(auth.ContextAuthDataKey).(auth.AuthData)
 	req := v.(*DeployServiceRequest)
-
 	if len(req.Data) == 0 {
 		err := errors.New(errors.ErrEmptyInput, stderr.New("data field has not been set"))
 		h.logger.Debug(ctx, "failed to start request", log.MapFields{

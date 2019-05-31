@@ -66,7 +66,6 @@ func (c *PooledClient) request(ctx context.Context, fn func(conn *Conn) (interfa
 
 		v, err := fn(conn)
 		if err != nil {
-
 			if c.shouldRetryAfterError(err) {
 				return nil, err
 

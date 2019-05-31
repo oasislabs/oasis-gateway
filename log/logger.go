@@ -1,6 +1,9 @@
 package log
 
-import "context"
+import (
+	"context"
+	"io"
+)
 
 type Fields interface {
 	Add(key string, value interface{})
@@ -20,6 +23,7 @@ func (m MapFields) Log(fields Fields) {
 
 type Logger interface {
 	ForClass(pkg string, class string) Logger
+	SetOutput(io.Writer)
 	Debug(ctx context.Context, msg string, loggable ...Loggable)
 	Info(ctx context.Context, msg string, loggable ...Loggable)
 	Warn(ctx context.Context, msg string, loggable ...Loggable)
