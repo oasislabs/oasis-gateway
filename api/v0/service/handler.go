@@ -35,8 +35,13 @@ func (h ServiceHandler) DeployService(ctx context.Context, v interface{}) (inter
 		return nil, err
 	}
 
-	if err := auth.Verify(req.Data, authData.ExpectedAAD) {
-		
+	if err := auth.Verify(req.Data, authData.ExpectedAAD); err != nil {
+		e := errors.New(errors.ErrFailedAADVerification, err)
+		h.logger.Debug(ctx, "failed to verify AAD", log.MapFields{
+			"expectedAAD": authData.ExpectedAAD,
+			"err":         e,
+		})
+		return nil, e
 	}
 
 	// a context from an http request is cancelled after the response to the request is returned,
@@ -67,6 +72,15 @@ func (h ServiceHandler) ExecuteService(ctx context.Context, v interface{}) (inte
 			"address":   req.Address,
 		}, err)
 		return nil, err
+	}
+
+	if err := auth.Verify(req.Data, authData.ExpectedAAD); err != nil {
+		e := errors.New(errors.ErrFailedAADVerification, err)
+		h.logger.Debug(ctx, "failed to verify AAD", log.MapFields{
+			"expectedAAD": authData.ExpectedAAD,
+			"err":         e,
+		})
+		return nil, e
 	}
 
 	// a context from an http request is cancelled after the response to the request is returned,
