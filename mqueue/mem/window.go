@@ -145,7 +145,7 @@ func (w *SlidingWindow) Offset() uint64 {
 // Set sets the value for the element at offset `offset`. If the
 // offset is not in the window's range or the element's state is not
 // reserved or already set an error will be returned
-func (w *SlidingWindow) Set(offset uint64, t, value string) errors.Err {
+func (w *SlidingWindow) Set(offset uint64, valueType, value string) errors.Err {
 	if w.offset > offset || offset > w.offset+uint64(len(w.elements)) {
 		return errors.New(errors.ErrOutOfRange, ErrOffsetOutOfWindow)
 	}
@@ -160,7 +160,7 @@ func (w *SlidingWindow) Set(offset uint64, t, value string) errors.Err {
 	}
 
 	w.elements[index].Set = true
-	w.elements[index].Type = t
+	w.elements[index].Type = valueType
 	w.elements[index].Value = value
 
 	if w.nextUnsetIndex == index {
