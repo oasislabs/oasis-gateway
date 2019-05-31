@@ -235,6 +235,11 @@ func (h *HttpRouter) mapError(err errors.Error) *HttpError {
 			Cause:      &err,
 			StatusCode: http.StatusNotImplemented,
 		}
+	case errors.AuthenticationError:
+		return &HttpError{
+			Cause:      &err,
+			StatusCode: http.StatusForbidden,
+		}
 	default:
 		return &HttpError{
 			Cause:      &err,
