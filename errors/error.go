@@ -344,6 +344,12 @@ var (
 		code:     7001,
 		desc:     "Provided AAD is not valid.",
 	}
+
+	ErrFailedAADVerification = ErrorCode{
+		category: AuthenticationError,
+		code:     7002,
+		desc:     "Failed to verify AAD in transaction data.",
+	}
 )
 
 // Category defines error categories that logically group them. This classification
