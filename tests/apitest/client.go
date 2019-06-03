@@ -79,7 +79,7 @@ func (c *Client) RequestAPI(de rpc.Deserializer, req interface{}, session string
 		if len(res.Body) > 0 {
 			var rpcError rpc.Error
 			if err := json.Unmarshal(res.Body, &rpcError); err != nil {
-				fmt.Errorf("failed to unmarshal response body as error %s", err.Error())
+				return fmt.Errorf("failed to unmarshal response body as error %s", err.Error())
 			}
 			return &rpcError
 		}
