@@ -132,24 +132,24 @@ func TestExecuteServiceOK(t *testing.T) {
 	}, pollRes.Events[0])
 }
 
-func TestGetPublicKeyServiceEmptyAddress(t *testing.T) {
+func TestGetPublicKeyEmptyAddress(t *testing.T) {
 	client := apitest.NewServiceClient(router)
-	_, err := client.GetPublicKey(context.Background(), service.GetPublicKeyServiceRequest{
+	_, err := client.GetPublicKey(context.Background(), service.GetPublicKeyRequest{
 		Address: "",
 	})
 
 	assert.Error(t, err)
-	assert.Equal(t, &rpc.Error{ErrorCode: 2007, Description: "Input cannot be empty."}, err)
+	assert.Equal(t, &rpc.Error{ErrorCode: 2006, Description: "Provided invalid address."}, err)
 }
 
-func TestGetPublicKeyServiceOk(t *testing.T) {
+func TestGetPublicKeyOk(t *testing.T) {
 	client := apitest.NewServiceClient(router)
-	res, err := client.GetPublicKey(context.Background(), service.GetPublicKeyServiceRequest{
+	res, err := client.GetPublicKey(context.Background(), service.GetPublicKeyRequest{
 		Address: mock.Address,
 	})
 
 	assert.Nil(t, err)
-	assert.Equal(t, service.GetPublicKeyServiceResponse{
+	assert.Equal(t, service.GetPublicKeyResponse{
 		Timestamp: 0x1b69b4bab46a831,
 		Address:   "0x0000000000000000000000000000000000000000",
 		PublicKey: "0x0000000000000000000000000000000000000000",

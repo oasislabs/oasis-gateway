@@ -92,9 +92,9 @@ func (c *ServiceClient) PollService(
 
 func (c *ServiceClient) GetPublicKey(
 	ctx context.Context,
-	req service.GetPublicKeyServiceRequest,
-) (service.GetPublicKeyServiceResponse, error) {
-	var res service.GetPublicKeyServiceResponse
+	req service.GetPublicKeyRequest,
+) (service.GetPublicKeyResponse, error) {
+	var res service.GetPublicKeyResponse
 	err := c.client.RequestAPI(&rpc.SimpleJsonDeserializer{
 		O: &res,
 	}, &req, c.session, Route{

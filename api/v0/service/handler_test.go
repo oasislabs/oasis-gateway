@@ -10,6 +10,7 @@ import (
 	backend "github.com/oasislabs/developer-gateway/backend/core"
 	"github.com/oasislabs/developer-gateway/errors"
 	"github.com/oasislabs/developer-gateway/log"
+	"github.com/oasislabs/developer-gateway/rpc"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
@@ -60,16 +61,16 @@ func (c *MockClient) PollService(
 	return args.Get(0).(backend.Events), nil
 }
 
-func (c *MockClient) GetPublicKeyService(
+func (c *MockClient) GetPublicKey(
 	ctx context.Context,
-	req backend.GetPublicKeyServiceRequest,
-) (backend.GetPublicKeyServiceResponse, errors.Err) {
+	req backend.GetPublicKeyRequest,
+) (backend.GetPublicKeyResponse, errors.Err) {
 	args := c.Mock.Called(ctx, req)
 	if args.Get(1) != nil {
-		return backend.GetPublicKeyServiceResponse{}, args.Get(1).(errors.Err)
+		return backend.GetPublicKeyResponse{}, args.Get(1).(errors.Err)
 	}
 
-	return args.Get(0).(backend.GetPublicKeyServiceResponse), nil
+	return args.Get(0).(backend.GetPublicKeyResponse), nil
 }
 
 func createServiceHandler() ServiceHandler {
@@ -96,9 +97,6 @@ func TestDeployServiceEmptyData(t *testing.T) {
 	baserr := err.(errors.Err)
 
 	assert.Equal(t, "Payload data is too short", baserr.Cause().Error())
-	assert.Equal(t, "[7002] error code AuthenticationError with "+
-		"desc Failed to verify AAD in transaction data. with cause"+
-		" Payload data is too short", baserr.Error())
 	assert.Equal(t, errors.ErrFailedAADVerification, baserr.ErrorCode())
 }
 
@@ -141,4 +139,299 @@ func TestDeployServiceOK(t *testing.T) {
 	res, err := handler.DeployService(ctx, &DeployServiceRequest{Data: "0x00"})
 	assert.Nil(t, err)
 	assert.Equal(t, uint64(0), res.(AsyncResponse).ID)
+}
+
+func TestExecuteServiceEmptyData(t *testing.T) {
+	ctx := context.WithValue(Context, auth.ContextAuthDataKey, auth.AuthData{
+		ExpectedAAD: "",
+		SessionKey:  "sessionKey",
+	})
+	handler := createServiceHandler()
+
+	handler.client.(*MockClient).On("ExecuteServiceAsync",
+		mock.Anything, mock.Anything).Return(0, nil)
+
+	_, err := handler.ExecuteService(ctx, &ExecuteServiceRequest{
+		Data:    "",
+		Address: "0x00",
+	})
+
+	assert.Error(t, err)
+	baserr := err.(errors.Err)
+
+	assert.Equal(t, "Payload data is too short", baserr.Cause().Error())
+	assert.Equal(t, errors.ErrFailedAADVerification, baserr.ErrorCode())
+}
+
+func TestExecuteServiceEmptyAddress(t *testing.T) {
+	ctx := context.WithValue(Context, auth.ContextAuthDataKey, auth.AuthData{
+		ExpectedAAD: "",
+		SessionKey:  "sessionKey",
+	})
+	handler := createServiceHandler()
+
+	handler.client.(*MockClient).On("ExecuteServiceAsync",
+		mock.Anything, mock.Anything).Return(0, nil)
+
+	_, err := handler.ExecuteService(ctx, &ExecuteServiceRequest{
+		Data:    "0x00",
+		Address: "",
+	})
+
+	assert.Error(t, err)
+	baserr := err.(errors.Err)
+
+	assert.Nil(t, baserr.Cause())
+	assert.Equal(t, "[2006] error code InputError with desc Provided invalid address.", baserr.Error())
+	assert.Equal(t, errors.ErrInvalidAddress, baserr.ErrorCode())
+}
+
+func TestExecuteServiceErr(t *testing.T) {
+	ctx := context.WithValue(Context, auth.ContextAuthDataKey, auth.AuthData{
+		SessionKey: "sessionKey",
+	})
+	handler := createServiceHandler()
+
+	handler.client.(*MockClient).On("ExecuteServiceAsync",
+		mock.Anything,
+		backend.ExecuteServiceRequest{
+			Data:       "0x00",
+			Address:    "0x00",
+			SessionKey: "sessionKey",
+		}).Return(0, errors.New(errors.ErrInternalError, stderr.New("made up error")))
+
+	_, err := handler.ExecuteService(ctx, &ExecuteServiceRequest{
+		Data:    "0x00",
+		Address: "0x00",
+	})
+	assert.Error(t, err)
+	baserr := err.(errors.Err)
+
+	assert.Equal(t, "made up error", baserr.Cause().Error())
+	assert.Equal(t, errors.ErrInternalError, baserr.ErrorCode())
+}
+
+func TestExecuteServiceOK(t *testing.T) {
+	ctx := context.WithValue(Context, auth.ContextAuthDataKey, auth.AuthData{
+		SessionKey: "sessionKey",
+	})
+	handler := createServiceHandler()
+
+	handler.client.(*MockClient).On("ExecuteServiceAsync",
+		mock.Anything,
+		backend.ExecuteServiceRequest{
+			Data:       "0x00",
+			Address:    "0x00",
+			SessionKey: "sessionKey",
+		}).Return(0, nil)
+
+	res, err := handler.ExecuteService(ctx, &ExecuteServiceRequest{
+		Data:    "0x00",
+		Address: "0x00",
+	})
+	assert.Nil(t, err)
+	assert.Equal(t, uint64(0), res.(AsyncResponse).ID)
+}
+
+func TestPollServiceErr(t *testing.T) {
+	ctx := context.WithValue(Context, auth.ContextAuthDataKey, auth.AuthData{
+		SessionKey: "sessionKey",
+	})
+	handler := createServiceHandler()
+
+	handler.client.(*MockClient).On("PollService",
+		mock.Anything,
+		backend.PollServiceRequest{
+			Offset:          0,
+			Count:           10,
+			DiscardPrevious: false,
+			SessionKey:      "sessionKey",
+		}).Return(nil, errors.New(errors.ErrInternalError, stderr.New("made up error")))
+
+	_, err := handler.PollService(ctx, &PollServiceRequest{
+		Offset:          0,
+		Count:           10,
+		DiscardPrevious: false,
+	})
+
+	assert.Error(t, err)
+	baserr := err.(errors.Err)
+
+	assert.Equal(t, "made up error", baserr.Cause().Error())
+	assert.Equal(t, errors.ErrInternalError, baserr.ErrorCode())
+}
+
+func TestPollServiceDeployOK(t *testing.T) {
+	ctx := context.WithValue(Context, auth.ContextAuthDataKey, auth.AuthData{
+		SessionKey: "sessionKey",
+	})
+	handler := createServiceHandler()
+
+	handler.client.(*MockClient).On("PollService",
+		mock.Anything,
+		backend.PollServiceRequest{
+			Offset:          0,
+			Count:           10,
+			DiscardPrevious: false,
+			SessionKey:      "sessionKey",
+		}).Return(backend.Events{
+		Offset: 0,
+		Events: []backend.Event{backend.DeployServiceResponse{ID: 0, Address: "0x00"}}}, nil)
+
+	res, err := handler.PollService(ctx, &PollServiceRequest{
+		Offset:          0,
+		Count:           10,
+		DiscardPrevious: false,
+	})
+	assert.Nil(t, err)
+
+	evs := res.(PollServiceResponse)
+	assert.Equal(t, 1, len(evs.Events))
+	assert.Equal(t, uint64(0), evs.Offset)
+	assert.Equal(t, DeployServiceEvent{
+		ID:      0,
+		Address: "0x00",
+	}, evs.Events[0])
+}
+
+func TestPollServiceExecuteOK(t *testing.T) {
+	ctx := context.WithValue(Context, auth.ContextAuthDataKey, auth.AuthData{
+		SessionKey: "sessionKey",
+	})
+	handler := createServiceHandler()
+
+	handler.client.(*MockClient).On("PollService",
+		mock.Anything,
+		backend.PollServiceRequest{
+			Offset:          0,
+			Count:           10,
+			DiscardPrevious: false,
+			SessionKey:      "sessionKey",
+		}).Return(backend.Events{
+		Offset: 0,
+		Events: []backend.Event{backend.ExecuteServiceResponse{ID: 0, Address: "0x00", Output: "0x00"}}}, nil)
+
+	res, err := handler.PollService(ctx, &PollServiceRequest{
+		Offset:          0,
+		Count:           10,
+		DiscardPrevious: false,
+	})
+	assert.Nil(t, err)
+
+	evs := res.(PollServiceResponse)
+	assert.Equal(t, 1, len(evs.Events))
+	assert.Equal(t, uint64(0), evs.Offset)
+	assert.Equal(t, ExecuteServiceEvent{
+		ID:      0,
+		Address: "0x00",
+		Output:  "0x00",
+	}, evs.Events[0])
+}
+
+func TestPollServiceErrorOK(t *testing.T) {
+	ctx := context.WithValue(Context, auth.ContextAuthDataKey, auth.AuthData{
+		SessionKey: "sessionKey",
+	})
+	handler := createServiceHandler()
+
+	handler.client.(*MockClient).On("PollService",
+		mock.Anything,
+		backend.PollServiceRequest{
+			Offset:          0,
+			Count:           10,
+			DiscardPrevious: false,
+			SessionKey:      "sessionKey",
+		}).Return(backend.Events{
+		Offset: 0,
+		Events: []backend.Event{backend.ErrorEvent{ID: 0, Cause: rpc.Error{}}}}, nil)
+
+	res, err := handler.PollService(ctx, &PollServiceRequest{
+		Offset:          0,
+		Count:           10,
+		DiscardPrevious: false,
+	})
+	assert.Nil(t, err)
+
+	evs := res.(PollServiceResponse)
+	assert.Equal(t, 1, len(evs.Events))
+	assert.Equal(t, uint64(0), evs.Offset)
+	assert.Equal(t, ErrorEvent{
+		ID:    0,
+		Cause: rpc.Error{},
+	}, evs.Events[0])
+}
+
+func TestGetPublicKeyEmptyAddress(t *testing.T) {
+	ctx := context.WithValue(Context, auth.ContextAuthDataKey, auth.AuthData{
+		SessionKey: "sessionKey",
+	})
+	handler := createServiceHandler()
+
+	handler.client.(*MockClient).On("GetPublicKey",
+		mock.Anything,
+		backend.GetPublicKeyRequest{
+			Address: "0x00",
+		}).Return(nil, nil)
+
+	_, err := handler.GetPublicKey(ctx, &GetPublicKeyRequest{
+		Address: "",
+	})
+
+	assert.Error(t, err)
+	baserr := err.(errors.Err)
+
+	assert.Equal(t, "address field has not been set", baserr.Cause().Error())
+	assert.Equal(t, errors.ErrInvalidAddress, baserr.ErrorCode())
+}
+
+func TestGetPublicKeyEmptyErr(t *testing.T) {
+	ctx := context.WithValue(Context, auth.ContextAuthDataKey, auth.AuthData{
+		SessionKey: "sessionKey",
+	})
+	handler := createServiceHandler()
+
+	handler.client.(*MockClient).On("GetPublicKey",
+		mock.Anything,
+		backend.GetPublicKeyRequest{
+			Address: "0x00",
+		}).Return(nil, errors.New(errors.ErrInternalError, stderr.New("made up error")))
+
+	_, err := handler.GetPublicKey(ctx, &GetPublicKeyRequest{
+		Address: "0x00",
+	})
+
+	assert.Error(t, err)
+	baserr := err.(errors.Err)
+
+	assert.Equal(t, "made up error", baserr.Cause().Error())
+	assert.Equal(t, errors.ErrInternalError, baserr.ErrorCode())
+}
+
+func TestGetPublicKeyEmptyOK(t *testing.T) {
+	ctx := context.WithValue(Context, auth.ContextAuthDataKey, auth.AuthData{
+		SessionKey: "sessionKey",
+	})
+	handler := createServiceHandler()
+
+	handler.client.(*MockClient).On("GetPublicKey",
+		mock.Anything,
+		backend.GetPublicKeyRequest{
+			Address: "0x00",
+		}).Return(backend.GetPublicKeyResponse{
+		Timestamp: 1234567890987654321,
+		Address:   "0x00",
+		PublicKey: "0x01",
+		Signature: "0x02",
+	}, nil)
+
+	res, err := handler.GetPublicKey(ctx, &GetPublicKeyRequest{
+		Address: "0x00",
+	})
+	assert.Nil(t, err)
+	assert.Equal(t, GetPublicKeyResponse{
+		Timestamp: 1234567890987654321,
+		Address:   "0x00",
+		PublicKey: "0x01",
+		Signature: "0x02",
+	}, res)
 }

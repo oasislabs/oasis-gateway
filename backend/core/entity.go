@@ -115,18 +115,18 @@ type DeployServiceRequest struct {
 	SessionKey string
 }
 
-// GetPublicKeyServiceRequest is a request to retrieve the public key
+// GetPublicKeyRequest is a request to retrieve the public key
 // associated with a specific service
-type GetPublicKeyServiceRequest struct {
+type GetPublicKeyRequest struct {
 	// Address is the unique address that identifies the service,
 	// is generated when a service is deployed and it can be used
 	// for service execution
 	Address string `json:"address"`
 }
 
-// GetPublicKeyServiceResponse is the response in which the public key
+// GetPublicKeyResponse is the response in which the public key
 // associated with the contract is provided
-type GetPublicKeyServiceResponse struct {
+type GetPublicKeyResponse struct {
 	// Timestamp at which the key expired
 	Timestamp uint64
 
