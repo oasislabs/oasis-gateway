@@ -3,7 +3,6 @@ package redis
 import (
 	"context"
 	"encoding/json"
-	"strconv"
 
 	"github.com/go-redis/redis"
 	"github.com/oasislabs/developer-gateway/log"
@@ -112,15 +111,10 @@ func (m *MQueue) Retrieve(ctx context.Context, req core.RetrieveRequest) (core.E
 			return core.Elements{}, ErrDeserialize{Cause: err}
 		}
 
-		elOffset, err := strconv.ParseUint(decoded.Offset, 10, 64)
-		if err != nil {
-			return core.Elements{}, ErrDeserialize{Cause: err}
-		}
-
 		if !offsetSet {
 			// the offset needs to be set to the first element in the window regardless
 			// of whether it is set or not.
-			offset = elOffset
+			offset = decoded.Offset
 			offsetSet = true
 		}
 
@@ -137,7 +131,7 @@ func (m *MQueue) Retrieve(ctx context.Context, req core.RetrieveRequest) (core.E
 		}
 
 		res = append(res, core.Element{
-			Offset: elOffset,
+			Offset: decoded.Offset,
 			Type:   decoded.Type,
 			Value:  value,
 		})

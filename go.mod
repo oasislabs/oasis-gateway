@@ -5,6 +5,7 @@ go 1.12
 require (
 	github.com/allegro/bigcache v1.2.0 // indirect
 	github.com/aristanetworks/goarista v0.0.0-20190514202536-8f808a500156 // indirect
+	github.com/btcsuite/btcd v0.0.0-20190523000118-16327141da8c // indirect
 	github.com/coreos/go-oidc v2.0.0+incompatible
 	github.com/deckarep/golang-set v1.7.1 // indirect
 	github.com/ethereum/go-ethereum v1.8.27
@@ -23,7 +24,7 @@ require (
 	github.com/stretchr/testify v1.2.2
 	github.com/syndtr/goleveldb v1.0.0 // indirect
 	github.com/ugorji/go/codec v0.0.0-20181204163529-d75b2dcb6bc8
-	golang.org/x/crypto v0.0.0-20190308221718-c2843e01d9a2
 	google.golang.org/grpc v1.20.1
+	gopkg.in/natefinch/npipe.v2 v2.0.0-20160621034901-c1b8fa8bdcce // indirect
 	gopkg.in/square/go-jose.v2 v2.3.1 // indirect
 )
