@@ -60,10 +60,10 @@ func (c *BindConfig) Verify(defaults BindConfig) error {
 	return nil
 }
 
-// WalletConfig holds the configuration of a single wallet
+// WalletConfig holds the configuration of all wallets you want to use for transactions
 type WalletConfig struct {
-	// PrivateKey for the wallet
-	PrivateKey string `mapstructure:"private_key"`
+	// PrivateKeys for a parallelized wallet abstraction
+	PrivateKeys []string `mapstructure:"private_keys"`
 }
 
 // EthConfig is the configuration for the ethereum provider

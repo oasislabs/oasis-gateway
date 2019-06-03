@@ -24,7 +24,7 @@ type generateRequest struct {
 	PrivateKey *ecdsa.PrivateKey
 }
 
-// Worker implements a very simple transaction signing service/
+// Worker implements a very simple transaction signing service
 type Worker struct {
 	key      string
 	client   eth.Client

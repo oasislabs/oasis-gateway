@@ -20,6 +20,7 @@ import (
 	"github.com/oasislabs/developer-gateway/mqueue/mem"
 	"github.com/oasislabs/developer-gateway/mqueue/redis"
 	"github.com/oasislabs/developer-gateway/rpc"
+	"github.com/oasislabs/developer-gateway/tx"
 	"github.com/sirupsen/logrus"
 )
 
@@ -87,19 +88,21 @@ func NewMQueue(ctx context.Context, config config.MQueueConfig) (mqueue.MQueue, 
 }
 
 func NewEthClient(ctx context.Context, config config.Config) (*eth.EthClient, error) {
-	if len(config.Wallet.PrivateKey) == 0 {
-		return nil, errors.New("private_key not set in configuration")
+	if len(config.Wallet.PrivateKeys) == 0 {
+		return nil, errors.New("private_keys not set in configuration")
 	}
 
-	privateKey, err := crypto.HexToECDSA(config.Wallet.PrivateKey)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read private key with error %s", err.Error())
+	privateKeys := make([]*ecdsa.PrivateKey, len(config.Wallet.PrivateKeys))
+	for i := 0; i < len(config.Wallet.PrivateKeys); i++ {
+		privateKey, err := crypto.HexToECDSA(config.Wallet.PrivateKeys[i])
+		if err != nil {
+			return nil, fmt.Errorf("failed to read private key with error %s", err.Error())
+		}
+		privateKeys[i] = privateKey
 	}
 
 	client, err := eth.DialContext(ctx, RootLogger, eth.EthClientProperties{
-		Wallet: eth.Wallet{
-			PrivateKey: privateKey,
-		},
+		Handler: NewTransactionHandler(ctx, privateKeys)
 		URL: config.EthConfig.URL,
 	})
 
@@ -108,6 +111,11 @@ func NewEthClient(ctx context.Context, config config.Config) (*eth.EthClient, er
 	}
 
 	return client, nil
+}
+
+func NewTransactionHandler(ctx context.Context, pks []*ecdsa.PrivateKey) (*tx.NewTransactionHandler, error) {
+	 // TODO: Use pks to initialize wallets, pass an EthClient
+	return tx.NewServer(ctx, logger)
 }
 
 func NewRequestManager(ctx context.Context, mqueue mqueue.MQueue, client backend.Client, config config.Config) (*backend.RequestManager, error) {
