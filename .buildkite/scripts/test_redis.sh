@@ -16,8 +16,12 @@ fi
 REDIS_CONTAINER=$(docker run --rm -p 6379:6379 -v "$(pwd)":/app -d redis:5.0.5-alpine)
 sleep 5
 
-# run tests
+# run lua tests for redis
 docker exec -ti "$REDIS_CONTAINER" redis-cli --eval /app/mqueue/redis/redis.lua , test
+
+# run component tests for the different configurations
+make test-component
+
 docker rm -f "$REDIS_CONTAINER"
 
 # report coverage

@@ -35,7 +35,8 @@ local mqinsert = function(key, offset, value_type, value)
   local index = offset - base
 
   assert(index >= 0 and index < len)
-  local payload = cjson.encode({offset = offset, value = value, value_type = value_type, set = true})
+
+  local payload = cjson.encode({offset = tonumber(offset), value = value, value_type = value_type, set = true})
   return redis.call('lset', key, index, payload)
 end
 

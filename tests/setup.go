@@ -17,7 +17,7 @@ func init() {
 	test := os.Getenv("OASIS_GATEWAY_TEST")
 	if len(test) == 0 {
 		fmt.Println("OASIS_GATEWAY_TEST needs to be set to the type of" +
-			" tests to run. Options are: 'dev'")
+			" tests to run. Options are: 'dev', 'redis_single'")
 		os.Exit(1)
 	}
 
@@ -34,6 +34,8 @@ func Initialize(config string) (*rpc.HttpRouter, error) {
 	switch config {
 	case "dev":
 		return InitializeWithConfig("config/dev.toml")
+	case "redis_single":
+		return InitializeWithConfig("config/redis_single.toml")
 	default:
 		return nil, fmt.Errorf("unknown configuration type provided %s", config)
 	}
