@@ -14,14 +14,15 @@ import (
 	"github.com/oasislabs/developer-gateway/auth/insecure"
 	"github.com/oasislabs/developer-gateway/auth/oauth"
 	backend "github.com/oasislabs/developer-gateway/backend/core"
-	"github.com/oasislabs/developer-gateway/backend/eth"
+	ethereum "github.com/oasislabs/developer-gateway/backend/eth"
+	"github.com/oasislabs/developer-gateway/eth"
 	"github.com/oasislabs/developer-gateway/gateway/config"
 	"github.com/oasislabs/developer-gateway/log"
 	mqueue "github.com/oasislabs/developer-gateway/mqueue/core"
 	"github.com/oasislabs/developer-gateway/mqueue/mem"
 	"github.com/oasislabs/developer-gateway/mqueue/redis"
 	"github.com/oasislabs/developer-gateway/rpc"
-	"github.com/oasislabs/developer-gateway/tx"
+	tx "github.com/oasislabs/developer-gateway/tx/wallet"
 	"github.com/sirupsen/logrus"
 )
 
@@ -105,7 +106,7 @@ func NewEthClient(ctx context.Context, config config.Config) (*eth.EthClient, er
 	pooledClient := NewPooledClient(ctx, config)
 	client, err := eth.DialContext(ctx, RootLogger, eth.EthClientProperties{
 		Client: pooledClient,
-		Handler: NewTransactionHandler(ctx, privateKeys, client)
+		Handler: NewTransactionHandler(ctx, privateKeys, pooledClient)
 		URL: config.EthConfig.URL,
 	})
 
@@ -116,7 +117,7 @@ func NewEthClient(ctx context.Context, config config.Config) (*eth.EthClient, er
 	return client, nil
 }
 
-func NewPooledClient(ctx context.Context, config config.Config) (*eth.Client, error) {
+func NewPooledClient(ctx context.Context, config config.Config) (*ethereum.Client, error) {
 	if len(config.EthConfig.URL) == 0 {
 		return nil, fmt.Errorf("no url provided for eth client")
 	}
@@ -130,8 +131,8 @@ func NewPooledClient(ctx context.Context, config config.Config) (*eth.Client, er
 		return nil, fmt.Errorf("Only schemes supported are ws and wss")
 	}
 
-	dialer := eth.NewUniDialer(ctx, config.EthConfig.URL)
-	client := eth.NewPooledClient(eth.PooledClientProps{
+	dialer := ethereum.NewUniDialer(ctx, config.EthConfig.URL)
+	client := ethereum.NewPooledClient(eth.PooledClientProps{
 		Pool:        dialer,
 		RetryConfig: conc.RandomConfig,
 	})
@@ -139,7 +140,7 @@ func NewPooledClient(ctx context.Context, config config.Config) (*eth.Client, er
 	return client
 }
 
-func NewTransactionHandler(ctx context.Context, pks []*ecdsa.PrivateKey, client *eth.Client) (*tx.NewTransactionHandler, error) {
+func NewTransactionHandler(ctx context.Context, pks []*ecdsa.PrivateKey, client *ethereum.Client) (*tx.TransactionHandler, error) {
 	return tx.NewServer(ctx, logger, pks, client)
 }
 

@@ -3,6 +3,7 @@ package wallet
 import (
 	"context"
 	"crypto/ecdsa"
+	err "errors"
 	"time"
 
 	"github.com/ethereum/go-ethereum/core/types"
@@ -17,6 +18,9 @@ const maxInactivityTimeout = time.Duration(10) * time.Minute
 
 type Server struct {
 	master *conc.Master
+	pks    []*ecdsa.PrivateKey
+	available chan int
+	unavailable map[string]int
 	client eth.Client
 	logger log.Logger
 }
@@ -24,7 +28,9 @@ type Server struct {
 func NewServer(ctx context.Context, logger log.Logger, pks []*ecdsa.PrivateKey, client *eth.Client) *Server {
 	s := &Server{
 		client: *client,
-		logger: logger.ForClass("wallet/tx", "Server"),
+		pks:    pks,
+		available: make(chan int, maxConcurrentWallets),
+		logger: logger.ForClass("tx/wallet", "Server"),
 	}
 
 	s.master = conc.NewMaster(conc.MasterProps{
@@ -32,8 +38,11 @@ func NewServer(ctx context.Context, logger log.Logger, pks []*ecdsa.PrivateKey, 
 		CreateWorkerOnRequest: true,
 	})
 
-	// TODO(ennsharma): Use private keys to initialize workers
-
+	go func() {
+		for i := 0; i < len(pks); i++ {
+				s.available <- i
+		}
+	}()
 	if err := s.master.Start(ctx); err != nil {
 		panic("failed to start master")
 	}
@@ -78,9 +87,21 @@ func (s *Server) Sign(ctx context.Context, req core.SignRequest) (*types.Transac
 	return tx.(*types.Transaction), nil
 }
 
-// Generates a new wallet for the given key.
+// Generates a new wallet, provisioning a key from the server.
 func (s *Server) Generate(ctx context.Context, req core.GenerateRequest) errors.Err {
-	if _, err := s.master.Request(ctx, req.Key, generateRequest{Context: ctx, PrivateKey: req.PrivateKey}); err != nil {
+	var privateKey *ecdsa.PrivateKey
+	select {
+		case pkIndex, ok := <-s.available:
+			if ok {
+					privateKey = s.pks[pkIndex]
+					s.unavailable[req.Key] = pkIndex
+			} else {
+					return errors.New(errors.ErrGenerateWallet, err.New("Internal service error."))
+			}
+		default:
+			errors.New(errors.ErrGenerateWallet, err.New("You have hit your maximum concurrency limit."))
+	}
+	if _, err := s.master.Request(ctx, req.Key, generateRequest{Context: ctx, PrivateKey: privateKey}); err != nil {
 		return errors.New(errors.ErrGenerateWallet, err)
 	}
 
@@ -89,6 +110,8 @@ func (s *Server) Generate(ctx context.Context, req core.GenerateRequest) errors.
 
 // Remove the key's wallet and it's associated resources.
 func (s *Server) Remove(ctx context.Context, req core.RemoveRequest) errors.Err {
+	s.available <- s.unavailable[req.Key]
+	delete(s.unavailable, req.Key)
 	if err := s.master.Destroy(ctx, req.Key); err != nil {
 		return errors.New(errors.ErrRemoveWallet, err)
 	}

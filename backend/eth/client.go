@@ -489,7 +489,7 @@ func (c *EthClient) estimateGas(ctx context.Context, id uint64, address string, 
 	}
 
 	gas, err := c.client.EstimateGas(ctx, ethereum.CallMsg{
-		From:     c.handler.Address(), // TODO: Extract address
+		From:     c.handler.Address(), // TODO(ennsharma): Extract address
 		To:       to,
 		Gas:      0,
 		GasPrice: nil,
@@ -548,5 +548,5 @@ func NewClient(ctx context.Context, logger log.Logger, handler tx.TransactionHan
 }
 
 func DialContext(ctx context.Context, logger log.Logger, properties EthClientProperties) (*EthClient, error) {
-	return NewClient(ctx, logger, properties.Handler, properties.Client), nil
+	return NewClient(ctx, logger, properties.Handler, *properties.Client), nil
 }

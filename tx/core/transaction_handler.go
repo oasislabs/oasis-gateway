@@ -2,7 +2,6 @@ package core
 
 import (
 	"context"
-	"crypto/ecdsa"
 
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/oasislabs/developer-gateway/errors"
@@ -20,9 +19,6 @@ type SignRequest struct {
 type GenerateRequest struct {
 	// Key unique identifier of the wallet
 	Key string
-
-	// Private key of the wallet
-	PrivateKey *ecdsa.PrivateKey
 }
 
 // RemoveRequest to ask to destroy the wallet identified

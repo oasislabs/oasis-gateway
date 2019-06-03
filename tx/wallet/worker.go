@@ -12,7 +12,7 @@ import (
 )
 
 const (
-	maxConcurrentWallets = 128
+	maxConcurrentWallets = 256
 )
 
 type signRequest struct {
