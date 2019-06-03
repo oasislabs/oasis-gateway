@@ -156,12 +156,6 @@ func (h ServiceHandler) PollService(ctx context.Context, v interface{}) (interfa
 	return PollServiceResponse{Offset: res.Offset, Events: events}, nil
 }
 
-// ListServices lists the service the client has access to
-func (h ServiceHandler) ListServices(ctx context.Context, v interface{}) (interface{}, error) {
-	_ = v.(*ListServiceRequest)
-	return nil, rpc.HttpNotImplemented(ctx, errors.New(errors.ErrAPINotImplemented, nil))
-}
-
 // GetPublicKeyService retrives the public key associated with a service
 // to allow the client to encrypt the data that serves as argument for
 // a service deployment or service execution.
@@ -223,8 +217,6 @@ func BindHandler(services Services, binder rpc.HandlerBinder) {
 		rpc.EntityFactoryFunc(func() interface{} { return &ExecuteServiceRequest{} }))
 	binder.Bind("POST", "/v0/api/service/poll", rpc.HandlerFunc(handler.PollService),
 		rpc.EntityFactoryFunc(func() interface{} { return &PollServiceRequest{} }))
-	binder.Bind("GET", "/v0/api/service/list", rpc.HandlerFunc(handler.ListServices),
-		rpc.EntityFactoryFunc(func() interface{} { return &ListServiceRequest{} }))
 	binder.Bind("GET", "/v0/api/service/getPublicKey", rpc.HandlerFunc(handler.GetPublicKeyService),
 		rpc.EntityFactoryFunc(func() interface{} { return &GetPublicKeyServiceRequest{} }))
 }

@@ -7,12 +7,39 @@ import (
 	"github.com/oasislabs/developer-gateway/rw"
 )
 
+// SimpleJsonDeserializer deserializes a json payload
+// into an object
+type SimpleJsonDeserializer struct {
+	O interface{}
+}
+
+// Deserialize is the implementation of Deserialize for SimpleJsonDeserializer
+func (s *SimpleJsonDeserializer) Deserialize(r io.Reader) error {
+	return JsonDecoder{}.Decode(r, s.O)
+}
+
+// DeserializerFunc implementation of Deserializer for functions
+type DeserializeFunc func(r io.Reader) error
+
+// Deserialize is the implementation of Deserialize for DeserializeFunc
+func (f DeserializeFunc) Deserialize(r io.Reader) error {
+	return f(r)
+}
+
+// Deserializer decodes payloads and keeps the state of
+// the deserialized object
+type Deserializer interface {
+	// Deserialize the contents of the reader into an object owned
+	// by the deserializer
+	Deserialize(r io.Reader) error
+}
+
 // Decoder for payloads
 type Decoder interface {
 	// Decode decodes the provided payload with its format from the
 	// provided reader. In case of failure it is possible a partial
 	// read has occurred
-	Decode(reader io.Reader, v interface{}) error
+	Decode(r io.Reader, v interface{}) error
 }
 
 // JsonEncoder is a payload encoder that serializes to JSON

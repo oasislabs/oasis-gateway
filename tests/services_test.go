@@ -1,16 +1,19 @@
 package tests
 
 import (
+	"context"
 	"testing"
 
 	"github.com/oasislabs/developer-gateway/api/v0/service"
 	"github.com/oasislabs/developer-gateway/rpc"
+	"github.com/oasislabs/developer-gateway/tests/apitest"
+	"github.com/oasislabs/developer-gateway/tests/mock"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestDeployServiceEmptyData(t *testing.T) {
-	client := NewServiceClient()
-	_, err := client.DeployService(service.DeployServiceRequest{
+	client := apitest.NewServiceClient(router)
+	_, err := client.DeployService(context.Background(), service.DeployServiceRequest{
 		Data: "",
 	})
 
@@ -18,14 +21,14 @@ func TestDeployServiceEmptyData(t *testing.T) {
 }
 
 func TestDeployServiceErr(t *testing.T) {
-	client := NewServiceClient()
-	deployRes, err := client.DeployService(service.DeployServiceRequest{
-		Data: TransactionDataErr,
+	client := apitest.NewServiceClient(router)
+	deployRes, err := client.DeployService(context.Background(), service.DeployServiceRequest{
+		Data: mock.TransactionDataErr,
 	})
 	assert.Nil(t, err)
 	assert.Equal(t, uint64(0), deployRes.ID)
 
-	pollRes, err := client.PollServiceUntilNotEmpty(service.PollServiceRequest{
+	pollRes, err := client.PollServiceUntilNotEmpty(context.Background(), service.PollServiceRequest{
 		Offset: 0,
 	})
 
@@ -41,14 +44,14 @@ func TestDeployServiceErr(t *testing.T) {
 }
 
 func TestDeployServiceOK(t *testing.T) {
-	client := NewServiceClient()
-	deployRes, err := client.DeployService(service.DeployServiceRequest{
-		Data: TransactionDataOK,
+	client := apitest.NewServiceClient(router)
+	deployRes, err := client.DeployService(context.Background(), service.DeployServiceRequest{
+		Data: mock.TransactionDataOK,
 	})
 	assert.Nil(t, err)
 	assert.Equal(t, uint64(0), deployRes.ID)
 
-	pollRes, err := client.PollServiceUntilNotEmpty(service.PollServiceRequest{
+	pollRes, err := client.PollServiceUntilNotEmpty(context.Background(), service.PollServiceRequest{
 		Offset: deployRes.ID,
 	})
 
@@ -62,10 +65,10 @@ func TestDeployServiceOK(t *testing.T) {
 }
 
 func TestExecuteServiceEmptyAddress(t *testing.T) {
-	client := NewServiceClient()
-	_, err := client.ExecuteService(service.ExecuteServiceRequest{
+	client := apitest.NewServiceClient(router)
+	_, err := client.ExecuteService(context.Background(), service.ExecuteServiceRequest{
 		Address: "",
-		Data:    TransactionDataOK,
+		Data:    mock.TransactionDataOK,
 	})
 
 	assert.Error(t, err)
@@ -73,9 +76,9 @@ func TestExecuteServiceEmptyAddress(t *testing.T) {
 }
 
 func TestExecuteServiceEmptyTransactionData(t *testing.T) {
-	client := NewServiceClient()
-	_, err := client.ExecuteService(service.ExecuteServiceRequest{
-		Address: Address,
+	client := apitest.NewServiceClient(router)
+	_, err := client.ExecuteService(context.Background(), service.ExecuteServiceRequest{
+		Address: mock.Address,
 		Data:    "",
 	})
 
@@ -84,15 +87,15 @@ func TestExecuteServiceEmptyTransactionData(t *testing.T) {
 }
 
 func TestExecuteServiceErr(t *testing.T) {
-	client := NewServiceClient()
-	executeRes, err := client.ExecuteService(service.ExecuteServiceRequest{
-		Address: Address,
-		Data:    TransactionDataErr,
+	client := apitest.NewServiceClient(router)
+	executeRes, err := client.ExecuteService(context.Background(), service.ExecuteServiceRequest{
+		Address: mock.Address,
+		Data:    mock.TransactionDataErr,
 	})
 	assert.Nil(t, err)
 	assert.Equal(t, uint64(0), executeRes.ID)
 
-	pollRes, err := client.PollServiceUntilNotEmpty(service.PollServiceRequest{
+	pollRes, err := client.PollServiceUntilNotEmpty(context.Background(), service.PollServiceRequest{
 		Offset: 0,
 	})
 
@@ -108,15 +111,15 @@ func TestExecuteServiceErr(t *testing.T) {
 }
 
 func TestExecuteServiceOK(t *testing.T) {
-	client := NewServiceClient()
-	executeRes, err := client.ExecuteService(service.ExecuteServiceRequest{
-		Address: Address,
-		Data:    TransactionDataOK,
+	client := apitest.NewServiceClient(router)
+	executeRes, err := client.ExecuteService(context.Background(), service.ExecuteServiceRequest{
+		Address: mock.Address,
+		Data:    mock.TransactionDataOK,
 	})
 	assert.Nil(t, err)
 	assert.Equal(t, uint64(0), executeRes.ID)
 
-	pollRes, err := client.PollServiceUntilNotEmpty(service.PollServiceRequest{
+	pollRes, err := client.PollServiceUntilNotEmpty(context.Background(), service.PollServiceRequest{
 		Offset: 0,
 	})
 
@@ -130,8 +133,8 @@ func TestExecuteServiceOK(t *testing.T) {
 }
 
 func TestGetPublicKeyServiceEmptyAddress(t *testing.T) {
-	client := NewServiceClient()
-	_, err := client.GetPublicKey(service.GetPublicKeyServiceRequest{
+	client := apitest.NewServiceClient(router)
+	_, err := client.GetPublicKey(context.Background(), service.GetPublicKeyServiceRequest{
 		Address: "",
 	})
 
@@ -140,9 +143,9 @@ func TestGetPublicKeyServiceEmptyAddress(t *testing.T) {
 }
 
 func TestGetPublicKeyServiceOk(t *testing.T) {
-	client := NewServiceClient()
-	res, err := client.GetPublicKey(service.GetPublicKeyServiceRequest{
-		Address: Address,
+	client := apitest.NewServiceClient(router)
+	res, err := client.GetPublicKey(context.Background(), service.GetPublicKeyServiceRequest{
+		Address: mock.Address,
 	})
 
 	assert.Nil(t, err)

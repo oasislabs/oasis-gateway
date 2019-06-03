@@ -8,6 +8,7 @@ import (
 	"github.com/oasislabs/developer-gateway/gateway"
 	"github.com/oasislabs/developer-gateway/gateway/config"
 	"github.com/oasislabs/developer-gateway/rpc"
+	"github.com/oasislabs/developer-gateway/tests/mock"
 )
 
 var router *rpc.HttpRouter
@@ -45,7 +46,7 @@ func InitializeWithConfig(configFile string) (*rpc.HttpRouter, error) {
 	}
 
 	services, err := gateway.NewServices(gateway.RootContext, provider.Get(), gateway.Factories{
-		EthClientFactory: gateway.EthClientFactoryFunc(NewMockEthClient),
+		EthClientFactory: gateway.EthClientFactoryFunc(mock.NewMockEthClient),
 	})
 	if err != nil {
 		return nil, err

@@ -6,27 +6,28 @@ import (
 
 	auth "github.com/oasislabs/developer-gateway/auth/core"
 	"github.com/oasislabs/developer-gateway/auth/insecure"
+	"github.com/oasislabs/developer-gateway/tests/apitest"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestPathNotAuth(t *testing.T) {
-	res, err := ServeHTTP(router, Request{
-		Route: Route{
+	res, err := apitest.NewClient(router).Request(apitest.Request{
+		Route: apitest.Route{
 			Method: "POST",
 			Path:   "/v0/api/service/deploy",
 		},
 		Body:    nil,
 		Headers: nil,
 	})
-	assert.Nil(t, err)
 
+	assert.Nil(t, err)
 	assert.Equal(t, http.StatusForbidden, res.Code)
 	assert.Equal(t, "", string(res.Body))
 }
 
 func TestPathNoSession(t *testing.T) {
-	res, err := ServeHTTP(router, Request{
-		Route: Route{
+	res, err := apitest.NewClient(router).Request(apitest.Request{
+		Route: apitest.Route{
 			Method: "POST",
 			Path:   "/v0/api/service/deploy",
 		},
@@ -42,8 +43,8 @@ func TestPathNoSession(t *testing.T) {
 }
 
 func TestPathUnknownPath(t *testing.T) {
-	res, err := ServeHTTP(router, Request{
-		Route: Route{
+	res, err := apitest.NewClient(router).Request(apitest.Request{
+		Route: apitest.Route{
 			Method: "POST",
 			Path:   "/v0/api/service/unknown",
 		},
@@ -60,8 +61,8 @@ func TestPathUnknownPath(t *testing.T) {
 }
 
 func TestPathInvalidMethod(t *testing.T) {
-	res, err := ServeHTTP(router, Request{
-		Route: Route{
+	res, err := apitest.NewClient(router).Request(apitest.Request{
+		Route: apitest.Route{
 			Method: "GET",
 			Path:   "/v0/api/service/deploy",
 		},
@@ -78,8 +79,8 @@ func TestPathInvalidMethod(t *testing.T) {
 }
 
 func TestPathNoContentType(t *testing.T) {
-	res, err := ServeHTTP(router, Request{
-		Route: Route{
+	res, err := apitest.NewClient(router).Request(apitest.Request{
+		Route: apitest.Route{
 			Method: "POST",
 			Path:   "/v0/api/service/deploy",
 		},
@@ -97,8 +98,8 @@ func TestPathNoContentType(t *testing.T) {
 }
 
 func TestPathNoContent(t *testing.T) {
-	res, err := ServeHTTP(router, Request{
-		Route: Route{
+	res, err := apitest.NewClient(router).Request(apitest.Request{
+		Route: apitest.Route{
 			Method: "POST",
 			Path:   "/v0/api/service/deploy",
 		},
