@@ -27,22 +27,6 @@ steps:
         - exit_status: 255
           limit: 3
 
-  - label: Test Redis scripts
-    branches: "*"
-    command:
-      - .buildkite/scripts/test_redis.sh
-    env:
-      GOPROXY: https://athens.ops.oasiscloud.io/
-    timeout_in_minutes: 20
-    retry:
-      automatic:
-        # Retry if Agent has been forcefully terminated and communication was lost.
-        - exit_status: -1
-          limit: 3
-        # Retry if Agent has been forced to shut down.
-        - exit_status: 255
-          limit: 3
-
   - label: Generate steps for generic docker pipeline
     branches: master
     command: >

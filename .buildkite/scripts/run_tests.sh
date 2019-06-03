@@ -23,6 +23,9 @@ echo "--- Linting Backend"
 make lint | fmt
 echo "+++ Testing Backend"
 make test-coverage | fmt
+echo "+++ Testing Component configurations"
+make test-component
+
 
 # Integration testing
 exit 0
