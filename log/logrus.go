@@ -79,6 +79,10 @@ func (l LogrusLogger) Fatal(ctx context.Context, msg string, loggables ...Loggab
 	l.log.WithFields(fields).Fatal(msg)
 }
 
+func (l LogrusLogger) SetOutput(w io.Writer) {
+	l.log.SetOutput(w)
+}
+
 func (e LogrusEntry) ForClass(pkg string, class string) Logger {
 	return &LogrusEntry{
 		root: e.root,
@@ -112,6 +116,10 @@ func (e LogrusEntry) Error(ctx context.Context, msg string, loggables ...Loggabl
 func (e LogrusEntry) Fatal(ctx context.Context, msg string, loggables ...Loggable) {
 	fields := logrusMakeFields(ctx, loggables...)
 	e.entry.WithFields(fields).Fatal(msg)
+}
+
+func (e LogrusEntry) SetOutput(w io.Writer) {
+	e.root.SetOutput(w)
 }
 
 func logrusMakeFields(ctx context.Context, loggables ...Loggable) logrus.Fields {

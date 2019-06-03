@@ -20,7 +20,7 @@ func TestSlidingWindowSet(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, uint64(0), next)
 
-	err = w.Set(next, "value")
+	err = w.Set(next, "", "value")
 	assert.Nil(t, err)
 
 	els, err := w.Get(0, 1)
@@ -38,10 +38,10 @@ func TestSlidingWindowAlreadySet(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, uint64(0), next)
 
-	err = w.Set(next, "value")
+	err = w.Set(next, "", "value")
 	assert.Nil(t, err)
 
-	err = w.Set(next, "value")
+	err = w.Set(next, "", "value")
 	assert.Equal(t, ErrOffsetAlreadySet, err.Cause())
 }
 
@@ -59,7 +59,7 @@ func TestSlidingWindowSetMultipleSlideFixed(t *testing.T) {
 		assert.Nil(t, err)
 		assert.Equal(t, uint64(i), next)
 
-		err = w.Set(next, strconv.Itoa(i))
+		err = w.Set(next, "", strconv.Itoa(i))
 		assert.Nil(t, err)
 	}
 
@@ -87,7 +87,7 @@ func TestSlidingWindowSetMultipleSlideWithGrowth(t *testing.T) {
 		assert.Nil(t, err)
 		assert.Equal(t, uint64(i), next)
 
-		err = w.Set(next, strconv.Itoa(i))
+		err = w.Set(next, "", strconv.Itoa(i))
 		assert.Nil(t, err)
 	}
 
@@ -106,7 +106,7 @@ func TestSlidingWindowSetNotReserved(t *testing.T) {
 		MaxSize: 16,
 	})
 
-	err := w.Set(0, "value")
+	err := w.Set(0, "", "value")
 	assert.Equal(t, ErrOffsetNotReserved, err.Cause())
 }
 
@@ -120,7 +120,7 @@ func TestSlidingWindowReserveToLimit(t *testing.T) {
 		assert.Nil(t, err)
 		assert.Equal(t, uint64(i), next)
 
-		err = w.Set(next, strconv.Itoa(i))
+		err = w.Set(next, "", strconv.Itoa(i))
 		assert.Nil(t, err)
 	}
 
@@ -139,7 +139,7 @@ func TestSlidingWindowSlideAll(t *testing.T) {
 		assert.Nil(t, err)
 		assert.Equal(t, uint64(i), next)
 
-		err = w.Set(next, strconv.Itoa(i))
+		err = w.Set(next, "", strconv.Itoa(i))
 		assert.Nil(t, err)
 	}
 

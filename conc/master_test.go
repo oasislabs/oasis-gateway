@@ -132,19 +132,22 @@ func TestMasterWorkerExists(t *testing.T) {
 	err := master.Start(ctx)
 	assert.Nil(t, err)
 
-	ok := master.Exists(ctx, "1")
+	ok, err := master.Exists(ctx, "1")
+	assert.Nil(t, err)
 	assert.False(t, ok)
 
 	err = master.Create(ctx, "1", nil)
 	assert.Nil(t, err)
 
-	ok = master.Exists(ctx, "1")
+	ok, err = master.Exists(ctx, "1")
+	assert.Nil(t, err)
 	assert.True(t, ok)
 
 	err = master.Destroy(ctx, "1")
 	assert.Nil(t, err)
 
-	ok = master.Exists(ctx, "1")
+	ok, err = master.Exists(ctx, "1")
+	assert.Nil(t, err)
 	assert.False(t, ok)
 
 	err = master.Stop()
@@ -306,6 +309,55 @@ func TestMasterHandlerPanicOnDestroy(t *testing.T) {
 
 	err = master.Stop()
 	assert.Nil(t, err)
+}
+
+func TestMasterCreateNoStart(t *testing.T) {
+	ctx := context.Background()
+	master := NewMaster(MasterProps{
+		MasterHandler: &MockMasterHandler{},
+	})
+
+	err := master.Create(ctx, "1", nil)
+	assert.Error(t, err)
+}
+
+func TestMasterDestroyNoStart(t *testing.T) {
+	ctx := context.Background()
+	master := NewMaster(MasterProps{
+		MasterHandler: &MockMasterHandler{},
+	})
+
+	err := master.Destroy(ctx, "1")
+	assert.Error(t, err)
+}
+func TestMasterExistsNoStart(t *testing.T) {
+	ctx := context.Background()
+	master := NewMaster(MasterProps{
+		MasterHandler: &MockMasterHandler{},
+	})
+
+	_, err := master.Exists(ctx, "1")
+	assert.Error(t, err)
+}
+
+func TestMasterRequestNoStart(t *testing.T) {
+	ctx := context.Background()
+	master := NewMaster(MasterProps{
+		MasterHandler: &MockMasterHandler{},
+	})
+
+	_, err := master.Request(ctx, "1", 0)
+	assert.Error(t, err)
+}
+
+func TestMasterExecuteNoStart(t *testing.T) {
+	ctx := context.Background()
+	master := NewMaster(MasterProps{
+		MasterHandler: &MockMasterHandler{},
+	})
+
+	_, err := master.Execute(ctx, 0)
+	assert.Error(t, err)
 }
 
 func TestMasterExecuteNoWorkers(t *testing.T) {

@@ -356,6 +356,18 @@ var (
 		code:     6002,
 		desc:     "Subscription not found.",
 	}
+
+	ErrInvalidAAD = ErrorCode{
+		category: AuthenticationError,
+		code:     7001,
+		desc:     "Provided AAD is not valid.",
+	}
+
+	ErrFailedAADVerification = ErrorCode{
+		category: AuthenticationError,
+		code:     7002,
+		desc:     "Failed to verify AAD in transaction data.",
+	}
 )
 
 // Category defines error categories that logically group them. This classification
@@ -393,6 +405,10 @@ const (
 	// NotImplemented refers to errors in which the client attempts to
 	// execute an action that has not yet been implemented by the server
 	NotImplemented Category = "Not Implemented"
+
+	// AuthenticationError refers to errors in which the client
+	// cannot be authenticated
+	AuthenticationError Category = "AuthenticationError"
 )
 
 // Error is the implementation of an error for this package. It contains

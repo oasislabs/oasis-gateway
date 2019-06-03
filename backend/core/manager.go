@@ -14,9 +14,9 @@ import (
 // Client is an interface for any type that sends requests and
 // receives responses
 type Client interface {
-	GetPublicKeyService(context.Context, GetPublicKeyServiceRequest) (*GetPublicKeyServiceResponse, errors.Err)
-	ExecuteService(context.Context, uint64, ExecuteServiceRequest) (*ExecuteServiceResponse, errors.Err)
-	DeployService(context.Context, uint64, DeployServiceRequest) (*DeployServiceResponse, errors.Err)
+	GetPublicKeyService(context.Context, GetPublicKeyServiceRequest) (GetPublicKeyServiceResponse, errors.Err)
+	ExecuteService(context.Context, uint64, ExecuteServiceRequest) (ExecuteServiceResponse, errors.Err)
+	DeployService(context.Context, uint64, DeployServiceRequest) (DeployServiceResponse, errors.Err)
 	SubscribeRequest(context.Context, CreateSubscriptionRequest, chan<- interface{}) errors.Err
 	UnsubscribeRequest(context.Context, DestroySubscriptionRequest) errors.Err
 }
@@ -68,9 +68,9 @@ func NewRequestManager(properties RequestManagerProperties) *RequestManager {
 func (m *RequestManager) GetPublicKeyService(
 	ctx context.Context,
 	req GetPublicKeyServiceRequest,
-) (*GetPublicKeyServiceResponse, errors.Err) {
+) (GetPublicKeyServiceResponse, errors.Err) {
 	if len(req.Address) == 0 {
-		return nil, errors.New(errors.ErrInvalidAddress, nil)
+		return GetPublicKeyServiceResponse{}, errors.New(errors.ErrInvalidAddress, nil)
 	}
 
 	return m.client.GetPublicKeyService(ctx, req)
@@ -140,7 +140,7 @@ func (m *RequestManager) Subscribe(ctx context.Context, req SubscribeRequest) (u
 
 	// use a queue per subscription to manage the number of queues created. This
 	// also helps us with managing the resources a specific client is using
-	key := req.SessionKey + "-queue"
+	key := req.SessionKey + ":subscriptions"
 	id, err := m.mqueue.Next(ctx, mqueue.NextRequest{Key: key})
 	if err != nil {
 		return 0, errors.New(errors.ErrQueueNext, err)
@@ -191,13 +191,16 @@ func (m *RequestManager) doRequest(ctx context.Context, key string, id uint64, f
 		panic(fmt.Sprintf("failed to marshal event %s", derr.Error()))
 	}
 
-	_ = m.mqueue.Insert(ctx, mqueue.InsertRequest{Key: key, Element: el})
+	if err := m.mqueue.Insert(ctx, mqueue.InsertRequest{Key: key, Element: el}); err != nil {
+		panic(fmt.Sprintf("failed to insert event %s", err.Error()))
+	}
 }
 
 // PollService retrieves the responses the RequestManager already got
 // from the asynchronous requests.
 func (m *RequestManager) PollService(ctx context.Context, req PollServiceRequest) (Events, errors.Err) {
-	return m.poll(ctx, req.SessionKey, req.Offset, req.Count, req.DiscardPrevious)
+	events, err := m.poll(ctx, req.SessionKey, req.Offset, req.Count, req.DiscardPrevious)
+	return events, err
 }
 
 // PollEvent retrieves the responses the RequestManager already got

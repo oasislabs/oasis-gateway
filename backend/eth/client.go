@@ -15,6 +15,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 
 	backend "github.com/oasislabs/developer-gateway/backend/core"
+	"github.com/oasislabs/developer-gateway/conc"
 	"github.com/oasislabs/developer-gateway/errors"
 	"github.com/oasislabs/developer-gateway/eth"
 	"github.com/oasislabs/developer-gateway/log"
@@ -37,7 +38,6 @@ type ethResponse struct {
 }
 
 type executeTransactionRequest struct {
-	Nonce   uint64
 	ID      uint64
 	Address string
 	Data    []byte
@@ -149,7 +149,7 @@ func (c *EthClient) Stop() {
 	c.wg.Wait()
 }
 
-func (c *EthClient) runTransaction(req ethRequest, fn func(uint64) (backend.Event, errors.Err)) {
+func (c *EthClient) runTransaction(req ethRequest, fn func() (backend.Event, errors.Err)) {
 	if req.GetAttempts() >= 10 {
 		req.OutCh() <- ethResponse{
 			Response: nil,
@@ -160,21 +160,8 @@ func (c *EthClient) runTransaction(req ethRequest, fn func(uint64) (backend.Even
 		return
 	}
 
-	if req.GetAttempts() > 0 {
-		// in case of previous failure make sure that the account nonce is correct
-		if err := c.wallet.UpdateNonce(req.GetContext()); err != nil {
-			req.OutCh() <- ethResponse{
-				Response: nil,
-				Error:    err,
-			}
-			return
-		}
-	}
-
-	nonce := c.wallet.TransactionNonce()
-
 	go func() {
-		event, err := fn(nonce)
+		event, err := fn()
 		if err != nil {
 			// attempt a retry if there is a problem with the nonce.
 			if strings.Contains(err.Error(), "nonce") {
@@ -200,12 +187,12 @@ func (c *EthClient) runTransaction(req ethRequest, fn func(uint64) (backend.Even
 func (c *EthClient) request(req ethRequest) {
 	switch request := req.(type) {
 	case *executeServiceRequest:
-		c.runTransaction(request, func(nonce uint64) (backend.Event, errors.Err) {
-			return c.executeService(request.Context, nonce, request.ID, request.Request)
+		c.runTransaction(request, func() (backend.Event, errors.Err) {
+			return c.executeService(request.Context, request.ID, request.Request)
 		})
 	case *deployServiceRequest:
-		c.runTransaction(request, func(nonce uint64) (backend.Event, errors.Err) {
-			return c.deployService(request.Context, nonce, request.ID, request.Request)
+		c.runTransaction(request, func() (backend.Event, errors.Err) {
+			return c.deployService(request.Context, request.ID, request.Request)
 		})
 	default:
 		panic("invalid request type received")
@@ -215,11 +202,15 @@ func (c *EthClient) request(req ethRequest) {
 func (c *EthClient) GetPublicKeyService(
 	ctx context.Context,
 	req backend.GetPublicKeyServiceRequest,
-) (*backend.GetPublicKeyServiceResponse, errors.Err) {
+) (backend.GetPublicKeyServiceResponse, errors.Err) {
 	c.logger.Debug(ctx, "", log.MapFields{
 		"call_type": "GetPublicKeyServiceAttempt",
 		"address":   req.Address,
 	})
+
+	if err := c.verifyAddress(req.Address); err != nil {
+		return backend.GetPublicKeyServiceResponse{}, err
+	}
 
 	pk, err := c.client.GetPublicKey(ctx, common.HexToAddress(req.Address))
 	if err != nil {
@@ -228,7 +219,7 @@ func (c *EthClient) GetPublicKeyService(
 			"call_type": "GetPublicKeyServiceFailure",
 			"address":   req.Address,
 		}, err)
-		return nil, err
+		return backend.GetPublicKeyServiceResponse{}, err
 	}
 
 	c.logger.Debug(ctx, "", log.MapFields{
@@ -236,7 +227,7 @@ func (c *EthClient) GetPublicKeyService(
 		"address":   req.Address,
 	})
 
-	return &backend.GetPublicKeyServiceResponse{
+	return backend.GetPublicKeyServiceResponse{
 		Address:   req.Address,
 		Timestamp: pk.Timestamp,
 		PublicKey: pk.PublicKey,
@@ -244,19 +235,31 @@ func (c *EthClient) GetPublicKeyService(
 	}, nil
 }
 
+func (c *EthClient) verifyAddress(addr string) errors.Err {
+	if len(addr) != 42 {
+		return errors.New(errors.ErrInvalidAddress, nil)
+	}
+
+	if _, err := hexutil.Decode(addr); err != nil {
+		return errors.New(errors.ErrInvalidAddress, err)
+	}
+
+	return nil
+}
+
 func (c *EthClient) DeployService(
 	ctx context.Context,
 	id uint64,
 	req backend.DeployServiceRequest,
-) (*backend.DeployServiceResponse, errors.Err) {
+) (backend.DeployServiceResponse, errors.Err) {
 	out := make(chan ethResponse)
 	c.inCh <- &deployServiceRequest{Attempts: 0, Out: out, Context: ctx, ID: id, Request: req}
 	ethRes := <-out
 	if ethRes.Error != nil {
-		return nil, ethRes.Error
+		return backend.DeployServiceResponse{}, ethRes.Error
 	}
 
-	res := ethRes.Response.(*backend.DeployServiceResponse)
+	res := ethRes.Response.(backend.DeployServiceResponse)
 	return res, nil
 }
 
@@ -264,19 +267,19 @@ func (c *EthClient) ExecuteService(
 	ctx context.Context,
 	id uint64,
 	req backend.ExecuteServiceRequest,
-) (*backend.ExecuteServiceResponse, errors.Err) {
-	if len(req.Address) == 0 {
-		return nil, errors.New(errors.ErrInvalidAddress, nil)
+) (backend.ExecuteServiceResponse, errors.Err) {
+	if err := c.verifyAddress(req.Address); err != nil {
+		return backend.ExecuteServiceResponse{}, err
 	}
 
 	out := make(chan ethResponse)
 	c.inCh <- &executeServiceRequest{Attempts: 0, Out: out, Context: ctx, ID: id, Request: req}
 	ethRes := <-out
 	if ethRes.Error != nil {
-		return nil, ethRes.Error
+		return backend.ExecuteServiceResponse{}, ethRes.Error
 	}
 
-	res := ethRes.Response.(*backend.ExecuteServiceResponse)
+	res := ethRes.Response.(backend.ExecuteServiceResponse)
 	return res, nil
 }
 
@@ -347,16 +350,17 @@ func (c *EthClient) executeTransaction(
 		return nil, err
 	}
 
+	// TODO: Fetch nonce from transaction handler and pass it in here
 	var tx *types.Transaction
 	if len(req.Address) == 0 {
-		tx = types.NewContractCreation(req.Nonce,
+		tx = types.NewContractCreation(0,
 			big.NewInt(0), gas, big.NewInt(gasPrice), req.Data)
 	} else {
-		tx = types.NewTransaction(req.Nonce, common.HexToAddress(req.Address),
+		tx = types.NewTransaction(0, common.HexToAddress(req.Address),
 			big.NewInt(0), gas, big.NewInt(gasPrice), req.Data)
 	}
 
-	tx, err = c.wallet.SignTransaction(tx)
+	tx, err = c.handler.Sign(ctx) // TODO: Request to sign transaction
 	if err != nil {
 		err := errors.New(errors.ErrSignedTx, err)
 		c.logger.Debug(ctx, "failure to sign transaction", log.MapFields{
@@ -432,45 +436,43 @@ func (c *EthClient) decodeBytes(s string) ([]byte, errors.Err) {
 	return data, nil
 }
 
-func (c *EthClient) deployService(ctx context.Context, nonce, id uint64, req backend.DeployServiceRequest) (*backend.DeployServiceResponse, errors.Err) {
+func (c *EthClient) deployService(ctx context.Context, id uint64, req backend.DeployServiceRequest) (backend.DeployServiceResponse, errors.Err) {
 	data, err := c.decodeBytes(req.Data)
 	if err != nil {
-		return nil, err
+		return backend.DeployServiceResponse{}, err
 	}
 
 	res, err := c.executeTransaction(ctx, executeTransactionRequest{
-		Nonce:   nonce,
 		ID:      id,
 		Address: "",
 		Data:    data,
 	})
 
 	if err != nil {
-		return nil, err
+		return backend.DeployServiceResponse{}, err
 	}
 
-	return &backend.DeployServiceResponse{ID: id, Address: res.Address}, nil
+	return backend.DeployServiceResponse{ID: id, Address: res.Address}, nil
 }
 
-func (c *EthClient) executeService(ctx context.Context, nonce, id uint64, req backend.ExecuteServiceRequest) (*backend.ExecuteServiceResponse, errors.Err) {
+func (c *EthClient) executeService(ctx context.Context, id uint64, req backend.ExecuteServiceRequest) (backend.ExecuteServiceResponse, errors.Err) {
 	data, err := c.decodeBytes(req.Data)
 	if err != nil {
-		return nil, err
+		return backend.ExecuteServiceResponse{}, err
 	}
 
 	res, err := c.executeTransaction(ctx, executeTransactionRequest{
-		Nonce:   nonce,
 		ID:      id,
 		Address: req.Address,
 		Data:    data,
 	})
 
 	if err != nil {
-		return nil, err
+		return backend.ExecuteServiceResponse{}, err
 	}
 
 	// TODO(stan): handle response output once it's returned in  the transaction response
-	return &backend.ExecuteServiceResponse{ID: id, Address: res.Address, Output: ""}, nil
+	return backend.ExecuteServiceResponse{ID: id, Address: res.Address, Output: ""}, nil
 }
 
 func (c *EthClient) estimateGas(ctx context.Context, id uint64, address string, data []byte) (uint64, error) {
@@ -488,7 +490,7 @@ func (c *EthClient) estimateGas(ctx context.Context, id uint64, address string, 
 	}
 
 	gas, err := c.client.EstimateGas(ctx, ethereum.CallMsg{
-		From:     c.wallet.Address(),
+		From:     c.handler.Address(), // TODO: Extract address
 		To:       to,
 		Gas:      0,
 		GasPrice: nil,
@@ -527,6 +529,25 @@ func (c *EthClient) estimateGas(ctx context.Context, id uint64, address string, 
 	return gas, nil
 }
 
+func NewClient(ctx context.Context, logger log.Logger, handler tx.TransactionHandler, client eth.Client) *EthClient {
+	c := &EthClient{
+		ctx:    ctx,
+		wg:     sync.WaitGroup{},
+		inCh:   make(chan ethRequest, 64),
+		logger: logger.ForClass("eth", "EthClient"),
+		handler: handler,
+		client: client,
+		subman: eth.NewSubscriptionManager(eth.SubscriptionManagerProps{
+			Context: ctx,
+			Logger:  logger,
+			Client:  client,
+		}),
+	}
+
+	c.startLoop(ctx)
+	return c
+}
+
 func DialContext(ctx context.Context, logger log.Logger, properties EthClientProperties) (*EthClient, error) {
 	if len(properties.URL) == 0 {
 		return nil, stderr.New("no url provided for eth client")
@@ -541,21 +562,11 @@ func DialContext(ctx context.Context, logger log.Logger, properties EthClientPro
 		return nil, stderr.New("Only schemes supported are ws and wss")
 	}
 
-	c := &EthClient{
-		ctx:    ctx,
-		wg:     sync.WaitGroup{},
-		inCh:   make(chan ethRequest, 64),
-		logger: logger.ForClass("eth", "EthClient"),
-		nonce:  0,
-		client: properties.Client,
-		handler: properties.Handler,
-		subman: eth.NewSubscriptionManager(eth.SubscriptionManagerProps{
-			Context: ctx,
-			Logger:  logger,
-			Client:  properties.Client,
-		}),
-	}
+	dialer := eth.NewUniDialer(ctx, properties.URL)
+	client := eth.NewPooledClient(eth.PooledClientProps{
+		Pool:        dialer,
+		RetryConfig: conc.RandomConfig,
+	})
 
-	c.startLoop(ctx)
-	return c, nil
+	return NewClient(ctx, logger, properties.Handler, client), nil
 }
