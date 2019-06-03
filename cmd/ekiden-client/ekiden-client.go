@@ -10,7 +10,7 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/oasislabs/developer-gateway/backend/core"
 	"github.com/oasislabs/developer-gateway/backend/ekiden"
-	"github.com/oasislabs/developer-gateway/wallet"
+	tx "github.com/oasislabs/developer-gateway/tx/core"
 	"github.com/spf13/pflag"
 )
 
@@ -25,7 +25,7 @@ func main() {
 		walletKey string
 		runtimeID uint64
 	)
-	pflag.StringVar(&walletKey, "wallet", "", "the hex encoded private key of the wallet")
+	pflag.StringVar(&walletKey, "walletKey", "", "the hex encoded private key of the wallet")
 	pflag.Uint64Var(&runtimeID, "runtimeID", 0, "sets the runtime ID")
 	pflag.Parse()
 

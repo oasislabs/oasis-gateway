@@ -5,7 +5,6 @@ import (
 	stderr "errors"
 	"fmt"
 	"math/big"
-	"net/url"
 	"strings"
 	"sync"
 
@@ -15,7 +14,6 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 
 	backend "github.com/oasislabs/developer-gateway/backend/core"
-	"github.com/oasislabs/developer-gateway/conc"
 	"github.com/oasislabs/developer-gateway/errors"
 	"github.com/oasislabs/developer-gateway/eth"
 	"github.com/oasislabs/developer-gateway/log"
@@ -106,6 +104,7 @@ func (r *deployServiceRequest) OutCh() chan<- ethResponse {
 }
 
 type EthClientProperties struct {
+	Client  *eth.Client
 	Handler tx.TransactionHandler
 	URL     string
 }
@@ -350,7 +349,7 @@ func (c *EthClient) executeTransaction(
 		return nil, err
 	}
 
-	// TODO: Fetch nonce from transaction handler and pass it in here
+	// TODO(ennsharma): Fetch nonce from transaction handler and pass it in here
 	var tx *types.Transaction
 	if len(req.Address) == 0 {
 		tx = types.NewContractCreation(0,
@@ -360,7 +359,7 @@ func (c *EthClient) executeTransaction(
 			big.NewInt(0), gas, big.NewInt(gasPrice), req.Data)
 	}
 
-	tx, err = c.handler.Sign(ctx) // TODO: Request to sign transaction
+	tx, err = c.handler.Sign(ctx) // TODO(ennsharma): Request to sign transaction
 	if err != nil {
 		err := errors.New(errors.ErrSignedTx, err)
 		c.logger.Debug(ctx, "failure to sign transaction", log.MapFields{
@@ -535,8 +534,8 @@ func NewClient(ctx context.Context, logger log.Logger, handler tx.TransactionHan
 		wg:     sync.WaitGroup{},
 		inCh:   make(chan ethRequest, 64),
 		logger: logger.ForClass("eth", "EthClient"),
-		handler: handler,
 		client: client,
+		handler: handler,
 		subman: eth.NewSubscriptionManager(eth.SubscriptionManagerProps{
 			Context: ctx,
 			Logger:  logger,
@@ -549,24 +548,5 @@ func NewClient(ctx context.Context, logger log.Logger, handler tx.TransactionHan
 }
 
 func DialContext(ctx context.Context, logger log.Logger, properties EthClientProperties) (*EthClient, error) {
-	if len(properties.URL) == 0 {
-		return nil, stderr.New("no url provided for eth client")
-	}
-
-	url, err := url.Parse(properties.URL)
-	if err != nil {
-		return nil, fmt.Errorf("Failed to parse url %s", err.Error())
-	}
-
-	if url.Scheme != "wss" && url.Scheme != "ws" {
-		return nil, stderr.New("Only schemes supported are ws and wss")
-	}
-
-	dialer := eth.NewUniDialer(ctx, properties.URL)
-	client := eth.NewPooledClient(eth.PooledClientProps{
-		Pool:        dialer,
-		RetryConfig: conc.RandomConfig,
-	})
-
-	return NewClient(ctx, logger, properties.Handler, client), nil
+	return NewClient(ctx, logger, properties.Handler, properties.Client), nil
 }

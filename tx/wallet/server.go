@@ -2,6 +2,7 @@ package wallet
 
 import (
 	"context"
+	"crypto/ecdsa"
 	"time"
 
 	"github.com/ethereum/go-ethereum/core/types"
@@ -20,9 +21,9 @@ type Server struct {
 	logger log.Logger
 }
 
-func NewServer(ctx context.Context, logger log.Logger, client eth.Client) *Server {
+func NewServer(ctx context.Context, logger log.Logger, pks []*ecdsa.PrivateKey, client *eth.Client) *Server {
 	s := &Server{
-		client: client,
+		client: *client,
 		logger: logger.ForClass("wallet/tx", "Server"),
 	}
 
@@ -30,6 +31,8 @@ func NewServer(ctx context.Context, logger log.Logger, client eth.Client) *Serve
 		MasterHandler:         conc.MasterHandlerFunc(s.handle),
 		CreateWorkerOnRequest: true,
 	})
+
+	// TODO(ennsharma): Use private keys to initialize workers
 
 	if err := s.master.Start(ctx); err != nil {
 		panic("failed to start master")

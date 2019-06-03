@@ -2,6 +2,7 @@ package gateway
 
 import (
 	"context"
+	"crypto/ecdsa"
 	"errors"
 	"fmt"
 
@@ -101,8 +102,10 @@ func NewEthClient(ctx context.Context, config config.Config) (*eth.EthClient, er
 		privateKeys[i] = privateKey
 	}
 
+	pooledClient := NewPooledClient(ctx, config)
 	client, err := eth.DialContext(ctx, RootLogger, eth.EthClientProperties{
-		Handler: NewTransactionHandler(ctx, privateKeys)
+		Client: pooledClient,
+		Handler: NewTransactionHandler(ctx, privateKeys, client)
 		URL: config.EthConfig.URL,
 	})
 
@@ -113,9 +116,31 @@ func NewEthClient(ctx context.Context, config config.Config) (*eth.EthClient, er
 	return client, nil
 }
 
-func NewTransactionHandler(ctx context.Context, pks []*ecdsa.PrivateKey) (*tx.NewTransactionHandler, error) {
-	 // TODO: Use pks to initialize wallets, pass an EthClient
-	return tx.NewServer(ctx, logger)
+func NewPooledClient(ctx context.Context, config config.Config) (*eth.Client, error) {
+	if len(config.EthConfig.URL) == 0 {
+		return nil, fmt.Errorf("no url provided for eth client")
+	}
+
+	url, err := url.Parse(config.EthConfig.URL)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to parse url %s", err.Error())
+	}
+
+	if url.Scheme != "wss" && url.Scheme != "ws" {
+		return nil, fmt.Errorf("Only schemes supported are ws and wss")
+	}
+
+	dialer := eth.NewUniDialer(ctx, config.EthConfig.URL)
+	client := eth.NewPooledClient(eth.PooledClientProps{
+		Pool:        dialer,
+		RetryConfig: conc.RandomConfig,
+	})
+
+	return client
+}
+
+func NewTransactionHandler(ctx context.Context, pks []*ecdsa.PrivateKey, client *eth.Client) (*tx.NewTransactionHandler, error) {
+	return tx.NewServer(ctx, logger, pks, client)
 }
 
 func NewRequestManager(ctx context.Context, mqueue mqueue.MQueue, client backend.Client, config config.Config) (*backend.RequestManager, error) {
