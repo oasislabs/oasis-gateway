@@ -2,13 +2,22 @@ package service
 
 import "github.com/oasislabs/developer-gateway/rpc"
 
-// ServicePermission defines the service abstraction of a contract
-// TODO(stan): we still need to define how permissions will be managed
-type ServicePermission struct {
-	// Address is the unique address that identifies the service,
-	// is generated when a service is deployed and it can be used
-	// for service execution
-	Address string `json:"address"`
+// RequestType defines the type of the request. May be
+// useful for serialization and deserialization
+type RequestType uint
+
+const (
+	Deploy       RequestType = 0
+	Execute      RequestType = 1
+	Poll         RequestType = 2
+	GetPublicKey RequestType = 3
+)
+
+// Request is the type implemented by requests expected
+// by the API handlers
+type Request interface {
+	// Type returns the type of the request
+	Type() RequestType
 }
 
 // AsyncResponse is the response returned by APIs that are asynchronous
@@ -18,24 +27,6 @@ type AsyncResponse struct {
 	// ID to identify an asynchronous response. It uniquely identifies the
 	// event and orders it in the sequence of events expected by the user
 	ID uint64 `json:"id"`
-}
-
-// ListServiceRequest for the list services API, whose purpose is
-// to list the services that are available to a particular client based
-// on the authorization policies defined
-type ListServiceRequest struct {
-	// Filter is a url encoded list of query parameters that specifiy
-	// filters to be applied to the request logic
-	Filter string `json:"filter"`
-}
-
-// ListServiceResponse for the list services API. Returns the list
-// of services a user is authorized to see and the permissions
-// the user has on each service
-type ListServiceResponse struct {
-	// Services is the list of permissions the user has on each service
-	// it is authorized to read
-	Services []ServicePermission `json:"services"`
 }
 
 // ExecuteServiceRequest is is used by the user to trigger a service
@@ -49,6 +40,11 @@ type ExecuteServiceRequest struct {
 
 	// Address where the service can be found
 	Address string `json:"address"`
+}
+
+// Type implementation of Request for ExecuteServiceRequest
+func (r ExecuteServiceRequest) Type() RequestType {
+	return Execute
 }
 
 // ExecuteServiceResponse is an asynchronous response that will be obtained
@@ -65,6 +61,11 @@ type DeployServiceRequest struct {
 	Data string `json:"data"`
 }
 
+// Type implementation of Request for DeployServiceRequest
+func (r DeployServiceRequest) Type() RequestType {
+	return Deploy
+}
+
 // DeployServiceResponse is an asynchronous response that will be obtained
 // using the polling mechanism
 type DeployServiceResponse AsyncResponse
@@ -76,6 +77,11 @@ type GetPublicKeyServiceRequest struct {
 	// is generated when a service is deployed and it can be used
 	// for service execution
 	Address string `json:"address"`
+}
+
+// Type implementation of Request for GetPublicKeyServiceRequest
+func (r GetPublicKeyServiceRequest) Type() RequestType {
+	return GetPublicKey
 }
 
 // GetPublicKeyServiceResponse is the response in which the public key
@@ -111,6 +117,11 @@ type PollServiceRequest struct {
 	// DiscardPrevious allows the client to define whether the server should
 	// discard all the events that have a sequence number lower than the offer
 	DiscardPrevious bool `json:"discardPrevious"`
+}
+
+// Type implementation of Request for PollServiceRequest
+func (r PollServiceRequest) Type() RequestType {
+	return Poll
 }
 
 // Event is an interface for types that can be fetched by polling on
