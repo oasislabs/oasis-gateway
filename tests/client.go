@@ -70,12 +70,15 @@ func (c Client) RequestWithDeserializer(de Deserializer, req interface{}, route 
 	}
 
 	if result.Code != http.StatusOK {
-		var rpcError rpc.Error
-		if err := json.Unmarshal(result.Body, &rpcError); err != nil {
-			panic(fmt.Sprintf("failed to unmarshal response body as error %s", err.Error()))
+		if len(result.Body) > 0 {
+			var rpcError rpc.Error
+			if err := json.Unmarshal(result.Body, &rpcError); err != nil {
+				panic(fmt.Sprintf("failed to unmarshal response body as error %s", err.Error()))
+			}
+			return &rpcError
 		}
 
-		return &rpcError
+		return &rpc.HttpError{Cause: nil, StatusCode: result.Code}
 	}
 
 	if err := de.Deserialize(result.Body); err != nil {

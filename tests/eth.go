@@ -44,7 +44,11 @@ func (c EthFailureClient) EstimateGas(ctx context.Context, msg ethereum.CallMsg)
 }
 
 func (c EthFailureClient) GetPublicKey(context.Context, common.Address) (ethimpl.PublicKey, error) {
-	return ethimpl.PublicKey{}, errors.New("eth failure client error")
+	return ethimpl.PublicKey{
+		Timestamp: 123456789097654321,
+		PublicKey: "0x0000000000000000000000000000000000000000",
+		Signature: "0x0000000000000000000000000000000000000000",
+	}, nil
 }
 
 func (c EthFailureClient) PendingNonceAt(context.Context, common.Address) (uint64, error) {

@@ -163,7 +163,7 @@ func NewRouter(services Services) *rpc.HttpRouter {
 
 	service.BindHandler(service.Services{
 		Logger:   RootLogger,
-		Request:  services.Request,
+		Client:   services.Request,
 		Verifier: auth.TrustedPayloadVerifier{},
 	}, binder)
 	event.BindHandler(event.Services{

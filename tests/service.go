@@ -63,6 +63,16 @@ func (d *PollServiceResponseDeserializer) Deserialize(data []byte) error {
 
 			events = append(events, res)
 			delete(d.Requests, id)
+
+		case t == backend.ExecuteServiceEventType:
+			var res service.ExecuteServiceEvent
+			if err := json.Unmarshal(ev, &res); err != nil {
+				return err
+			}
+
+			events = append(events, res)
+			delete(d.Requests, id)
+
 		default:
 			panic("received unexpected event type")
 		}
@@ -101,6 +111,22 @@ func (c ServiceClient) DeployService(
 	return res, nil
 }
 
+func (c ServiceClient) ExecuteService(
+	req service.ExecuteServiceRequest,
+) (service.ExecuteServiceResponse, error) {
+	var res service.ExecuteServiceResponse
+	if err := c.Client.Request(&res, &req, Route{
+		Method: "POST",
+		Path:   "/v0/api/service/execute",
+	}); err != nil {
+		return res, err
+	}
+
+	c.Requests[res.ID] = backend.ExecuteServiceEventType
+
+	return res, nil
+}
+
 func (c ServiceClient) PollService(
 	req service.PollServiceRequest,
 ) (service.PollServiceResponse, error) {
@@ -114,6 +140,18 @@ func (c ServiceClient) PollService(
 	})
 
 	return de.response, err
+}
+
+func (c ServiceClient) GetPublicKey(
+	req service.GetPublicKeyServiceRequest,
+) (service.GetPublicKeyServiceResponse, error) {
+	var res service.GetPublicKeyServiceResponse
+	err := c.Client.Request(&res, &req, Route{
+		Method: "GET",
+		Path:   "/v0/api/service/getPublicKey",
+	})
+
+	return res, err
 }
 
 func (c ServiceClient) PollServiceUntilNotEmpty(
