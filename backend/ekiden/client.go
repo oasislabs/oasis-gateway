@@ -60,10 +60,10 @@ func DialContext(ctx context.Context, props ClientProps) (*Client, errors.Err) {
 	}, nil
 }
 
-func (c *Client) GetPublicKeyService(
+func (c *Client) GetPublicKey(
 	ctx context.Context,
-	req core.GetPublicKeyServiceRequest,
-) (*core.GetPublicKeyServiceResponse, errors.Err) {
+	req core.GetPublicKeyRequest,
+) (*core.GetPublicKeyResponse, errors.Err) {
 	decoded, err := hex.DecodeString(req.Address)
 	if err != nil {
 		return nil, errors.New(errors.ErrInvalidAddress, err)
@@ -83,7 +83,7 @@ func (c *Client) GetPublicKeyService(
 		return nil, errors.New(errors.ErrEkidenGetPublicKey, err)
 	}
 
-	return &core.GetPublicKeyServiceResponse{}, nil
+	return &core.GetPublicKeyResponse{}, nil
 }
 
 func (c *Client) ExecuteService(

@@ -242,35 +242,35 @@ func (c *EthClient) updateNonce(ctx context.Context) errors.Err {
 	return err
 }
 
-func (c *EthClient) GetPublicKeyService(
+func (c *EthClient) GetPublicKey(
 	ctx context.Context,
-	req backend.GetPublicKeyServiceRequest,
-) (backend.GetPublicKeyServiceResponse, errors.Err) {
+	req backend.GetPublicKeyRequest,
+) (backend.GetPublicKeyResponse, errors.Err) {
 	c.logger.Debug(ctx, "", log.MapFields{
-		"call_type": "GetPublicKeyServiceAttempt",
+		"call_type": "GetPublicKeyAttempt",
 		"address":   req.Address,
 	})
 
 	if err := c.verifyAddress(req.Address); err != nil {
-		return backend.GetPublicKeyServiceResponse{}, err
+		return backend.GetPublicKeyResponse{}, err
 	}
 
 	pk, err := c.client.GetPublicKey(ctx, common.HexToAddress(req.Address))
 	if err != nil {
 		err := errors.New(errors.ErrInternalError, fmt.Errorf("failed to get public key %s", err.Error()))
 		c.logger.Debug(ctx, "client call failed", log.MapFields{
-			"call_type": "GetPublicKeyServiceFailure",
+			"call_type": "GetPublicKeyFailure",
 			"address":   req.Address,
 		}, err)
-		return backend.GetPublicKeyServiceResponse{}, err
+		return backend.GetPublicKeyResponse{}, err
 	}
 
 	c.logger.Debug(ctx, "", log.MapFields{
-		"call_type": "GetPublicKeyServiceSuccess",
+		"call_type": "GetPublicKeySuccess",
 		"address":   req.Address,
 	})
 
-	return backend.GetPublicKeyServiceResponse{
+	return backend.GetPublicKeyResponse{
 		Address:   req.Address,
 		Timestamp: pk.Timestamp,
 		PublicKey: pk.PublicKey,

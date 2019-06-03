@@ -51,7 +51,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	r, err := client.GetPublicKeyService(ctx, core.GetPublicKeyServiceRequest{
+	r, err := client.GetPublicKey(ctx, core.GetPublicKeyRequest{
 		Address: "f75d55dd51ee8756fbdb499cc1a963e702a52091",
 	})
 	fmt.Println("RES: ", r, err)
