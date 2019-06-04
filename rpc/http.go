@@ -191,11 +191,12 @@ func (h *HttpRouter) reportSuccess(res http.ResponseWriter, req *http.Request, b
 	}
 
 	if err := h.encoder.Encode(res, body); err != nil {
+		res.WriteHeader(http.StatusInternalServerError)
 		h.logger.Warn(req.Context(), "failed to encode response to response writer", log.MapFields{
 			"path":        path,
 			"method":      method,
 			"call_type":   "HttpRequestHandleFailure",
-			"status_code": http.StatusNoContent,
+			"status_code": http.StatusInternalServerError,
 		})
 		return
 	}
@@ -239,6 +240,11 @@ func (h *HttpRouter) mapError(err errors.Error) *HttpError {
 		return &HttpError{
 			Cause:      &err,
 			StatusCode: http.StatusForbidden,
+		}
+	case errors.NotFound:
+		return &HttpError{
+			Cause:      &err,
+			StatusCode: http.StatusNotFound,
 		}
 	default:
 		return &HttpError{
