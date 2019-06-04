@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/ecdsa"
 	stderr "errors"
+	"fmt"
 	"math/big"
 
 	ethereum "github.com/ethereum/go-ethereum"
@@ -22,6 +23,10 @@ type executeRequest struct {
 	ID      uint64
 	Address string
 	Data    []byte
+}
+
+type publicKeyRequest struct {
+	Address string
 }
 
 type TransactionExecutor struct {
@@ -64,6 +69,8 @@ func (e *TransactionExecutor) handleRequestEvent(ctx context.Context, ev conc.Re
 	switch req := ev.Value.(type) {
 	case executeRequest:
 		return e.executeTransaction(ctx, req)
+	case publicKeyRequest:
+		return e.getPublicKey(ctx, req)
 	default:
 		panic("invalid request received for worker")
 	}
@@ -80,6 +87,14 @@ func (e *TransactionExecutor) transactionNonce() uint64 {
 	nonce := e.nonce
 	e.nonce++
 	return nonce
+}
+
+func (e *TransactionExecutor) getPublicKey(ctx context.Context, req publicKeyRequest) (eth.PublicKey, errors.Err) {
+	publicKey, err := e.client.GetPublicKey(ctx, common.HexToAddress(req.Address))
+	if err != nil {
+		return publicKey, errors.New(errors.ErrGetPublicKey, fmt.Errorf("failed to get public key %s", err.Error()))
+	}
+	return publicKey, nil 
 }
 
 func (e *TransactionExecutor) updateNonce(ctx context.Context) errors.Err {

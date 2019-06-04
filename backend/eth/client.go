@@ -211,7 +211,9 @@ func (c *EthClient) GetPublicKeyService(
 		return backend.GetPublicKeyServiceResponse{}, err
 	}
 
-	pk, err := c.client.GetPublicKey(ctx, common.HexToAddress(req.Address))
+	pk, err := c.handler.PublicKey(ctx, tx.PublicKeyRequest{
+		Address: req.Address,
+	})
 	if err != nil {
 		err := errors.New(errors.ErrInternalError, fmt.Errorf("failed to get public key %s", err.Error()))
 		c.logger.Debug(ctx, "client call failed", log.MapFields{
@@ -451,7 +453,7 @@ func NewClient(ctx context.Context, logger log.Logger, properties EthClientPrope
 		subman: eth.NewSubscriptionManager(eth.SubscriptionManagerProps{
 			Context: ctx,
 			Logger:  logger,
-			Client:  client, // TODO(ennsharma) initialize properly
+			Client:  client, // TODO(ennsharma): initialize correctly
 		}),
 	}
 

@@ -5,6 +5,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/oasislabs/developer-gateway/errors"
+	"github.com/oasislabs/developer-gateway/eth"
 )
 
 // SignRequest is the request to sign a transaction
@@ -24,9 +25,6 @@ type ExecuteRequest struct {
 
 // PublicKeyRequest is the request to retrieve the public key for a given address
 type PublicKeyRequest struct {
-	// Key unique identifier of the wallet. If not specified, an available wallet is selected automatically.
-	Key string
-
 	// Address from which to extract public key
 	Address string
 }
@@ -43,6 +41,9 @@ type RemoveRequest struct {
 type TransactionHandler interface {
 	// Execute a transaction
 	Execute(context.Context, ExecuteRequest) (*types.Receipt, errors.Err)
+
+	// Retrieves the public key for the desired address
+	PublicKey(context.Context, PublicKeyRequest) (eth.PublicKey, errors.Err)
 
 	// Remove the wallet and associated resources with the key
 	Remove(context.Context, RemoveRequest) errors.Err

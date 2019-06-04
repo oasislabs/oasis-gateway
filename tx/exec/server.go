@@ -110,10 +110,20 @@ func (s *Server) Execute(ctx context.Context, req core.ExecuteRequest) (*types.R
 		})
 	}
 	if err != nil {
-		return nil, errors.New(errors.ErrSignTransaction, err)
+		return nil, errors.New(errors.ErrExecuteTransaction, err)
 	}
 
 	return receipt.(*types.Receipt), nil
+}
+
+// Retrieves the public key for the desired address
+func (s *Server) PublicKey(ctx context.Context, req core.PublicKeyRequest) (eth.PublicKey, errors.Err) {
+	publicKey, err := s.master.Execute(ctx, publicKeyRequest{})
+	if err != nil {
+		return eth.PublicKey{}, errors.New(errors.ErrGetPublicKey, err)
+	}
+
+	return publicKey.(eth.PublicKey), nil
 }
 
 // Remove the key's wallet and it's associated resources.

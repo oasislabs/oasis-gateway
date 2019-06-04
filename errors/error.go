@@ -206,13 +206,13 @@ var (
 		desc:     "Internal Error. Please check the status of the service.",
 	}
 
-	ErrSignTransaction = ErrorCode{
+	ErrExecuteTransaction = ErrorCode{
 		category: NotFound,
 		code:     1032,
 		desc:     "Internal Error. Please check the status of the service.",
 	}
 
-	ErrGenerateWallet = ErrorCode{
+	ErrGetPublicKey = ErrorCode{
 		category: NotFound,
 		code:     1033,
 		desc:     "Internal Error. Please check the status of the service.",
