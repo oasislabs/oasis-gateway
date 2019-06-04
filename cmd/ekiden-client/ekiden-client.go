@@ -51,7 +51,7 @@ func main() {
 
 	client, err := ekiden.DialContext(ctx, ekiden.ClientProps{
 		RuntimeID:       runtimeIDToBytes(runtimeID),
-		Wallet:          wallet,
+		Handler:         handler,
 		RuntimeProps:    ekiden.NodeProps{URL: "unix:///tmp/runtime-ethereum-single_node/internal.sock"},
 		KeyManagerProps: ekiden.NodeProps{URL: "127.0.0.1:9003"},
 	})

@@ -8,12 +8,27 @@ import (
 )
 
 // SignRequest is the request to sign a transaction
-type SignRequest struct {
-	// Key unique identifier of the wallet
+type ExecuteRequest struct {
+	// Key unique identifier of the wallet. If not specified, an available wallet is selected automatically.
 	Key string
 
-	// Transaction to be signed
-	Transaction *types.Transaction
+	// Transaction ID
+	ID uint64
+
+	// Address to which to execute transaction
+	Address string
+
+	// Transaction data
+	Data []byte
+}
+
+// PublicKeyRequest is the request to retrieve the public key for a given address
+type PublicKeyRequest struct {
+	// Key unique identifier of the wallet. If not specified, an available wallet is selected automatically.
+	Key string
+
+	// Address from which to extract public key
+	Address string
 }
 
 // RemoveRequest to ask to destroy the wallet identified
@@ -26,8 +41,8 @@ type RemoveRequest struct {
 // TransactionHandler is an interface to a service that supports
 // signing developer transactions.
 type TransactionHandler interface {
-	// Signs the provided transaction
-	Sign(context.Context, SignRequest) (*types.Transaction, errors.Err)
+	// Execute a transaction
+	Execute(context.Context, ExecuteRequest) (*types.Receipt, errors.Err)
 
 	// Remove the wallet and associated resources with the key
 	Remove(context.Context, RemoveRequest) errors.Err

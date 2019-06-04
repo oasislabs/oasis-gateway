@@ -11,7 +11,7 @@ import (
 	"github.com/oasislabs/developer-gateway/conc"
 	ethereum "github.com/oasislabs/developer-gateway/eth"
 	"github.com/oasislabs/developer-gateway/log"
-	"github.com/oasislabs/developer-gateway/tx/wallet"
+	"github.com/oasislabs/developer-gateway/wallet"
 )
 
 type ClientProps struct {
@@ -33,9 +33,16 @@ func dialClient(props ClientProps) (*eth.EthClient, error) {
 	})
 	logger := log.NewLogrus(log.LogrusLoggerProperties{})
 
-	handler := wallet.NewServer(ctx, logger)
+	wallet := wallet.InternalWallet{
+		PrivateKey: privateKey,
+		Signer:     types.FrontierSigner{},
+		Nonce:      0,
+		Client:     pooledClient,
+		Logger:     logger.ForClass("wallet", "InternalWallet"),
+	}
+
 	client, err := eth.DialContext(ctx, logger, eth.EthClientProperties{
-		Handler: handler,
+		Wallet: wallet,
 		URL:    props.URL,
 	})
 	if err != nil {

@@ -22,7 +22,6 @@ import (
 	"github.com/oasislabs/developer-gateway/mqueue/mem"
 	"github.com/oasislabs/developer-gateway/mqueue/redis"
 	"github.com/oasislabs/developer-gateway/rpc"
-	tx "github.com/oasislabs/developer-gateway/tx/wallet"
 	"github.com/sirupsen/logrus"
 )
 
@@ -103,21 +102,6 @@ func NewEthClient(ctx context.Context, config config.Config) (*eth.EthClient, er
 		privateKeys[i] = privateKey
 	}
 
-	pooledClient := NewPooledClient(ctx, config)
-	client, err := eth.DialContext(ctx, RootLogger, eth.EthClientProperties{
-		Client: pooledClient,
-		Handler: NewTransactionHandler(ctx, privateKeys, pooledClient)
-		URL: config.EthConfig.URL,
-	})
-
-	if err != nil {
-		return nil, fmt.Errorf("failed to initialize eth client with error %s", err.Error())
-	}
-
-	return client, nil
-}
-
-func NewPooledClient(ctx context.Context, config config.Config) (*ethereum.Client, error) {
 	if len(config.EthConfig.URL) == 0 {
 		return nil, fmt.Errorf("no url provided for eth client")
 	}
@@ -131,17 +115,16 @@ func NewPooledClient(ctx context.Context, config config.Config) (*ethereum.Clien
 		return nil, fmt.Errorf("Only schemes supported are ws and wss")
 	}
 
-	dialer := ethereum.NewUniDialer(ctx, config.EthConfig.URL)
-	client := ethereum.NewPooledClient(eth.PooledClientProps{
-		Pool:        dialer,
-		RetryConfig: conc.RandomConfig,
+	client, err := eth.DialContext(ctx, RootLogger, eth.EthClientProperties{
+		PrivateKeys: privateKeys,
+		URL:         config.EthConfig.URL,
 	})
 
-	return client
-}
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize eth client with error %s", err.Error())
+	}
 
-func NewTransactionHandler(ctx context.Context, pks []*ecdsa.PrivateKey, client *ethereum.Client) (*tx.TransactionHandler, error) {
-	return tx.NewServer(ctx, logger, pks, client)
+	return client, nil
 }
 
 func NewRequestManager(ctx context.Context, mqueue mqueue.MQueue, client backend.Client, config config.Config) (*backend.RequestManager, error) {

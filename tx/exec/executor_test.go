@@ -1,4 +1,4 @@
-package wallet
+package exec
 
 import (
 	"context"
@@ -16,6 +16,8 @@ import (
 	"github.com/oasislabs/developer-gateway/log"
 	"github.com/stretchr/testify/assert"
 )
+
+const address string = "0x6f6704e5a10332af6672e50b3d9754dc460dfa4d"
 
 func initializeExecutor() (*TransactionExecutor, error) {
 	privateKey, err := crypto.HexToECDSA(strings.Repeat("1", 64))
@@ -42,21 +44,13 @@ func initializeExecutor() (*TransactionExecutor, error) {
 	return executor, nil
 }
 
-func TestTransactionClient(t *testing.T) {
-	executor, err := initializeExecutor()
-	assert.Nil(t, err)
-
-	client := executor.TransactionClient()
-	assert.NotNil(t, client)
-}
-
 func TestTransactionNonce(t *testing.T) {
 	executor, err := initializeExecutor()
 	assert.Nil(t, err)
 
 	var nonce uint64
 	for i := 0; i < 10; i++ {
-		nonce = executor.TransactionNonce()
+		nonce = executor.transactionNonce()
 		assert.Equal(t, uint64(i), nonce)
 	}
 }
@@ -70,14 +64,14 @@ func TestExecutorSignTransaction(t *testing.T) {
 	gasPrice := int64(1000000000)
 	tx := types.NewTransaction(
 		0,
-		common.HexToAddress("0x6f6704e5a10332af6672e50b3d9754dc460dfa4d"),
+		common.HexToAddress(address),
 		big.NewInt(0),
 		gas,
 		big.NewInt(gasPrice),
 		[]byte("data"),
 	)
 
-	tx, err = executor.SignTransaction(tx)
+	tx, err = executor.signTransaction(tx)
 	assert.Nil(t, err)
 
 	V, R, S := tx.RawSignatureValues()

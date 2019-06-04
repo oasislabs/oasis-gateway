@@ -1,4 +1,4 @@
-package wallet
+package exec
 
 import (
 	"context"
@@ -75,11 +75,10 @@ func (s *Server) create(ctx context.Context, ev conc.CreateWorkerEvent) error {
 		client,
 		logger.ForClass("wallet", "InternalWallet"),
 	)
-	worker := NewWorker(ev.Key, executor)
 
 	ev.Props.ErrC = nil
-	ev.Props.WorkerHandler = conc.WorkerHandlerFunc(worker.handle)
-	ev.Props.UserData = worker
+	ev.Props.WorkerHandler = conc.WorkerHandlerFunc(executor.handle)
+	ev.Props.UserData = executor
 	ev.Props.MaxInactivity = maxInactivityTimeout
 
 	return nil
@@ -90,23 +89,31 @@ func (s *Server) destroy(ctx context.Context, ev conc.DestroyWorkerEvent) error 
 	return nil
 }
 
-// Sign signs the provided transaction.
-func (s *Server) Sign(ctx context.Context, req core.SignRequest) (*types.Transaction, errors.Err) {
+// Executes the desired transaction.
+func (s *Server) Execute(ctx context.Context, req core.ExecuteRequest) (*types.Receipt, errors.Err) {
 	var (
-		tx interface{}
-		err error
+		receipt interface{}
+		err     error
 	)
 
 	if req.Key == "" {
-		tx, err = s.master.Execute(ctx, signRequest{Transaction: req.Transaction})
+		receipt, err = s.master.Execute(ctx, executeRequest{
+			ID:      req.ID,
+			Address: req.Address,
+			Data:    req.Data,
+		})
 	} else {
-		tx, err = s.master.Request(ctx, req.Key, signRequest{Transaction: req.Transaction})
+		receipt, err = s.master.Request(ctx, req.Key, executeRequest{
+			ID:      req.ID,
+			Address: req.Address,
+			Data:    req.Data,
+		})
 	}
 	if err != nil {
 		return nil, errors.New(errors.ErrSignTransaction, err)
 	}
 
-	return tx.(*types.Transaction), nil
+	return receipt.(*types.Receipt), nil
 }
 
 // Remove the key's wallet and it's associated resources.

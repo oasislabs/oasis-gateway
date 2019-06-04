@@ -235,7 +235,7 @@ var (
 		code:     1036,
 		desc:     "Internal Error. Please check the status of the service.",
 	}
-	
+
 	ErrDeserializeEvent = ErrorCode{
 		category: InternalError,
 		code:     1037,
