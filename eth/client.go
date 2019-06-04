@@ -2,12 +2,15 @@ package eth
 
 import (
 	"context"
+	"strconv"
 	"strings"
 
 	ethereum "github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/ethereum/go-ethereum/rlp"
 	rpc "github.com/ethereum/go-ethereum/rpc"
 	"github.com/oasislabs/developer-gateway/conc"
 )
@@ -16,9 +19,22 @@ type Client interface {
 	EstimateGas(context.Context, ethereum.CallMsg) (uint64, error)
 	GetPublicKey(context.Context, common.Address) (PublicKey, error)
 	PendingNonceAt(context.Context, common.Address) (uint64, error)
-	SendTransaction(context.Context, *types.Transaction) error
+	SendTransaction(context.Context, *types.Transaction) (SendTransactionResponse, error)
 	SubscribeFilterLogs(context.Context, ethereum.FilterQuery, chan<- types.Log) (ethereum.Subscription, error)
 	TransactionReceipt(ctx context.Context, txHash common.Hash) (*types.Receipt, error)
+}
+
+type ethClient interface {
+	EstimateGas(ctx context.Context, msg ethereum.CallMsg) (uint64, error)
+	PendingNonceAt(ctx context.Context, account common.Address) (uint64, error)
+	TransactionReceipt(ctx context.Context, txHash common.Hash) (*types.Receipt, error)
+	SubscribeFilterLogs(ctx context.Context, q ethereum.FilterQuery, c chan<- types.Log) (ethereum.Subscription, error)
+	Close()
+}
+
+type rpcClient interface {
+	CallContext(context.Context, interface{}, string, ...interface{}) error
+	Close()
 }
 
 type Pool interface {
@@ -116,13 +132,37 @@ func (c *PooledClient) PendingNonceAt(ctx context.Context, account common.Addres
 	return v.(uint64), nil
 }
 
-func (c *PooledClient) SendTransaction(ctx context.Context, tx *types.Transaction) error {
-	_, err := c.request(ctx, func(conn *Conn) (interface{}, error) {
-		err := conn.eclient.SendTransaction(ctx, tx)
-		return nil, err
+func (c *PooledClient) SendTransaction(ctx context.Context, tx *types.Transaction) (SendTransactionResponse, error) {
+	data, err := rlp.EncodeToBytes(tx)
+	if err != nil {
+		return SendTransactionResponse{}, err
+	}
+
+	v, err := c.request(ctx, func(conn *Conn) (interface{}, error) {
+		var res sendTransactionResponseDeserialize
+		if err := conn.rclient.CallContext(ctx, &res, "oasis_invoke", hexutil.Encode(data)); err != nil {
+			return nil, err
+		}
+
+		return res, err
 	})
 
-	return err
+	if err != nil {
+		return SendTransactionResponse{}, err
+	}
+
+	res := v.(sendTransactionResponseDeserialize)
+	res.Status = strings.TrimPrefix(res.Status, "0x")
+	status, err := strconv.ParseUint(res.Status, 16, 64)
+	if err != nil {
+		return SendTransactionResponse{}, err
+	}
+
+	return SendTransactionResponse{
+		Output: res.Output,
+		Status: status,
+		Hash:   res.Hash,
+	}, err
 }
 
 func (c *PooledClient) TransactionReceipt(ctx context.Context, txHash common.Hash) (*types.Receipt, error) {
@@ -154,8 +194,8 @@ func (c *PooledClient) SubscribeFilterLogs(
 }
 
 type Conn struct {
-	eclient *ethclient.Client
-	rclient *rpc.Client
+	eclient ethClient
+	rclient rpcClient
 }
 
 type dialResponse struct {
