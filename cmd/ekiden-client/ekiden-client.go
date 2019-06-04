@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"crypto/ecdsa"
 	"encoding/binary"
 	"fmt"
 	"os"
@@ -42,16 +43,9 @@ func main() {
 
 	ctx := context.Background()
 
-	wallet := wallet.InternalWallet{
-		PrivateKey: privateKey,
-		Signer:     types.FrontierSigner{},
-		Nonce:      0,
-		Client:     nil, // TODO(ennsharma): Assign a client
-	}
-
 	client, err := ekiden.DialContext(ctx, ekiden.ClientProps{
+		PrivateKeys:     []*ecdsa.PrivateKey{privateKey}
 		RuntimeID:       runtimeIDToBytes(runtimeID),
-		Handler:         handler,
 		RuntimeProps:    ekiden.NodeProps{URL: "unix:///tmp/runtime-ethereum-single_node/internal.sock"},
 		KeyManagerProps: ekiden.NodeProps{URL: "127.0.0.1:9003"},
 	})

@@ -3,6 +3,7 @@ package ekiden
 import (
 	"bytes"
 	"context"
+	"crypto/ecdsa"
 	"encoding/hex"
 	"math/big"
 
@@ -19,7 +20,7 @@ type NodeProps struct {
 }
 
 type ClientProps struct {
-	Handler         tx.TransactionHandler
+	PrivateKeys     []*ecdsa.PrivateKey
 	RuntimeID       []byte
 	RuntimeProps    NodeProps
 	KeyManagerProps NodeProps
@@ -29,7 +30,7 @@ type Client struct {
 	runtime    *ekiden.Runtime
 	keyManager *ekiden.Enclave
 	runtimeID  []byte
-	handler     tx.TransactionHandler
+	handler    tx.TransactionHandler
 }
 
 func DialContext(ctx context.Context, props ClientProps) (*Client, errors.Err) {
@@ -50,7 +51,7 @@ func DialContext(ctx context.Context, props ClientProps) (*Client, errors.Err) {
 		runtime:    runtime,
 		keyManager: keyManager,
 		runtimeID:  props.RuntimeID,
-		handler:     props.Handler,
+		handler:    props.Handler,
 	}, nil
 }
 

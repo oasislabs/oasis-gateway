@@ -115,8 +115,6 @@ type EthClient struct {
 	inCh    chan ethRequest
 	logger  log.Logger
 	handler tx.TransactionHandler
-	nonce   uint64
-	client  eth.Client
 	subman  *eth.SubscriptionManager
 }
 
