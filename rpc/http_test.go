@@ -58,11 +58,11 @@ func setupRouter() *HttpRouter {
 	return &HttpRouter{
 		encoder: &JsonEncoder{},
 		mux: map[string]*HttpRoute{
-			"/path": {handlers: map[string]HttpMiddleware{
+			"/path": &HttpRoute{handlers: map[string]HttpMiddleware{
 				"GET": HttpMiddlewareOK{body: map[string]string{"result": "ok"}},
 				"PUT": HttpMiddlewareOK{body: nil},
 			}},
-			"/panic": {handlers: map[string]HttpMiddleware{
+			"/panic": &HttpRoute{handlers: map[string]HttpMiddleware{
 				"GET": HttpMiddlewarePanic{},
 			}},
 		},

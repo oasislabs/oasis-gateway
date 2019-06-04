@@ -66,7 +66,7 @@ func TestServerRetrieve(t *testing.T) {
 	assert.Equal(t, core.Elements{
 		Offset: offset,
 		Elements: []core.Element{
-			{
+			core.Element{
 				Offset: uint64(0),
 				Value:  "value",
 			},
@@ -100,11 +100,11 @@ func TestServerDiscard(t *testing.T) {
 	assert.Equal(t, core.Elements{
 		Offset: uint64(1),
 		Elements: []core.Element{
-			{
+			core.Element{
 				Offset: uint64(1),
 				Value:  "value",
 			},
-			{
+			core.Element{
 				Offset: uint64(2),
 				Value:  "value",
 			},

@@ -206,39 +206,45 @@ var (
 		desc:     "Internal Error. Please check the status of the service.",
 	}
 
-	ErrExecuteTransaction = ErrorCode{
+	ErrSignTransaction = ErrorCode{
 		category: NotFound,
 		code:     1032,
 		desc:     "Internal Error. Please check the status of the service.",
 	}
 
-	ErrGetPublicKey = ErrorCode{
+	ErrExecuteTransaction = ErrorCode{
 		category: NotFound,
 		code:     1033,
 		desc:     "Internal Error. Please check the status of the service.",
 	}
 
-	ErrRemoveWallet = ErrorCode{
+	ErrGetPublicKey = ErrorCode{
 		category: NotFound,
 		code:     1034,
 		desc:     "Internal Error. Please check the status of the service.",
 	}
 
-	ErrQueueNext = ErrorCode{
-		category: InternalError,
+	ErrRemoveWallet = ErrorCode{
+		category: NotFound,
 		code:     1035,
 		desc:     "Internal Error. Please check the status of the service.",
 	}
 
-	ErrUnkownEventType = ErrorCode{
+	ErrQueueNext = ErrorCode{
 		category: InternalError,
 		code:     1036,
 		desc:     "Internal Error. Please check the status of the service.",
 	}
 
-	ErrDeserializeEvent = ErrorCode{
+	ErrUnkownEventType = ErrorCode{
 		category: InternalError,
 		code:     1037,
+		desc:     "Internal Error. Please check the status of the service.",
+	}
+
+	ErrDeserializeEvent = ErrorCode{
+		category: InternalError,
+		code:     1038,
 		desc:     "Internal Error. Please check the status of the service.",
 	}
 

@@ -11,7 +11,7 @@ import (
 	"github.com/oasislabs/developer-gateway/backend/core"
 	"github.com/oasislabs/developer-gateway/ekiden"
 	"github.com/oasislabs/developer-gateway/errors"
-	"github.com/oasislabs/developer-gateway/wallet"
+	tx "github.com/oasislabs/developer-gateway/tx/core"
 )
 
 type NodeProps struct {
@@ -19,7 +19,7 @@ type NodeProps struct {
 }
 
 type ClientProps struct {
-	Wallet          wallet.Wallet
+	Handler         tx.TransactionHandler
 	RuntimeID       []byte
 	RuntimeProps    NodeProps
 	KeyManagerProps NodeProps
@@ -29,7 +29,7 @@ type Client struct {
 	runtime    *ekiden.Runtime
 	keyManager *ekiden.Enclave
 	runtimeID  []byte
-	wallet     wallet.Wallet
+	handler     tx.TransactionHandler
 }
 
 func DialContext(ctx context.Context, props ClientProps) (*Client, errors.Err) {
@@ -50,7 +50,7 @@ func DialContext(ctx context.Context, props ClientProps) (*Client, errors.Err) {
 		runtime:    runtime,
 		keyManager: keyManager,
 		runtimeID:  props.RuntimeID,
-		wallet:     props.Wallet,
+		handler:     props.Handler,
 	}, nil
 }
 
@@ -121,8 +121,8 @@ func (c *Client) SubscribeRequest(
 	return errors.New(errors.ErrAPINotImplemented, nil)
 }
 
-func (c *Client) generateTx(tx *types.Transaction) ([]byte, errors.Err) {
-	tx, err := c.wallet.SignTransaction(tx)
+func (c *Client) generateTx(ctx context.Context, transaction *types.Transaction) ([]byte, errors.Err) {
+	tx, err := c.handler.Sign(ctx, tx.SignRequest{Transaction: transaction})
 	if err != nil {
 		return nil, errors.New(errors.ErrEkidenSignTx, err)
 	}
@@ -150,7 +150,7 @@ func (c *Client) createTx(address string, data string) *types.Transaction {
 
 func (c *Client) submitTx(ctx context.Context, address, data string) errors.Err {
 	tx := c.createTx(address, data)
-	p, err := c.generateTx(tx)
+	p, err := c.generateTx(ctx, tx)
 	if err != nil {
 		return err
 	}

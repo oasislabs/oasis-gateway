@@ -89,6 +89,25 @@ func (s *Server) destroy(ctx context.Context, ev conc.DestroyWorkerEvent) error 
 	return nil
 }
 
+// Signs the desired transaction
+func (s *Server) Sign(ctx context.Context, req core.SignRequest) (*types.Transaction, errors.Err) {
+	var (
+		tx interface{}
+		err         error
+	)
+
+	if req.Key == "" {
+		tx, err = s.master.Execute(ctx, signRequest{Transaction: req.Transaction})
+	} else {
+		tx, err = s.master.Request(ctx, req.Key, signRequest{Transaction: req.Transaction})
+	}
+	if err != nil {
+		return nil, errors.New(errors.ErrSignTransaction, err)
+	}
+	
+	return tx.(*types.Transaction), nil
+}
+
 // Executes the desired transaction.
 func (s *Server) Execute(ctx context.Context, req core.ExecuteRequest) (*types.Receipt, errors.Err) {
 	var (
@@ -118,7 +137,9 @@ func (s *Server) Execute(ctx context.Context, req core.ExecuteRequest) (*types.R
 
 // Retrieves the public key for the desired address
 func (s *Server) PublicKey(ctx context.Context, req core.PublicKeyRequest) (eth.PublicKey, errors.Err) {
-	publicKey, err := s.master.Execute(ctx, publicKeyRequest{})
+	publicKey, err := s.master.Execute(ctx, publicKeyRequest{
+		Address: req.Address,
+	})
 	if err != nil {
 		return eth.PublicKey{}, errors.New(errors.ErrGetPublicKey, err)
 	}

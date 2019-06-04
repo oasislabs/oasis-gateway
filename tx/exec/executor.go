@@ -19,6 +19,10 @@ import (
 
 const gasPrice int64 = 1000000000
 
+type signRequest struct {
+	Transaction *types.Transaction
+}
+
 type executeRequest struct {
 	ID      uint64
 	Address string
@@ -67,6 +71,8 @@ func (e *TransactionExecutor) handle(ctx context.Context, ev conc.WorkerEvent) (
 
 func (e *TransactionExecutor) handleRequestEvent(ctx context.Context, ev conc.RequestWorkerEvent) (interface{}, error) {
 	switch req := ev.Value.(type) {
+	case signRequest:
+		return e.signTransaction(req.Transaction)
 	case executeRequest:
 		return e.executeTransaction(ctx, req)
 	case publicKeyRequest:
@@ -94,7 +100,7 @@ func (e *TransactionExecutor) getPublicKey(ctx context.Context, req publicKeyReq
 	if err != nil {
 		return publicKey, errors.New(errors.ErrGetPublicKey, fmt.Errorf("failed to get public key %s", err.Error()))
 	}
-	return publicKey, nil 
+	return publicKey, nil
 }
 
 func (e *TransactionExecutor) updateNonce(ctx context.Context) errors.Err {

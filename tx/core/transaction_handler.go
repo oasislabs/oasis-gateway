@@ -8,7 +8,16 @@ import (
 	"github.com/oasislabs/developer-gateway/eth"
 )
 
-// SignRequest is the request to sign a transaction
+// SignRequest is a request to sign a generic transaction
+type SignRequest struct {
+	// Key unique identifier of the wallet. If not specified, an available wallet is selected automatically.
+	Key string
+
+	// Transaction
+	Transaction *types.Transaction
+}
+
+// ExecuteRequest is the request to execute an Ethereum transaction
 type ExecuteRequest struct {
 	// Key unique identifier of the wallet. If not specified, an available wallet is selected automatically.
 	Key string
@@ -39,6 +48,9 @@ type RemoveRequest struct {
 // TransactionHandler is an interface to a service that supports
 // signing developer transactions.
 type TransactionHandler interface {
+	// Sign a transaction
+	Sign(context.Context, SignRequest) (*types.Transaction, errors.Err)
+
 	// Execute a transaction
 	Execute(context.Context, ExecuteRequest) (*types.Receipt, errors.Err)
 
