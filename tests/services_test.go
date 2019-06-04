@@ -129,8 +129,30 @@ func TestExecuteServiceOK(t *testing.T) {
 	assert.Equal(t, service.ExecuteServiceEvent{
 		ID:      0,
 		Address: "0x0000000000000000000000000000000000000000",
-		Output:  "0x00",
+		Output:  "0x73756363657373",
 	}, pollRes.Events[0])
+}
+
+func TestExecuteServiceReceiptStatusErr(t *testing.T) {
+	client := apitest.NewServiceClient(router)
+	executeRes, err := client.ExecuteService(context.Background(), service.ExecuteServiceRequest{
+		Address: mock.Address,
+		Data:    mock.TransactionDataReceiptErr,
+	})
+	assert.Nil(t, err)
+	assert.Equal(t, uint64(0), executeRes.ID)
+
+	pollRes, err := client.PollServiceUntilNotEmpty(context.Background(), service.PollServiceRequest{
+		Offset: 0,
+	})
+	assert.Nil(t, err)
+	assert.Equal(t, 1, len(pollRes.Events))
+	assert.Equal(t, service.ErrorEvent{
+		ID: 0,
+		Cause: rpc.Error{
+			ErrorCode:   1000,
+			Description: "transaction receipt has status 0 which indicates a transaction execution failure with error error",
+		}}, pollRes.Events[0])
 }
 
 func TestGetPublicKeyEmptyAddress(t *testing.T) {

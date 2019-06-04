@@ -144,7 +144,7 @@ func (c *PooledClient) SendTransaction(ctx context.Context, tx *types.Transactio
 			return nil, err
 		}
 
-		return res, err
+		return res, nil
 	})
 
 	if err != nil {

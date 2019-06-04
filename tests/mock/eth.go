@@ -10,7 +10,6 @@ import (
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/oasislabs/developer-gateway/backend/eth"
 	ethimpl "github.com/oasislabs/developer-gateway/eth"
 	"github.com/oasislabs/developer-gateway/gateway"
@@ -57,16 +56,24 @@ func (c EthFailureClient) PendingNonceAt(context.Context, common.Address) (uint6
 }
 
 func (c EthFailureClient) SendTransaction(ctx context.Context, tx *types.Transaction) (ethimpl.SendTransactionResponse, error) {
-	data, err := rlp.EncodeToBytes(tx)
-	if err != nil {
-		return ethimpl.SendTransactionResponse{}, err
-	}
+	data := hexutil.Encode(tx.Data())
 
-	return ethimpl.SendTransactionResponse{
-		Output: "0x00",
-		Status: 1,
-		Hash:   hexutil.Encode(data),
-	}, nil
+	switch {
+	case data == TransactionDataErr:
+		return ethimpl.SendTransactionResponse{}, errors.New("failed transaction")
+	case data == TransactionDataReceiptErr:
+		return ethimpl.SendTransactionResponse{
+			Output: errorHex,
+			Status: 0,
+			Hash:   tx.Hash().Hex(),
+		}, nil
+	default:
+		return ethimpl.SendTransactionResponse{
+			Output: successHex,
+			Status: 1,
+			Hash:   tx.Hash().Hex(),
+		}, nil
+	}
 }
 
 func (c EthFailureClient) SubscribeFilterLogs(
