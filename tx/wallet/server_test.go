@@ -48,8 +48,6 @@ func TestServerSignBasic(t *testing.T) {
 	s, cancel := initializeServer()
 	defer cancel()
 
-	pk, _ := crypto.HexToECDSA(strings.Repeat("1", 64))
-
 	// Build a mock transaction
 	gas := uint64(1000000)
 	gasPrice := int64(1000000000)
@@ -63,7 +61,6 @@ func TestServerSignBasic(t *testing.T) {
 	)
 
 	tx, err := s.Sign(ctx, core.SignRequest{
-		Key:         crypto.PubkeyToAddress(pk.PublicKey).Hex(),
 		Transaction: tx,
 	})
 	assert.Nil(t, err)

@@ -18,7 +18,6 @@ const maxInactivityTimeout = time.Duration(10) * time.Minute
 
 type Server struct {
 	master *conc.Master
-	pks    []*ecdsa.PrivateKey
 	dialer *eth.UniDialer
 	logger log.Logger
 }
@@ -93,7 +92,16 @@ func (s *Server) destroy(ctx context.Context, ev conc.DestroyWorkerEvent) error 
 
 // Sign signs the provided transaction.
 func (s *Server) Sign(ctx context.Context, req core.SignRequest) (*types.Transaction, errors.Err) {
-	tx, err := s.master.Request(ctx, req.Key, signRequest{Transaction: req.Transaction})
+	var (
+		tx interface{}
+		err error
+	)
+
+	if req.Key == "" {
+		tx, err = s.master.Execute(ctx, signRequest{Transaction: req.Transaction})
+	} else {
+		tx, err = s.master.Request(ctx, req.Key, signRequest{Transaction: req.Transaction})
+	}
 	if err != nil {
 		return nil, errors.New(errors.ErrSignTransaction, err)
 	}
