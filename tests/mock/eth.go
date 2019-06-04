@@ -10,6 +10,7 @@ import (
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/oasislabs/developer-gateway/backend/eth"
 	ethimpl "github.com/oasislabs/developer-gateway/eth"
 	"github.com/oasislabs/developer-gateway/gateway"
@@ -55,8 +56,17 @@ func (c EthFailureClient) PendingNonceAt(context.Context, common.Address) (uint6
 	return 0, errors.New("eth failure client error")
 }
 
-func (c EthFailureClient) SendTransaction(context.Context, *types.Transaction) error {
-	return nil
+func (c EthFailureClient) SendTransaction(ctx context.Context, tx *types.Transaction) (ethimpl.SendTransactionResponse, error) {
+	data, err := rlp.EncodeToBytes(tx)
+	if err != nil {
+		return ethimpl.SendTransactionResponse{}, err
+	}
+
+	return ethimpl.SendTransactionResponse{
+		Output: "0x00",
+		Status: 1,
+		Hash:   hexutil.Encode(data),
+	}, nil
 }
 
 func (c EthFailureClient) SubscribeFilterLogs(

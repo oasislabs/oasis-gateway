@@ -129,6 +129,7 @@ func TestExecuteServiceOK(t *testing.T) {
 	assert.Equal(t, service.ExecuteServiceEvent{
 		ID:      0,
 		Address: "0x0000000000000000000000000000000000000000",
+		Output:  "0x00",
 	}, pollRes.Events[0])
 }
 

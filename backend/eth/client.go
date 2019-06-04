@@ -48,7 +48,7 @@ type executeTransactionRequest struct {
 type executeTransactionResponse struct {
 	ID      uint64
 	Address string
-	Output  []byte
+	Output  string
 }
 
 type executeServiceRequest struct {
@@ -414,7 +414,8 @@ func (c *EthClient) executeTransaction(
 		return nil, err
 	}
 
-	if err := c.client.SendTransaction(ctx, tx); err != nil {
+	res, err := c.client.SendTransaction(ctx, tx)
+	if err != nil {
 		// depending on the error received it may be useful to return the error
 		// and have an upper logic to decide whether to retry the request
 		err := errors.New(errors.ErrSendTransaction, err)
@@ -465,7 +466,7 @@ func (c *EthClient) executeTransaction(
 	return &executeTransactionResponse{
 		ID:      req.ID,
 		Address: address,
-		Output:  nil,
+		Output:  res.Output,
 	}, nil
 }
 
@@ -515,8 +516,7 @@ func (c *EthClient) executeService(ctx context.Context, nonce, id uint64, req ba
 		return backend.ExecuteServiceResponse{}, err
 	}
 
-	// TODO(stan): handle response output once it's returned in  the transaction response
-	return backend.ExecuteServiceResponse{ID: id, Address: res.Address, Output: ""}, nil
+	return backend.ExecuteServiceResponse{ID: id, Address: res.Address, Output: res.Output}, nil
 }
 
 func (c *EthClient) Nonce(ctx context.Context, address string) (uint64, errors.Err) {
