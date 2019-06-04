@@ -16,11 +16,6 @@ type SignRequest struct {
 	Transaction *types.Transaction
 }
 
-type GenerateRequest struct {
-	// Key unique identifier of the wallet
-	Key string
-}
-
 // RemoveRequest to ask to destroy the wallet identified
 // by the provided key
 type RemoveRequest struct {
@@ -33,9 +28,6 @@ type RemoveRequest struct {
 type TransactionHandler interface {
 	// Signs the provided transaction
 	Sign(context.Context, SignRequest) (*types.Transaction, errors.Err)
-
-	// Generates a new wallet to add to the wallet pool
-	Generate(context.Context, GenerateRequest) errors.Err
 
 	// Remove the wallet and associated resources with the key
 	Remove(context.Context, RemoveRequest) errors.Err

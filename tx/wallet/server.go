@@ -3,10 +3,10 @@ package wallet
 import (
 	"context"
 	"crypto/ecdsa"
-	err "errors"
 	"time"
 
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/oasislabs/developer-gateway/conc"
 	"github.com/oasislabs/developer-gateway/errors"
 	"github.com/oasislabs/developer-gateway/eth"
@@ -19,17 +19,13 @@ const maxInactivityTimeout = time.Duration(10) * time.Minute
 type Server struct {
 	master *conc.Master
 	pks    []*ecdsa.PrivateKey
-	available chan int
-	unavailable map[string]int
-	client eth.Client
+	dialer *eth.UniDialer
 	logger log.Logger
 }
 
-func NewServer(ctx context.Context, logger log.Logger, pks []*ecdsa.PrivateKey, client *eth.Client) *Server {
+func NewServer(ctx context.Context, logger log.Logger, pks []*ecdsa.PrivateKey, dialer *eth.UniDialer) (*Server, error) {
 	s := &Server{
-		client: *client,
-		pks:    pks,
-		available: make(chan int, maxConcurrentWallets),
+		dialer: dialer,
 		logger: logger.ForClass("tx/wallet", "Server"),
 	}
 
@@ -38,16 +34,21 @@ func NewServer(ctx context.Context, logger log.Logger, pks []*ecdsa.PrivateKey, 
 		CreateWorkerOnRequest: true,
 	})
 
-	go func() {
-		for i := 0; i < len(pks); i++ {
-				s.available <- i
-		}
-	}()
 	if err := s.master.Start(ctx); err != nil {
-		panic("failed to start master")
+		return nil, err
 	}
 
-	return s
+	// Create a worker for each provided private key
+	for _, pk := range pks {
+		if err := s.master.Create(ctx, crypto.PubkeyToAddress(pk.PublicKey).Hex(), pk); err != nil {
+			if e := s.master.Stop(); e != nil {
+				return nil, e
+			}
+			return nil, err
+		}
+	}
+
+	return s, nil
 }
 
 func (m *Server) handle(ctx context.Context, ev conc.MasterEvent) error {
@@ -62,7 +63,20 @@ func (m *Server) handle(ctx context.Context, ev conc.MasterEvent) error {
 }
 
 func (s *Server) create(ctx context.Context, ev conc.CreateWorkerEvent) error {
-	worker := NewWorker(ev.Key, s.client)
+	logger := log.NewLogrus(log.LogrusLoggerProperties{})
+
+	client := eth.NewPooledClient(eth.PooledClientProps{
+		Pool:        s.dialer,
+		RetryConfig: conc.RandomConfig,
+	})
+	executor := NewTransactionExecutor(
+		ev.Value.(*ecdsa.PrivateKey),
+		types.FrontierSigner{},
+		0,
+		client,
+		logger.ForClass("wallet", "InternalWallet"),
+	)
+	worker := NewWorker(ev.Key, executor)
 
 	ev.Props.ErrC = nil
 	ev.Props.WorkerHandler = conc.WorkerHandlerFunc(worker.handle)
@@ -87,31 +101,8 @@ func (s *Server) Sign(ctx context.Context, req core.SignRequest) (*types.Transac
 	return tx.(*types.Transaction), nil
 }
 
-// Generates a new wallet, provisioning a key from the server.
-func (s *Server) Generate(ctx context.Context, req core.GenerateRequest) errors.Err {
-	var privateKey *ecdsa.PrivateKey
-	select {
-		case pkIndex, ok := <-s.available:
-			if ok {
-					privateKey = s.pks[pkIndex]
-					s.unavailable[req.Key] = pkIndex
-			} else {
-					return errors.New(errors.ErrGenerateWallet, err.New("Internal service error."))
-			}
-		default:
-			errors.New(errors.ErrGenerateWallet, err.New("You have hit your maximum concurrency limit."))
-	}
-	if _, err := s.master.Request(ctx, req.Key, generateRequest{Context: ctx, PrivateKey: privateKey}); err != nil {
-		return errors.New(errors.ErrGenerateWallet, err)
-	}
-
-	return nil
-}
-
 // Remove the key's wallet and it's associated resources.
 func (s *Server) Remove(ctx context.Context, req core.RemoveRequest) errors.Err {
-	s.available <- s.unavailable[req.Key]
-	delete(s.unavailable, req.Key)
 	if err := s.master.Destroy(ctx, req.Key); err != nil {
 		return errors.New(errors.ErrRemoveWallet, err)
 	}
