@@ -23,6 +23,8 @@ import (
 	"github.com/oasislabs/developer-gateway/log"
 )
 
+const StatusOK = 1
+
 const gasPrice int64 = 1000000000
 
 type ethRequest interface {
@@ -375,6 +377,8 @@ func (c *EthClient) executeTransaction(
 	ctx context.Context,
 	req executeTransactionRequest,
 ) (*executeTransactionResponse, errors.Err) {
+	contractAddress := req.Address
+
 	c.logger.Debug(ctx, "", log.MapFields{
 		"call_type": "ExecuteTransactionAttempt",
 		"id":        req.ID,
@@ -394,7 +398,7 @@ func (c *EthClient) executeTransaction(
 	}
 
 	var tx *types.Transaction
-	if len(req.Address) == 0 {
+	if len(contractAddress) == 0 {
 		tx = types.NewContractCreation(req.Nonce,
 			big.NewInt(0), gas, big.NewInt(gasPrice), req.Data)
 	} else {
@@ -428,21 +432,20 @@ func (c *EthClient) executeTransaction(
 		return nil, err
 	}
 
-	receipt, err := c.client.TransactionReceipt(ctx, tx.Hash())
-	if err != nil {
-		err := errors.New(errors.ErrTransactionReceipt, err)
-		c.logger.Debug(ctx, "failure to retrieve transaction receipt", log.MapFields{
-			"call_type": "ExecuteTransactionFailure",
-			"id":        req.ID,
-			"address":   req.Address,
-		}, err)
+	if res.Status != StatusOK {
+		p, e := hexutil.Decode(res.Output)
+		if e != nil {
+			c.logger.Debug(ctx, "failed to decode the output of the transaction as hex", log.MapFields{
+				"call_type": "DecodeTransactionOutputFailure",
+				"id":        req.ID,
+				"address":   req.Address,
+				"err":       e.Error(),
+			})
+		}
 
-		return nil, err
-	}
-
-	if receipt.Status != 1 {
-		err := errors.New(errors.ErrTransactionReceipt, stderr.New(
-			"transaction receipt has status 0 which indicates a transaction execution failure"))
+		output := string(p)
+		msg := fmt.Sprintf("transaction receipt has status 0 which indicates a transaction execution failure with error %s", output)
+		err := errors.New(errors.NewErrorCode(errors.InternalError, 1000, msg), stderr.New(msg))
 		c.logger.Debug(ctx, "transaction execution failed", log.MapFields{
 			"call_type": "ExecuteTransactionFailure",
 			"id":        req.ID,
@@ -452,20 +455,31 @@ func (c *EthClient) executeTransaction(
 		return nil, err
 	}
 
+	if len(contractAddress) == 0 {
+		receipt, err := c.client.TransactionReceipt(ctx, tx.Hash())
+		if err != nil {
+			err := errors.New(errors.ErrTransactionReceipt, err)
+			c.logger.Debug(ctx, "failure to retrieve transaction receipt", log.MapFields{
+				"call_type": "ExecuteTransactionFailure",
+				"id":        req.ID,
+				"address":   req.Address,
+			}, err)
+
+			return nil, err
+		}
+
+		contractAddress = receipt.ContractAddress.Hex()
+	}
+
 	c.logger.Debug(ctx, "transaction sent successfully", log.MapFields{
 		"call_type": "ExecuteTransactionSuccess",
 		"id":        req.ID,
 		"address":   req.Address,
 	})
 
-	address := req.Address
-	if len(req.Address) == 0 {
-		address = receipt.ContractAddress.Hex()
-	}
-
 	return &executeTransactionResponse{
 		ID:      req.ID,
-		Address: address,
+		Address: contractAddress,
 		Output:  res.Output,
 	}, nil
 }

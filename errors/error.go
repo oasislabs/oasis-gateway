@@ -438,6 +438,16 @@ func New(errorCode ErrorCode, cause error) Error {
 	return Error{cause: cause, errorCode: errorCode}
 }
 
+// NewErrorCode to create a new error code dynamically in
+// case reported errors cannot be known at compile time
+func NewErrorCode(category Category, code int, desc string) ErrorCode {
+	return ErrorCode{
+		category: category,
+		code:     code,
+		desc:     desc,
+	}
+}
+
 // ErrorCode holds the necessary information to uniquely identify an error
 // and make sure that a valuable response is returned to the user
 // in case of encountering an error
