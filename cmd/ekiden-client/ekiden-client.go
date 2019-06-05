@@ -7,11 +7,11 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/oasislabs/developer-gateway/backend/core"
 	"github.com/oasislabs/developer-gateway/backend/ekiden"
-	tx "github.com/oasislabs/developer-gateway/tx/core"
+	"github.com/oasislabs/developer-gateway/log"
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/pflag"
 )
 
@@ -44,10 +44,13 @@ func main() {
 	ctx := context.Background()
 
 	client, err := ekiden.DialContext(ctx, ekiden.ClientProps{
-		PrivateKeys:     []*ecdsa.PrivateKey{privateKey}
+		PrivateKeys:     []*ecdsa.PrivateKey{privateKey},
 		RuntimeID:       runtimeIDToBytes(runtimeID),
 		RuntimeProps:    ekiden.NodeProps{URL: "unix:///tmp/runtime-ethereum-single_node/internal.sock"},
 		KeyManagerProps: ekiden.NodeProps{URL: "127.0.0.1:9003"},
+		Logger: log.NewLogrus(log.LogrusLoggerProperties{
+			Level: logrus.DebugLevel,
+		}),
 	})
 	if err != nil {
 		fmt.Println("failed to dial ekiden client: ", err.Error())

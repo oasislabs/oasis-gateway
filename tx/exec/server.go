@@ -18,13 +18,17 @@ const maxInactivityTimeout = time.Duration(10) * time.Minute
 
 type Server struct {
 	master *conc.Master
-	dialer *eth.UniDialer
+	client eth.Client
 	logger log.Logger
 }
 
 func NewServer(ctx context.Context, logger log.Logger, pks []*ecdsa.PrivateKey, dialer *eth.UniDialer) (*Server, error) {
+	client := eth.NewPooledClient(eth.PooledClientProps{
+		Pool:        dialer,
+		RetryConfig: conc.RandomConfig,
+	})
 	s := &Server{
-		dialer: dialer,
+		client: client,
 		logger: logger.ForClass("tx/wallet", "Server"),
 	}
 
@@ -62,18 +66,12 @@ func (m *Server) handle(ctx context.Context, ev conc.MasterEvent) error {
 }
 
 func (s *Server) create(ctx context.Context, ev conc.CreateWorkerEvent) error {
-	logger := log.NewLogrus(log.LogrusLoggerProperties{})
-
-	client := eth.NewPooledClient(eth.PooledClientProps{
-		Pool:        s.dialer,
-		RetryConfig: conc.RandomConfig,
-	})
 	executor := NewTransactionExecutor(
 		ev.Value.(*ecdsa.PrivateKey),
 		types.FrontierSigner{},
 		0,
-		client,
-		logger.ForClass("wallet", "InternalWallet"),
+		s.client,
+		s.logger.ForClass("wallet", "InternalWallet"),
 	)
 
 	ev.Props.ErrC = nil
@@ -91,60 +89,26 @@ func (s *Server) destroy(ctx context.Context, ev conc.DestroyWorkerEvent) error 
 
 // Signs the desired transaction
 func (s *Server) Sign(ctx context.Context, req core.SignRequest) (*types.Transaction, errors.Err) {
-	var (
-		tx interface{}
-		err         error
-	)
-
-	if req.Key == "" {
-		tx, err = s.master.Execute(ctx, signRequest{Transaction: req.Transaction})
-	} else {
-		tx, err = s.master.Request(ctx, req.Key, signRequest{Transaction: req.Transaction})
-	}
+	tx, err := s.master.Execute(ctx, signRequest{Transaction: req.Transaction})
 	if err != nil {
 		return nil, errors.New(errors.ErrSignTransaction, err)
 	}
-	
+
 	return tx.(*types.Transaction), nil
 }
 
 // Executes the desired transaction.
 func (s *Server) Execute(ctx context.Context, req core.ExecuteRequest) (*types.Receipt, errors.Err) {
-	var (
-		receipt interface{}
-		err     error
-	)
-
-	if req.Key == "" {
-		receipt, err = s.master.Execute(ctx, executeRequest{
-			ID:      req.ID,
-			Address: req.Address,
-			Data:    req.Data,
-		})
-	} else {
-		receipt, err = s.master.Request(ctx, req.Key, executeRequest{
-			ID:      req.ID,
-			Address: req.Address,
-			Data:    req.Data,
-		})
-	}
+	receipt, err := s.master.Execute(ctx, executeRequest{
+		ID:      req.ID,
+		Address: req.Address,
+		Data:    req.Data,
+	})
 	if err != nil {
 		return nil, errors.New(errors.ErrExecuteTransaction, err)
 	}
 
 	return receipt.(*types.Receipt), nil
-}
-
-// Retrieves the public key for the desired address
-func (s *Server) PublicKey(ctx context.Context, req core.PublicKeyRequest) (eth.PublicKey, errors.Err) {
-	publicKey, err := s.master.Execute(ctx, publicKeyRequest{
-		Address: req.Address,
-	})
-	if err != nil {
-		return eth.PublicKey{}, errors.New(errors.ErrGetPublicKey, err)
-	}
-
-	return publicKey.(eth.PublicKey), nil
 }
 
 // Remove the key's wallet and it's associated resources.

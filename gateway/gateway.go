@@ -5,6 +5,7 @@ import (
 	"crypto/ecdsa"
 	"errors"
 	"fmt"
+	"net/url"
 
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/oasislabs/developer-gateway/api/v0/event"
@@ -14,8 +15,7 @@ import (
 	"github.com/oasislabs/developer-gateway/auth/insecure"
 	"github.com/oasislabs/developer-gateway/auth/oauth"
 	backend "github.com/oasislabs/developer-gateway/backend/core"
-	ethereum "github.com/oasislabs/developer-gateway/backend/eth"
-	"github.com/oasislabs/developer-gateway/eth"
+	"github.com/oasislabs/developer-gateway/backend/eth"
 	"github.com/oasislabs/developer-gateway/gateway/config"
 	"github.com/oasislabs/developer-gateway/log"
 	mqueue "github.com/oasislabs/developer-gateway/mqueue/core"

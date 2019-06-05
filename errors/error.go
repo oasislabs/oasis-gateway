@@ -207,25 +207,25 @@ var (
 	}
 
 	ErrSignTransaction = ErrorCode{
-		category: NotFound,
+		category: InternalError,
 		code:     1032,
 		desc:     "Internal Error. Please check the status of the service.",
 	}
 
 	ErrExecuteTransaction = ErrorCode{
-		category: NotFound,
+		category: InternalError,
 		code:     1033,
 		desc:     "Internal Error. Please check the status of the service.",
 	}
 
 	ErrGetPublicKey = ErrorCode{
-		category: NotFound,
+		category: InternalError,
 		code:     1034,
 		desc:     "Internal Error. Please check the status of the service.",
 	}
 
 	ErrRemoveWallet = ErrorCode{
-		category: NotFound,
+		category: InternalError,
 		code:     1035,
 		desc:     "Internal Error. Please check the status of the service.",
 	}

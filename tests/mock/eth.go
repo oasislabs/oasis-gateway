@@ -2,6 +2,7 @@ package mock
 
 import (
 	"context"
+	"crypto/ecdsa"
 	"errors"
 	"fmt"
 
@@ -20,17 +21,24 @@ func NewMockEthClient(
 	ctx context.Context,
 	config config.Config,
 ) (*eth.EthClient, error) {
-	if len(config.Wallet.PrivateKey) == 0 {
-		return nil, errors.New("private_key not set in configuration")
+	if len(config.Wallet.PrivateKeys) == 0 {
+		return nil, errors.New("private_keys not set in configuration")
 	}
 
-	privateKey, err := crypto.HexToECDSA(config.Wallet.PrivateKey)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read private key with error %s", err.Error())
+	privateKeys := make([]*ecdsa.PrivateKey, len(config.Wallet.PrivateKeys))
+	for i := 0; i < len(config.Wallet.PrivateKeys); i++ {
+		privateKey, err := crypto.HexToECDSA(config.Wallet.PrivateKeys[i])
+		if err != nil {
+			return nil, fmt.Errorf("failed to read private key with error %s", err.Error())
+		}
+		privateKeys[i] = privateKey
 	}
 
-	wallet := eth.Wallet{PrivateKey: privateKey}
-	return eth.NewClient(ctx, gateway.RootLogger, wallet, EthFailureClient{}), nil
+	properties := eth.EthClientProperties{
+		PrivateKeys: privateKeys,
+		URL:         "",
+	}
+	return eth.NewClient(ctx, gateway.RootLogger, properties)
 }
 
 type EthFailureClient struct{}

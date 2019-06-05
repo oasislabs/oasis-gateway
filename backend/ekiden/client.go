@@ -12,7 +12,10 @@ import (
 	"github.com/oasislabs/developer-gateway/backend/core"
 	"github.com/oasislabs/developer-gateway/ekiden"
 	"github.com/oasislabs/developer-gateway/errors"
+	"github.com/oasislabs/developer-gateway/eth"
+	"github.com/oasislabs/developer-gateway/log"
 	tx "github.com/oasislabs/developer-gateway/tx/core"
+	"github.com/oasislabs/developer-gateway/tx/exec"
 )
 
 type NodeProps struct {
@@ -24,6 +27,7 @@ type ClientProps struct {
 	RuntimeID       []byte
 	RuntimeProps    NodeProps
 	KeyManagerProps NodeProps
+	Logger          log.Logger
 }
 
 type Client struct {
@@ -47,11 +51,15 @@ func DialContext(ctx context.Context, props ClientProps) (*Client, errors.Err) {
 		return nil, errors.New(errors.ErrEkidenDial, err)
 	}
 
+	// TODO(ennsharma): Replace this with something more correct for ekiden-client
+	dialer := eth.NewUniDialer(ctx, props.KeyManagerProps.URL)
+	handler, err := exec.NewServer(ctx, props.Logger, props.PrivateKeys, dialer)
+
 	return &Client{
 		runtime:    runtime,
 		keyManager: keyManager,
 		runtimeID:  props.RuntimeID,
-		handler:    props.Handler,
+		handler:    handler,
 	}, nil
 }
 

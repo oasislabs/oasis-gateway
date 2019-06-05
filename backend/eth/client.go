@@ -114,6 +114,7 @@ type EthClient struct {
 	wg      sync.WaitGroup
 	inCh    chan ethRequest
 	logger  log.Logger
+	client  eth.Client
 	handler tx.TransactionHandler
 	subman  *eth.SubscriptionManager
 }
@@ -209,9 +210,7 @@ func (c *EthClient) GetPublicKeyService(
 		return backend.GetPublicKeyServiceResponse{}, err
 	}
 
-	pk, err := c.handler.PublicKey(ctx, tx.PublicKeyRequest{
-		Address: req.Address,
-	})
+	pk, err := c.client.GetPublicKey(ctx, common.HexToAddress(req.Address))
 	if err != nil {
 		err := errors.New(errors.ErrInternalError, fmt.Errorf("failed to get public key %s", err.Error()))
 		c.logger.Debug(ctx, "client call failed", log.MapFields{
@@ -447,6 +446,7 @@ func NewClient(ctx context.Context, logger log.Logger, properties EthClientPrope
 		wg:      sync.WaitGroup{},
 		inCh:    make(chan ethRequest, 64),
 		logger:  logger.ForClass("eth", "EthClient"),
+		client:  client,
 		handler: handler,
 		subman: eth.NewSubscriptionManager(eth.SubscriptionManagerProps{
 			Context: ctx,
