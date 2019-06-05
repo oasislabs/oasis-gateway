@@ -23,6 +23,8 @@ import (
 	"github.com/oasislabs/developer-gateway/log"
 )
 
+const StatusOK = 1
+
 const gasPrice int64 = 1000000000
 
 type ethRequest interface {
@@ -430,7 +432,7 @@ func (c *EthClient) executeTransaction(
 		return nil, err
 	}
 
-	if res.Status != 1 {
+	if res.Status != StatusOK {
 		p, e := hexutil.Decode(res.Output)
 		if e != nil {
 			c.logger.Debug(ctx, "failed to decode the output of the transaction as hex", log.MapFields{
