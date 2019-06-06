@@ -272,6 +272,7 @@ func TestHttpJsonHandlerContentLengthMissingWithBody(t *testing.T) {
 	})
 
 	req, _ := http.NewRequest("GET", "/path", bytes.NewBufferString(""))
+	req.ContentLength = -1
 
 	v, err := handler.ServeHTTP(req)
 

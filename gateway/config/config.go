@@ -17,8 +17,8 @@ func (c SimpleConfigProvider) Get() Config {
 	return c.config
 }
 
-// ConfigProvider returns an instance of the configuration
-type ConfigProvider interface {
+// Provider returns an instance of the configuration
+type Provider interface {
 	// Get an instance of the configuration
 	Get() Config
 }
@@ -80,7 +80,8 @@ type AuthConfig struct {
 
 // Config is the general application's configuration
 type Config struct {
-	Bind BindConfig `mapstructure:"bind"`
+	BindPublic  BindConfig `mapstructure:"bind_public"`
+	BindPrivate BindConfig `mapstructure:"bind_private"`
 	// Wallet is the configured wallet for the application
 	Wallet       WalletConfig `mapstructure:"wallet"`
 	EthConfig    EthConfig    `mapstructure:"eth"`
