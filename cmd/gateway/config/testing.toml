@@ -1,0 +1,27 @@
+title = "Staging configuration"
+
+[wallet]
+private_key = ""
+
+[bind_public]
+http_interface = "127.0.0.1"
+http_port = 1234
+http_read_timeout_ms = 10000
+http_write_timeout_ms = 10000
+http_max_header_bytes = 8192
+
+[bind_private]
+http_interface = "127.0.0.1"
+http_port = 1235
+http_read_timeout_ms = 10000
+http_write_timeout_ms = 10000
+http_max_header_bytes = 8192
+
+[eth]
+url = "wss://web3.beta.oasiscloud-staging.net/ws"
+
+[mqueue]
+backend = "mem"
+
+[auth]
+provider = "insecure"
