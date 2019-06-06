@@ -7,6 +7,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/oasislabs/developer-gateway/api/v0/event"
+	"github.com/oasislabs/developer-gateway/api/v0/health"
 	"github.com/oasislabs/developer-gateway/api/v0/service"
 	"github.com/oasislabs/developer-gateway/auth/core"
 	auth "github.com/oasislabs/developer-gateway/auth/core"
@@ -145,7 +146,28 @@ func NewServices(ctx context.Context, config config.Config, factories Factories)
 	}, nil
 }
 
-func NewRouter(services Services) *rpc.HttpRouter {
+func NewPrivateRouter() *rpc.HttpRouter {
+	binder := rpc.NewHttpBinder(rpc.HttpBinderProperties{
+		Encoder: rpc.JsonEncoder{},
+		Logger:  RootLogger,
+		HandlerFactory: rpc.HttpHandlerFactoryFunc(func(factory rpc.EntityFactory, handler rpc.Handler) rpc.HttpMiddleware {
+			// TODO(stan): we may want to add some authentication mechanism
+			// to the private router
+			return rpc.NewHttpJsonHandler(rpc.HttpJsonHandlerProperties{
+				Limit:   1 << 16,
+				Handler: handler,
+				Logger:  RootLogger,
+				Factory: factory,
+			})
+		}),
+	})
+
+	health.BindHandler(health.Services{}, binder)
+
+	return binder.Build()
+}
+
+func NewPublicRouter(services Services) *rpc.HttpRouter {
 	binder := rpc.NewHttpBinder(rpc.HttpBinderProperties{
 		Encoder: rpc.JsonEncoder{},
 		Logger:  RootLogger,

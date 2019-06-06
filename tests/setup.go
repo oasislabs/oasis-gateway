@@ -55,5 +55,5 @@ func InitializeWithConfig(configFile string) (*rpc.HttpRouter, error) {
 	}
 
 	gateway.RootLogger.SetOutput(ioutil.Discard)
-	return gateway.NewRouter(services), nil
+	return gateway.NewPublicRouter(services), nil
 }
