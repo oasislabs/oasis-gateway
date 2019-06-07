@@ -20,9 +20,10 @@ http_max_header_bytes = 8192
 [eth]
 url = "wss://web3.oasiscloud.io/ws"
 
-[mqueue]
-backend = "redis"
-mode = "single"
+[mailbox]
+provider = "redis-single"
+
+[mailbox.redis_single]
 addr = "127.0.0.1:6379"
 
 [auth]

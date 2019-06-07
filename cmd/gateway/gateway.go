@@ -10,16 +10,14 @@ import (
 	"github.com/oasislabs/developer-gateway/gateway"
 	"github.com/oasislabs/developer-gateway/gateway/config"
 	"github.com/oasislabs/developer-gateway/log"
-	"github.com/spf13/pflag"
 )
 
-func publicServer(provider config.Provider) {
-	conf := provider.Get()
-	bindConfig := conf.BindPublic
+func publicServer(conf *config.Config) {
+	bindConfig := conf.BindPublicConfig
 	httpInterface := bindConfig.HttpInterface
 	httpPort := bindConfig.HttpPort
 
-	services, err := gateway.NewServices(gateway.RootContext, provider.Get(), gateway.Factories{
+	services, err := gateway.NewServices(gateway.RootContext, conf, gateway.Factories{
 		EthClientFactory: gateway.EthClientFactoryFunc(gateway.NewEthClient),
 	})
 	if err != nil {
@@ -39,7 +37,7 @@ func publicServer(provider config.Provider) {
 		Handler:        router,
 		ReadTimeout:    time.Duration(bindConfig.HttpReadTimeoutMs) * time.Millisecond,
 		WriteTimeout:   time.Duration(bindConfig.HttpWriteTimeoutMs) * time.Millisecond,
-		MaxHeaderBytes: bindConfig.HttpMaxHeaderBytes,
+		MaxHeaderBytes: int(bindConfig.HttpMaxHeaderBytes),
 	}
 
 	gateway.RootLogger.Info(gateway.RootContext, "listening to port", log.MapFields{
@@ -58,9 +56,8 @@ func publicServer(provider config.Provider) {
 	}
 }
 
-func privateServer(provider config.Provider) {
-	conf := provider.Get()
-	bindConfig := conf.BindPrivate
+func privateServer(conf *config.Config) {
+	bindConfig := conf.BindPrivateConfig
 	httpInterface := bindConfig.HttpInterface
 	httpPort := bindConfig.HttpPort
 
@@ -70,7 +67,7 @@ func privateServer(provider config.Provider) {
 		Handler:        router,
 		ReadTimeout:    time.Duration(bindConfig.HttpReadTimeoutMs) * time.Millisecond,
 		WriteTimeout:   time.Duration(bindConfig.HttpWriteTimeoutMs) * time.Millisecond,
-		MaxHeaderBytes: bindConfig.HttpMaxHeaderBytes,
+		MaxHeaderBytes: int(bindConfig.HttpMaxHeaderBytes),
 	}
 
 	gateway.RootLogger.Info(gateway.RootContext, "listening to port", log.MapFields{
@@ -90,31 +87,50 @@ func privateServer(provider config.Provider) {
 }
 
 func main() {
-	var (
-		configFile string
-	)
-
-	pflag.StringVar(&configFile, "config",
-		"cmd/gateway/config/testing.toml",
-		"configuration file for the gateway")
-	pflag.Parse()
-
-	provider, err := config.ParseSimpleConfig(configFile)
+	parser, err := config.Generate()
 	if err != nil {
-		fmt.Println(err.Error())
+		fmt.Println("Failed to generate configurations: ", err.Error())
 		os.Exit(1)
 	}
 
-	var wg sync.WaitGroup
+	conf, err := parser.Parse()
+	if err != nil {
+		fmt.Println("Failed to parse configuration: ", err.Error())
+		if err := parser.Usage(); err != nil {
+			panic("failed to print usage")
+		}
+		os.Exit(1)
+	}
 
+	gateway.RootLogger.Info(gateway.RootContext, "bind public configuration parsed", log.MapFields{
+		"callType": "BindPublicConfigParseSuccess",
+	}, &conf.BindPublicConfig)
+	gateway.RootLogger.Info(gateway.RootContext, "bind private configuration parsed", log.MapFields{
+		"callType": "BindPrivateConfigParseSuccess",
+	}, &conf.BindPrivateConfig)
+	gateway.RootLogger.Info(gateway.RootContext, "wallet configuration parsed", log.MapFields{
+		"callType": "WalletConfigParseSuccess",
+	}, &conf.WalletConfig)
+	gateway.RootLogger.Info(gateway.RootContext, "eth configuration parsed", log.MapFields{
+		"callType": "EthConfigParseSuccess",
+	}, &conf.EthConfig)
+	gateway.RootLogger.Info(gateway.RootContext, "mailbox configuration parsed", log.MapFields{
+		"callType": "MailboxConfigParseSuccess",
+	}, &conf.MailboxConfig)
+	gateway.RootLogger.Info(gateway.RootContext, "auth config configuration parsed", log.MapFields{
+		"callType": "AuthConfigParseSuccess",
+	}, &conf.AuthConfig)
+
+	var wg sync.WaitGroup
 	wg.Add(2)
+
 	go func() {
-		publicServer(provider)
+		publicServer(conf)
 		wg.Done()
 	}()
 
 	go func() {
-		privateServer(provider)
+		privateServer(conf)
 		wg.Done()
 	}()
 

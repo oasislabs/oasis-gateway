@@ -39,60 +39,65 @@ type Factories struct {
 	EthClientFactory EthClientFactoryFunc
 }
 
-type EthClientFactoryFunc func(ctx context.Context, config config.Config) (*eth.EthClient, error)
+type EthClientFactoryFunc func(context.Context, *config.Config) (*eth.EthClient, error)
 
-func NewRedisMQueue(ctx context.Context, config config.MQueueConfig) (mqueue.MQueue, error) {
-	if config.Backend != "redis" {
-		return nil, errors.New("attempt to create redis backend when it is not in configuration")
+func NewRedisMQueue(ctx context.Context, conf config.MailboxConfig) (mqueue.MQueue, error) {
+	if conf.Mailbox.ID() != config.MailboxRedisSingle &&
+		conf.Mailbox.ID() != config.MailboxRedisCluster {
+		return nil, errors.New("attempt to create redis backend when it is not in confuration")
 	}
 
-	switch config.Mode {
-	case "single":
+	switch conf.Mailbox.ID() {
+	case config.MailboxRedisSingle:
+		conf := conf.Mailbox.(*config.MailboxRedisSingleConfig)
 		m, err := redis.NewSingleMQueue(redis.SingleInstanceProps{
 			Props: redis.Props{
 				Context: ctx,
 				Logger:  RootLogger,
 			},
-			Addr: config.Addr,
+			Addr: conf.Addr,
 		})
 		if err != nil {
 			return nil, fmt.Errorf("failed to start redis mqueue %s", err.Error())
 		}
 		return m, nil
-	case "cluster":
+	case config.MailboxRedisCluster:
+		conf := conf.Mailbox.(*config.MailboxRedisClusterConfig)
 		m, err := redis.NewClusterMQueue(redis.ClusterProps{
 			Props: redis.Props{
 				Context: ctx,
 				Logger:  RootLogger,
 			},
-			Addrs: config.Addrs,
+			Addrs: conf.Addrs,
 		})
 		if err != nil {
 			return nil, fmt.Errorf("failed to start redis mqueue %s", err.Error())
 		}
 		return m, nil
 	default:
-		return nil, fmt.Errorf("unknown redis mode %s", config.Mode)
+		panic("cannot reach")
 	}
 }
 
-func NewMQueue(ctx context.Context, config config.MQueueConfig) (mqueue.MQueue, error) {
-	switch config.Backend {
-	case "redis":
-		return NewRedisMQueue(ctx, config)
-	case "mem":
+func NewMQueue(ctx context.Context, conf config.MailboxConfig) (mqueue.MQueue, error) {
+	switch conf.Mailbox.ID() {
+	case config.MailboxRedisSingle:
+		return NewRedisMQueue(ctx, conf)
+	case config.MailboxRedisCluster:
+		return NewRedisMQueue(ctx, conf)
+	case config.MailboxMem:
 		return mem.NewServer(ctx, RootLogger), nil
 	default:
-		panic(fmt.Sprintf("unknown mqueue backend %s", config.Backend))
+		panic(fmt.Sprintf("unknown backend %s", conf.Mailbox.ID()))
 	}
 }
 
-func NewEthClient(ctx context.Context, config config.Config) (*eth.EthClient, error) {
-	if len(config.Wallet.PrivateKey) == 0 {
+func NewEthClient(ctx context.Context, conf *config.Config) (*eth.EthClient, error) {
+	if len(conf.WalletConfig.PrivateKey) == 0 {
 		return nil, errors.New("private_key not set in configuration")
 	}
 
-	privateKey, err := crypto.HexToECDSA(config.Wallet.PrivateKey)
+	privateKey, err := crypto.HexToECDSA(conf.WalletConfig.PrivateKey)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read private key with error %s", err.Error())
 	}
@@ -101,7 +106,7 @@ func NewEthClient(ctx context.Context, config config.Config) (*eth.EthClient, er
 		Wallet: eth.Wallet{
 			PrivateKey: privateKey,
 		},
-		URL: config.EthConfig.URL,
+		URL: conf.EthConfig.URL,
 	})
 
 	if err != nil {
@@ -111,7 +116,7 @@ func NewEthClient(ctx context.Context, config config.Config) (*eth.EthClient, er
 	return client, nil
 }
 
-func NewRequestManager(ctx context.Context, mqueue mqueue.MQueue, client backend.Client, config config.Config) (*backend.RequestManager, error) {
+func NewRequestManager(ctx context.Context, mqueue mqueue.MQueue, client backend.Client, config *config.Config) (*backend.RequestManager, error) {
 	return backend.NewRequestManager(backend.RequestManagerProperties{
 		MQueue: mqueue,
 		Client: client,
@@ -119,23 +124,23 @@ func NewRequestManager(ctx context.Context, mqueue mqueue.MQueue, client backend
 	}), nil
 }
 
-func NewServices(ctx context.Context, config config.Config, factories Factories) (Services, error) {
-	mqueue, err := NewMQueue(ctx, config.MQueueConfig)
+func NewServices(ctx context.Context, conf *config.Config, factories Factories) (Services, error) {
+	mqueue, err := NewMQueue(ctx, conf.MailboxConfig)
 	if err != nil {
 		return Services{}, err
 	}
 
-	client, err := factories.EthClientFactory(ctx, config)
+	client, err := factories.EthClientFactory(ctx, conf)
 	if err != nil {
 		return Services{}, err
 	}
 
-	request, err := NewRequestManager(ctx, mqueue, client, config)
+	request, err := NewRequestManager(ctx, mqueue, client, conf)
 	if err != nil {
 		return Services{}, err
 	}
 
-	authenticator, err := NewAuth(config.AuthConfig.Provider)
+	authenticator, err := NewAuth(conf.AuthConfig.Provider)
 	if err != nil {
 		return Services{}, err
 	}
