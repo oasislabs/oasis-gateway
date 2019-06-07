@@ -2,6 +2,7 @@ package mock
 
 import (
 	"context"
+	"crypto/ecdsa"
 	"errors"
 	"fmt"
 
@@ -20,22 +21,25 @@ func NewMockEthClient(
 	ctx context.Context,
 	conf *config.Config,
 ) (*eth.EthClient, error) {
-	if len(conf.WalletConfig.PrivateKey) == 0 {
+	if len(conf.WalletConfig.PrivateKeys) == 0 {
 		return nil, errors.New("private_key not set in configuration")
 	}
 
-	privateKey, err := crypto.HexToECDSA(conf.WalletConfig.PrivateKey)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read private key with error %s", err.Error())
+	privateKeys := make([]*ecdsa.PrivateKey, len(conf.WalletConfig.PrivateKeys))
+	for i := 0; i < len(conf.WalletConfig.PrivateKeys); i++ {
+		privateKey, err := crypto.HexToECDSA(conf.WalletConfig.PrivateKeys[i])
+		if err != nil {
+			return nil, fmt.Errorf("failed to read private key with error %s", err.Error())
+		}
+		privateKeys[i] = privateKey
 	}
 
-	wallet := eth.Wallet{PrivateKey: privateKey}
-	return eth.NewClient(ctx, gateway.RootLogger, wallet, EthFailureClient{}), nil
+	return eth.NewClient(ctx, gateway.RootLogger, privateKeys, EthMockClient{})
 }
 
-type EthFailureClient struct{}
+type EthMockClient struct{}
 
-func (c EthFailureClient) EstimateGas(ctx context.Context, msg ethereum.CallMsg) (uint64, error) {
+func (c EthMockClient) EstimateGas(ctx context.Context, msg ethereum.CallMsg) (uint64, error) {
 	if hexutil.Encode(msg.Data) == TransactionDataErr {
 		return 0, errors.New("failed transaction")
 	}
@@ -43,7 +47,7 @@ func (c EthFailureClient) EstimateGas(ctx context.Context, msg ethereum.CallMsg)
 	return 1234, nil
 }
 
-func (c EthFailureClient) GetPublicKey(context.Context, common.Address) (ethimpl.PublicKey, error) {
+func (c EthMockClient) GetPublicKey(context.Context, common.Address) (ethimpl.PublicKey, error) {
 	return ethimpl.PublicKey{
 		Timestamp: 123456789097654321,
 		PublicKey: "0x0000000000000000000000000000000000000000",
@@ -51,11 +55,11 @@ func (c EthFailureClient) GetPublicKey(context.Context, common.Address) (ethimpl
 	}, nil
 }
 
-func (c EthFailureClient) PendingNonceAt(context.Context, common.Address) (uint64, error) {
-	return 0, errors.New("eth failure client error")
+func (c EthMockClient) NonceAt(context.Context, common.Address) (uint64, error) {
+	return 0, nil
 }
 
-func (c EthFailureClient) SendTransaction(ctx context.Context, tx *types.Transaction) (ethimpl.SendTransactionResponse, error) {
+func (c EthMockClient) SendTransaction(ctx context.Context, tx *types.Transaction) (ethimpl.SendTransactionResponse, error) {
 	data := hexutil.Encode(tx.Data())
 
 	switch {
@@ -76,7 +80,7 @@ func (c EthFailureClient) SendTransaction(ctx context.Context, tx *types.Transac
 	}
 }
 
-func (c EthFailureClient) SubscribeFilterLogs(
+func (c EthMockClient) SubscribeFilterLogs(
 	context.Context,
 	ethereum.FilterQuery,
 	chan<- types.Log,
@@ -84,7 +88,7 @@ func (c EthFailureClient) SubscribeFilterLogs(
 	return nil, errors.New("eth failure client error")
 }
 
-func (c EthFailureClient) TransactionReceipt(
+func (c EthMockClient) TransactionReceipt(
 	ctx context.Context,
 	txHash common.Hash,
 ) (*types.Receipt, error) {

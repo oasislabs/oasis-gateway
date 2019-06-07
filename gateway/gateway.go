@@ -2,8 +2,10 @@ package gateway
 
 import (
 	"context"
+	"crypto/ecdsa"
 	"errors"
 	"fmt"
+	"net/url"
 
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/oasislabs/developer-gateway/api/v0/event"
@@ -93,20 +95,35 @@ func NewMQueue(ctx context.Context, conf config.MailboxConfig) (mqueue.MQueue, e
 }
 
 func NewEthClient(ctx context.Context, conf *config.Config) (*eth.EthClient, error) {
-	if len(conf.WalletConfig.PrivateKey) == 0 {
-		return nil, errors.New("private_key not set in configuration")
+	if len(conf.WalletConfig.PrivateKeys) == 0 {
+		return nil, errors.New("private_keys not set in configuration")
 	}
 
-	privateKey, err := crypto.HexToECDSA(conf.WalletConfig.PrivateKey)
+	privateKeys := make([]*ecdsa.PrivateKey, len(conf.WalletConfig.PrivateKeys))
+	for i := 0; i < len(conf.WalletConfig.PrivateKeys); i++ {
+		privateKey, err := crypto.HexToECDSA(conf.WalletConfig.PrivateKeys[i])
+		if err != nil {
+			return nil, fmt.Errorf("failed to read private key with error %s", err.Error())
+		}
+		privateKeys[i] = privateKey
+	}
+
+	if len(conf.EthConfig.URL) == 0 {
+		return nil, fmt.Errorf("no url provided for eth client")
+	}
+
+	url, err := url.Parse(conf.EthConfig.URL)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read private key with error %s", err.Error())
+		return nil, fmt.Errorf("Failed to parse url %s", err.Error())
+	}
+
+	if url.Scheme != "wss" && url.Scheme != "ws" {
+		return nil, fmt.Errorf("Only schemes supported are ws and wss")
 	}
 
 	client, err := eth.DialContext(ctx, RootLogger, eth.EthClientProperties{
-		Wallet: eth.Wallet{
-			PrivateKey: privateKey,
-		},
-		URL: conf.EthConfig.URL,
+		PrivateKeys: privateKeys,
+		URL:         conf.EthConfig.URL,
 	})
 
 	if err != nil {

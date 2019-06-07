@@ -54,8 +54,8 @@ func (c *mockEthClient) EstimateGas(ctx context.Context, msg ethereum.CallMsg) (
 	return args.Get(0).(uint64), nil
 }
 
-func (c *mockEthClient) PendingNonceAt(ctx context.Context, account common.Address) (uint64, error) {
-	args := c.Called(ctx, account)
+func (c *mockEthClient) NonceAt(ctx context.Context, account common.Address, n *big.Int) (uint64, error) {
+	args := c.Called(ctx, account, n)
 	if args.Get(1) != nil {
 		return 0, args.Error(1)
 	}

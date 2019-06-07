@@ -56,7 +56,7 @@ var (
 		desc:     "Internal Error. Please check the status of the service.",
 	}
 
-	ErrFetchPendingNonce = ErrorCode{
+	ErrFetchNonce = ErrorCode{
 		category: InternalError,
 		code:     1007,
 		desc:     "Internal Error. Please check the status of the service.",
@@ -206,21 +206,45 @@ var (
 		desc:     "Internal Error. Please check the status of the service.",
 	}
 
-	ErrQueueNext = ErrorCode{
+	ErrSignTransaction = ErrorCode{
 		category: InternalError,
 		code:     1032,
 		desc:     "Internal Error. Please check the status of the service.",
 	}
 
-	ErrUnkownEventType = ErrorCode{
+	ErrExecuteTransaction = ErrorCode{
 		category: InternalError,
 		code:     1033,
 		desc:     "Internal Error. Please check the status of the service.",
 	}
 
-	ErrDeserializeEvent = ErrorCode{
+	ErrGetPublicKey = ErrorCode{
 		category: InternalError,
 		code:     1034,
+		desc:     "Internal Error. Please check the status of the service.",
+	}
+
+	ErrRemoveWallet = ErrorCode{
+		category: InternalError,
+		code:     1035,
+		desc:     "Internal Error. Please check the status of the service.",
+	}
+
+	ErrQueueNext = ErrorCode{
+		category: InternalError,
+		code:     1036,
+		desc:     "Internal Error. Please check the status of the service.",
+	}
+
+	ErrUnkownEventType = ErrorCode{
+		category: InternalError,
+		code:     1037,
+		desc:     "Internal Error. Please check the status of the service.",
+	}
+
+	ErrDeserializeEvent = ErrorCode{
+		category: InternalError,
+		code:     1038,
 		desc:     "Internal Error. Please check the status of the service.",
 	}
 

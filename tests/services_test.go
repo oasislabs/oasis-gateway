@@ -25,6 +25,7 @@ func TestDeployServiceErr(t *testing.T) {
 	deployRes, err := client.DeployService(context.Background(), service.DeployServiceRequest{
 		Data: mock.TransactionDataErr,
 	})
+
 	assert.Nil(t, err)
 	assert.Equal(t, uint64(0), deployRes.ID)
 

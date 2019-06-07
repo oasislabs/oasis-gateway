@@ -112,7 +112,7 @@ func (c *BindPrivateConfig) Bind(v *viper.Viper, cmd *cobra.Command) error {
 // WalletConfig holds the configuration of a single wallet
 type WalletConfig struct {
 	// PrivateKey for the wallet
-	PrivateKey string
+	PrivateKeys []string
 }
 
 func (c *WalletConfig) Log(fields log.Fields) {
@@ -121,11 +121,13 @@ func (c *WalletConfig) Log(fields log.Fields) {
 }
 
 func (c *WalletConfig) Configure(v *viper.Viper) error {
-	c.PrivateKey = v.GetString("wallet.private_key")
-	if len(c.PrivateKey) == 0 {
+	// TODO(stan): support multiple keys
+	privateKey := v.GetString("wallet.private_key")
+	if len(privateKey) == 0 {
 		return errors.New("wallet.private_key must be set")
 	}
 
+	c.PrivateKeys = append(c.PrivateKeys, privateKey)
 	return nil
 }
 

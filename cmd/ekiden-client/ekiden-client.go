@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"crypto/ecdsa"
 	"encoding/binary"
 	"fmt"
 	"os"
@@ -9,6 +10,8 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/oasislabs/developer-gateway/backend/core"
 	"github.com/oasislabs/developer-gateway/backend/ekiden"
+	"github.com/oasislabs/developer-gateway/log"
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/pflag"
 )
 
@@ -20,19 +23,19 @@ func runtimeIDToBytes(runtimeID uint64) []byte {
 
 func main() {
 	var (
-		wallet    string
+		walletKey string
 		runtimeID uint64
 	)
-	pflag.StringVar(&wallet, "wallet", "", "the hex encoded private key of the wallet")
+	pflag.StringVar(&walletKey, "walletKey", "", "the hex encoded private key of the wallet")
 	pflag.Uint64Var(&runtimeID, "runtimeID", 0, "sets the runtime ID")
 	pflag.Parse()
 
-	if len(wallet) == 0 {
-		fmt.Println("-wallet needs to be set")
+	if len(walletKey) == 0 {
+		fmt.Println("-walletKey needs to be set")
 		os.Exit(1)
 	}
 
-	privateKey, err := crypto.HexToECDSA(wallet)
+	privateKey, err := crypto.HexToECDSA(walletKey)
 	if err != nil {
 		fmt.Println("failed to read private key with error ", err.Error())
 		os.Exit(1)
@@ -41,10 +44,13 @@ func main() {
 	ctx := context.Background()
 
 	client, err := ekiden.DialContext(ctx, ekiden.ClientProps{
+		PrivateKeys:     []*ecdsa.PrivateKey{privateKey},
 		RuntimeID:       runtimeIDToBytes(runtimeID),
-		Wallet:          ekiden.Wallet{PrivateKey: privateKey},
 		RuntimeProps:    ekiden.NodeProps{URL: "unix:///tmp/runtime-ethereum-single_node/internal.sock"},
 		KeyManagerProps: ekiden.NodeProps{URL: "127.0.0.1:9003"},
+		Logger: log.NewLogrus(log.LogrusLoggerProperties{
+			Level: logrus.DebugLevel,
+		}),
 	})
 	if err != nil {
 		fmt.Println("failed to dial ekiden client: ", err.Error())

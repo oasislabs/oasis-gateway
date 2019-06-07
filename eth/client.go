@@ -2,6 +2,7 @@ package eth
 
 import (
 	"context"
+	"math/big"
 	"strconv"
 	"strings"
 
@@ -18,7 +19,7 @@ import (
 type Client interface {
 	EstimateGas(context.Context, ethereum.CallMsg) (uint64, error)
 	GetPublicKey(context.Context, common.Address) (PublicKey, error)
-	PendingNonceAt(context.Context, common.Address) (uint64, error)
+	NonceAt(context.Context, common.Address) (uint64, error)
 	SendTransaction(context.Context, *types.Transaction) (SendTransactionResponse, error)
 	SubscribeFilterLogs(context.Context, ethereum.FilterQuery, chan<- types.Log) (ethereum.Subscription, error)
 	TransactionReceipt(ctx context.Context, txHash common.Hash) (*types.Receipt, error)
@@ -26,7 +27,7 @@ type Client interface {
 
 type ethClient interface {
 	EstimateGas(ctx context.Context, msg ethereum.CallMsg) (uint64, error)
-	PendingNonceAt(ctx context.Context, account common.Address) (uint64, error)
+	NonceAt(ctx context.Context, account common.Address, n *big.Int) (uint64, error)
 	TransactionReceipt(ctx context.Context, txHash common.Hash) (*types.Receipt, error)
 	SubscribeFilterLogs(ctx context.Context, q ethereum.FilterQuery, c chan<- types.Log) (ethereum.Subscription, error)
 	Close()
@@ -120,9 +121,9 @@ func (c *PooledClient) GetPublicKey(ctx context.Context, address common.Address)
 	return v.(PublicKey), nil
 }
 
-func (c *PooledClient) PendingNonceAt(ctx context.Context, account common.Address) (uint64, error) {
+func (c *PooledClient) NonceAt(ctx context.Context, account common.Address) (uint64, error) {
 	v, err := c.request(ctx, func(conn *Conn) (interface{}, error) {
-		return conn.eclient.PendingNonceAt(ctx, account)
+		return conn.eclient.NonceAt(ctx, account, nil)
 	})
 
 	if err != nil {
