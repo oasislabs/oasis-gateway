@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/oasislabs/developer-gateway/log"
 	"github.com/spf13/cobra"
@@ -20,28 +21,28 @@ type BindConfig struct {
 	HttpMaxHeaderBytes int32
 }
 
-func (c *BindConfig) Configure(prefix string, flagBinder *FlagBinder) error {
-	c.HttpInterface = flagBinder.GetString(prefix, "http_interface")
+func (c *BindConfig) Configure(prefix string, v *viper.Viper) error {
+	c.HttpInterface = v.GetString(prefix + ".http_interface")
 	if len(c.HttpInterface) == 0 {
 		return errors.New(prefix + ".http_interface must be set")
 	}
 
-	c.HttpPort = flagBinder.GetInt32(prefix, "http_port")
+	c.HttpPort = v.GetInt32(prefix + ".http_port")
 	if c.HttpPort > 65535 || c.HttpPort < 0 {
 		return errors.New(prefix + ".http_port must be an integer between 0 and 65535")
 	}
 
-	c.HttpReadTimeoutMs = flagBinder.GetInt32(prefix, "http_read_timeout_ms")
+	c.HttpReadTimeoutMs = v.GetInt32(prefix + ".http_read_timeout_ms")
 	if c.HttpReadTimeoutMs < 0 {
 		return errors.New(prefix + ".http_read_timeout_ms cannot be negative")
 	}
 
-	c.HttpWriteTimeoutMs = flagBinder.GetInt32(prefix, "http_write_timeout_ms")
+	c.HttpWriteTimeoutMs = v.GetInt32(prefix + ".http_write_timeout_ms")
 	if c.HttpWriteTimeoutMs < 0 {
 		return errors.New(prefix + ".http_write_timeout_ms cannot be negative")
 	}
 
-	c.HttpMaxHeaderBytes = flagBinder.GetInt32(prefix, "http_max_header_bytes")
+	c.HttpMaxHeaderBytes = v.GetInt32(prefix + ".http_max_header_bytes")
 	if c.HttpMaxHeaderBytes < 0 {
 		return errors.New(prefix + ".http_max_header_bytes cannot be negative")
 	}
@@ -49,27 +50,17 @@ func (c *BindConfig) Configure(prefix string, flagBinder *FlagBinder) error {
 	return nil
 }
 
-func (c *BindConfig) Bind(prefix string, flagBinder *FlagBinder) error {
-	if err := flagBinder.BindStringFlag(prefix, "http_interface", "127.0.0.1",
-		"interface to bind for http"); err != nil {
-		return err
-	}
-	if err := flagBinder.BindInt32Flag(prefix, "http_port", 1234,
-		"port to listen to for http"); err != nil {
-		return err
-	}
-	if err := flagBinder.BindInt32Flag(prefix, "http_read_timeout_ms",
-		10000, "http read timeout for http interface"); err != nil {
-		return err
-	}
-	if err := flagBinder.BindInt32Flag(prefix, "http_write_timeout_ms",
-		10000, "http write timeout for http interface"); err != nil {
-		return err
-	}
-	if err := flagBinder.BindInt32Flag(prefix, "http_max_header_bytes",
-		10000, "http max header bytes for http"); err != nil {
-		return err
-	}
+func (c *BindConfig) Bind(prefix string, v *viper.Viper, cmd *cobra.Command) error {
+	cmd.PersistentFlags().String(prefix+".http_interface", "127.0.0.1",
+		"interface to bind for http")
+	cmd.PersistentFlags().Int32(prefix+".http_port", 1234,
+		"port to listen to for http")
+	cmd.PersistentFlags().Int32(prefix+".http_read_timeout_ms",
+		10000, "http read timeout for http interface")
+	cmd.PersistentFlags().Int32(prefix+".http_write_timeout_ms",
+		10000, "http write timeout for http interface")
+	cmd.PersistentFlags().Int32(prefix+".http_max_header_bytes",
+		10000, "http max header bytes for http")
 
 	return nil
 }
@@ -86,12 +77,12 @@ func (c *BindPublicConfig) Log(fields log.Fields) {
 	fields.Add("bind_public.http_max_header_bytes", c.BindConfig.HttpMaxHeaderBytes)
 }
 
-func (c *BindPublicConfig) Configure(flagBinder *FlagBinder) error {
-	return c.BindConfig.Configure("bind_public", flagBinder)
+func (c *BindPublicConfig) Configure(v *viper.Viper) error {
+	return c.BindConfig.Configure("bind_public", v)
 }
 
-func (c *BindPublicConfig) Bind(flagBinder *FlagBinder) error {
-	return c.BindConfig.Bind("bind_public", flagBinder)
+func (c *BindPublicConfig) Bind(v *viper.Viper, cmd *cobra.Command) error {
+	return c.BindConfig.Bind("bind_public", v, cmd)
 }
 
 type BindPrivateConfig struct {
@@ -110,12 +101,12 @@ func (c *BindPrivateConfig) Name() string {
 	return "bind_private"
 }
 
-func (c *BindPrivateConfig) Configure(flagBinder *FlagBinder) error {
-	return c.BindConfig.Configure("bind_private", flagBinder)
+func (c *BindPrivateConfig) Configure(v *viper.Viper) error {
+	return c.BindConfig.Configure("bind_private", v)
 }
 
-func (c *BindPrivateConfig) Bind(flagBinder *FlagBinder) error {
-	return c.BindConfig.Bind("bind_private", flagBinder)
+func (c *BindPrivateConfig) Bind(v *viper.Viper, cmd *cobra.Command) error {
+	return c.BindConfig.Bind("bind_private", v, cmd)
 }
 
 // WalletConfig holds the configuration of a single wallet
@@ -129,8 +120,8 @@ func (c *WalletConfig) Log(fields log.Fields) {
 	fields.Add("wallet.private_key_set", true)
 }
 
-func (c *WalletConfig) Configure(flagBinder *FlagBinder) error {
-	c.PrivateKey = flagBinder.GetString("wallet", "private_key")
+func (c *WalletConfig) Configure(v *viper.Viper) error {
+	c.PrivateKey = v.GetString("wallet.private_key")
 	if len(c.PrivateKey) == 0 {
 		return errors.New("wallet.private_key must be set")
 	}
@@ -138,8 +129,9 @@ func (c *WalletConfig) Configure(flagBinder *FlagBinder) error {
 	return nil
 }
 
-func (c *WalletConfig) Bind(flagBinder *FlagBinder) error {
-	return flagBinder.BindStringFlag("wallet", "private_key", "", "private key for the wallet")
+func (c *WalletConfig) Bind(v *viper.Viper, cmd *cobra.Command) error {
+	cmd.PersistentFlags().String("wallet.private_key", "", "private key for the wallet")
+	return nil
 }
 
 // EthConfig is the configuration for the ethereum provider
@@ -152,8 +144,8 @@ func (c *EthConfig) Log(fields log.Fields) {
 	fields.Add("eth.url", c.URL)
 }
 
-func (c *EthConfig) Configure(flagBinder *FlagBinder) error {
-	c.URL = flagBinder.GetString("eth", "url")
+func (c *EthConfig) Configure(v *viper.Viper) error {
+	c.URL = v.GetString("eth.url")
 	if len(c.URL) == 0 {
 		return errors.New("eth.url must be set")
 	}
@@ -161,8 +153,9 @@ func (c *EthConfig) Configure(flagBinder *FlagBinder) error {
 	return nil
 }
 
-func (c *EthConfig) Bind(flagBinder *FlagBinder) error {
-	return flagBinder.BindStringFlag("eth", "url", "", "url for the eth endpoint")
+func (c *EthConfig) Bind(v *viper.Viper, cmd *cobra.Command) error {
+	cmd.PersistentFlags().String("eth.url", "", "url for the eth endpoint")
+	return nil
 }
 
 // AuthConfig sets the configuration for the authentication
@@ -175,8 +168,8 @@ func (c *AuthConfig) Log(fields log.Fields) {
 	fields.Add("auth.provider", c.Provider)
 }
 
-func (c *AuthConfig) Configure(flagBinder *FlagBinder) error {
-	c.Provider = flagBinder.GetString("auth", "provider")
+func (c *AuthConfig) Configure(v *viper.Viper) error {
+	c.Provider = v.GetString("auth.provider")
 	if len(c.Provider) == 0 {
 		return errors.New("auth.provider must be set")
 	}
@@ -184,8 +177,9 @@ func (c *AuthConfig) Configure(flagBinder *FlagBinder) error {
 	return nil
 }
 
-func (c *AuthConfig) Bind(flagBinder *FlagBinder) error {
-	return flagBinder.BindStringFlag("auth", "provider", "insecure", "provider for request authentication")
+func (c *AuthConfig) Bind(v *viper.Viper, cmd *cobra.Command) error {
+	cmd.PersistentFlags().String("auth.provider", "insecure", "provider for request authentication")
+	return nil
 }
 
 // Config is the general application's configuration
@@ -210,15 +204,16 @@ func (c *Config) Log(fields log.Fields) {
 type Parser struct {
 	file   *ConfigFile
 	config *Config
-	binder FlagBinder
+	cmd    *cobra.Command
+	v      *viper.Viper
 }
 
 func (p *Parser) Parse() (*Config, error) {
-	if p.binder.cmd.PersistentFlags().Parsed() {
+	if p.cmd.PersistentFlags().Parsed() {
 		return nil, errors.New("arguments already parsed")
 	}
 
-	if err := p.binder.cmd.PersistentFlags().Parse(os.Args); err != nil {
+	if err := p.cmd.PersistentFlags().Parse(os.Args); err != nil {
 		return nil, fmt.Errorf("failed to parse flags %s", err.Error())
 	}
 
@@ -228,7 +223,7 @@ func (p *Parser) Parse() (*Config, error) {
 		&p.config.EthConfig, &p.config.MailboxConfig, &p.config.AuthConfig}
 
 	for _, c := range configs {
-		if err := c.Configure(&p.binder); err != nil {
+		if err := c.Configure(p.v); err != nil {
 			return nil, err
 		}
 	}
@@ -237,7 +232,7 @@ func (p *Parser) Parse() (*Config, error) {
 }
 
 func (p *Parser) Usage() error {
-	return p.binder.cmd.Usage()
+	return p.cmd.Usage()
 }
 
 func Generate() (*Parser, error) {
@@ -246,20 +241,20 @@ func Generate() (*Parser, error) {
 	// parsed by viper and automatically binds all expected variables
 	// from the environment
 	v.SetEnvPrefix("OASIS_DG")
+	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	v.AutomaticEnv()
 
 	cmd := &cobra.Command{Use: "developer-gateway"}
 	config := Config{}
 	file := ConfigFile{}
-	flagBinder := FlagBinder{viper: v, cmd: cmd}
 	configs := []Binder{&file, &config.BindPublicConfig, &config.BindPrivateConfig, &config.WalletConfig,
 		&config.EthConfig, &config.MailboxConfig, &config.AuthConfig}
 
 	for _, c := range configs {
-		if err := c.Bind(&flagBinder); err != nil {
+		if err := c.Bind(v, cmd); err != nil {
 			return nil, fmt.Errorf("failed to bind flags %s", err.Error())
 		}
 	}
 
-	return &Parser{file: &file, config: &config, binder: flagBinder}, nil
+	return &Parser{file: &file, config: &config, cmd: cmd, v: v}, nil
 }

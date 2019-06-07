@@ -5,6 +5,8 @@ import (
 	"strings"
 
 	"github.com/oasislabs/developer-gateway/log"
+	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
 type MailboxProvider string
@@ -29,8 +31,8 @@ func (c *MailboxConfig) Log(fields log.Fields) {
 	}
 }
 
-func (c *MailboxConfig) Configure(flagBinder *FlagBinder) error {
-	c.Provider = flagBinder.GetString("mailbox", "provider")
+func (c *MailboxConfig) Configure(v *viper.Viper) error {
+	c.Provider = v.GetString("mailbox.provider")
 	if len(c.Provider) == 0 {
 		return errors.New("mailbox.provider must be set. " +
 			"Options are " + string(MailboxMem) +
@@ -41,13 +43,13 @@ func (c *MailboxConfig) Configure(flagBinder *FlagBinder) error {
 	switch MailboxProvider(c.Provider) {
 	case MailboxMem:
 		c.Mailbox = &MailboxMemConfig{}
-		return c.Mailbox.(*MailboxMemConfig).Configure(flagBinder)
+		return c.Mailbox.(*MailboxMemConfig).Configure(v)
 	case MailboxRedisSingle:
 		c.Mailbox = &MailboxRedisSingleConfig{}
-		return c.Mailbox.(*MailboxRedisSingleConfig).Configure(flagBinder)
+		return c.Mailbox.(*MailboxRedisSingleConfig).Configure(v)
 	case MailboxRedisCluster:
 		c.Mailbox = &MailboxRedisClusterConfig{}
-		return c.Mailbox.(*MailboxRedisClusterConfig).Configure(flagBinder)
+		return c.Mailbox.(*MailboxRedisClusterConfig).Configure(v)
 	default:
 		return errors.New("unknown mailbox.provider set. " +
 			"Options are " + string(MailboxMem) +
@@ -56,22 +58,20 @@ func (c *MailboxConfig) Configure(flagBinder *FlagBinder) error {
 	}
 }
 
-func (c *MailboxConfig) Bind(flagBinder *FlagBinder) error {
-	if err := flagBinder.BindStringFlag("mailbox", "provider", "mem",
+func (c *MailboxConfig) Bind(v *viper.Viper, cmd *cobra.Command) error {
+	cmd.PersistentFlags().String("mailbox.provider", "mem",
 		"provider for the mailbox service. "+
 			"Options are "+string(MailboxMem)+
 			", "+string(MailboxRedisSingle)+
-			", "+string(MailboxRedisCluster)+"."); err != nil {
-		return err
-	}
+			", "+string(MailboxRedisCluster)+".")
 
-	if err := (&MailboxRedisSingleConfig{}).Bind(flagBinder); err != nil {
+	if err := (&MailboxRedisSingleConfig{}).Bind(v, cmd); err != nil {
 		return err
 	}
-	if err := (&MailboxRedisClusterConfig{}).Bind(flagBinder); err != nil {
+	if err := (&MailboxRedisClusterConfig{}).Bind(v, cmd); err != nil {
 		return err
 	}
-	if err := (&MailboxMemConfig{}).Bind(flagBinder); err != nil {
+	if err := (&MailboxMemConfig{}).Bind(v, cmd); err != nil {
 		return err
 	}
 
@@ -96,8 +96,8 @@ func (c *MailboxRedisSingleConfig) ID() MailboxProvider {
 	return MailboxRedisSingle
 }
 
-func (c *MailboxRedisSingleConfig) Configure(flagBinder *FlagBinder) error {
-	c.Addr = flagBinder.GetString("mailbox.redis_single", "addr")
+func (c *MailboxRedisSingleConfig) Configure(v *viper.Viper) error {
+	c.Addr = v.GetString("mailbox.redis_single.addr")
 	if len(c.Addr) == 0 {
 		return errors.New("mailbox.redis_single.addr must be set")
 	}
@@ -105,8 +105,9 @@ func (c *MailboxRedisSingleConfig) Configure(flagBinder *FlagBinder) error {
 	return nil
 }
 
-func (c *MailboxRedisSingleConfig) Bind(flagBinder *FlagBinder) error {
-	return flagBinder.BindStringFlag("mailbox.redis_single", "addr", "127.0.0.1:6379", "redis instance address")
+func (c *MailboxRedisSingleConfig) Bind(v *viper.Viper, cmd *cobra.Command) error {
+	cmd.PersistentFlags().String("mailbox.redis_single.addr", "127.0.0.1:6379", "redis instance address")
+	return nil
 }
 
 type MailboxRedisClusterConfig struct {
@@ -121,11 +122,11 @@ func (c *MailboxRedisClusterConfig) ID() MailboxProvider {
 	return MailboxRedisCluster
 }
 
-func (c *MailboxRedisClusterConfig) Configure(flagBinder *FlagBinder) error {
+func (c *MailboxRedisClusterConfig) Configure(v *viper.Viper) error {
 	return nil
 }
 
-func (c *MailboxRedisClusterConfig) Bind(flagBinder *FlagBinder) error {
+func (c *MailboxRedisClusterConfig) Bind(v *viper.Viper, cmd *cobra.Command) error {
 	return nil
 }
 
@@ -137,10 +138,10 @@ func (c *MailboxMemConfig) ID() MailboxProvider {
 	return MailboxMem
 }
 
-func (c *MailboxMemConfig) Configure(flagBinder *FlagBinder) error {
+func (c *MailboxMemConfig) Configure(v *viper.Viper) error {
 	return nil
 }
 
-func (c *MailboxMemConfig) Bind(flagBinder *FlagBinder) error {
+func (c *MailboxMemConfig) Bind(v *viper.Viper, cmd *cobra.Command) error {
 	return nil
 }
