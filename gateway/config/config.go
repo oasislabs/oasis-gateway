@@ -259,5 +259,9 @@ func Generate() (*Parser, error) {
 		}
 	}
 
+	if err := v.BindPFlags(cmd.PersistentFlags()); err != nil {
+		return nil, fmt.Errorf("failed to bind flags %s", err.Error())
+	}
+
 	return &Parser{file: &file, config: &config, cmd: cmd, v: v}, nil
 }
