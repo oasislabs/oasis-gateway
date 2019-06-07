@@ -84,34 +84,15 @@ func TestPathNoContentType(t *testing.T) {
 			Method: "POST",
 			Path:   "/v0/api/service/deploy",
 		},
-		Body: nil,
+		Body: []byte("{}"),
 		Headers: map[string]string{
 			insecure.HeaderKey:           "mykey",
 			auth.RequestHeaderSessionKey: "mysession",
-			"Content-length":             "0",
+			"Content-length":             "2",
 		},
 	})
 	assert.Nil(t, err)
 
 	assert.Equal(t, http.StatusBadRequest, res.Code)
 	assert.Equal(t, "{\"errorCode\":2004,\"description\":\"Content-type should be application/json.\"}\n", string(res.Body))
-}
-
-func TestPathNoContent(t *testing.T) {
-	res, err := apitest.NewClient(router).Request(apitest.Request{
-		Route: apitest.Route{
-			Method: "POST",
-			Path:   "/v0/api/service/deploy",
-		},
-		Body: nil,
-		Headers: map[string]string{
-			insecure.HeaderKey:           "mykey",
-			auth.RequestHeaderSessionKey: "mysession",
-			"Content-type":               "application/json",
-		},
-	})
-	assert.Nil(t, err)
-
-	assert.Equal(t, http.StatusBadRequest, res.Code)
-	assert.Equal(t, "{\"errorCode\":2005,\"description\":\"Failed to deserialize body as JSON.\"}\n", string(res.Body))
 }

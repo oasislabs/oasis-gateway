@@ -3,11 +3,14 @@ package rpc
 import (
 	"bytes"
 	"context"
+	stderr "errors"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
+	"github.com/oasislabs/developer-gateway/errors"
 	"github.com/oasislabs/developer-gateway/log"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
@@ -52,6 +55,12 @@ type HttpMiddlewarePanic struct{}
 
 func (m HttpMiddlewarePanic) ServeHTTP(req *http.Request) (interface{}, error) {
 	panic("error")
+}
+
+type ErrEncoder struct{}
+
+func (e ErrEncoder) Encode(w io.Writer, v interface{}) error {
+	return stderr.New("failed to encode")
 }
 
 func setupRouter() *HttpRouter {
@@ -172,6 +181,49 @@ func TestHttpBinderBuildRouterNoFactory(t *testing.T) {
 	})
 }
 
+func TestHttpRouterReportSuccessEncoderErr(t *testing.T) {
+	binder := NewHttpBinder(HttpBinderProperties{
+		Encoder:        JsonEncoder{},
+		Logger:         logger,
+		HandlerFactory: HttpHandlerFactoryFunc(simpleHandlerFactory),
+	})
+
+	binder.Bind("GET", "/path", HandlerEcho{}, nil)
+	router := binder.Build()
+	router.encoder = ErrEncoder{}
+
+	recorder := httptest.NewRecorder()
+	req, _ := http.NewRequest("GET", "/path", nil)
+	router.reportSuccess(recorder, req, make(map[string]string))
+
+	assert.Equal(t, http.StatusInternalServerError, recorder.Code)
+}
+
+func TestHttpRouterMapError(t *testing.T) {
+	tests := map[errors.Error]int{
+		errors.New(errors.ErrInternalError, nil):         http.StatusInternalServerError,
+		errors.New(errors.ErrOutOfRange, nil):            http.StatusBadRequest,
+		errors.New(errors.ErrQueueLimitReached, nil):     http.StatusTooManyRequests,
+		errors.New(errors.ErrQueueDiscardNotExists, nil): http.StatusConflict,
+		errors.New(errors.ErrAPINotImplemented, nil):     http.StatusNotImplemented,
+		errors.New(errors.ErrQueueNotFound, nil):         http.StatusNotFound,
+	}
+
+	binder := NewHttpBinder(HttpBinderProperties{
+		Encoder:        JsonEncoder{},
+		Logger:         logger,
+		HandlerFactory: HttpHandlerFactoryFunc(simpleHandlerFactory),
+	})
+
+	binder.Bind("GET", "/path", HandlerEcho{}, nil)
+	router := binder.Build()
+
+	for err, code := range tests {
+		httpErr := router.mapError(err)
+		assert.Equal(t, code, httpErr.StatusCode)
+	}
+}
+
 func TestHttpBinderBuildRouter(t *testing.T) {
 	binder := NewHttpBinder(HttpBinderProperties{
 		Encoder:        JsonEncoder{},
@@ -220,6 +272,7 @@ func TestHttpJsonHandlerContentLengthMissingWithBody(t *testing.T) {
 	})
 
 	req, _ := http.NewRequest("GET", "/path", bytes.NewBufferString(""))
+	req.ContentLength = -1
 
 	v, err := handler.ServeHTTP(req)
 
@@ -279,4 +332,54 @@ func TestHttpJsonHandlerOK(t *testing.T) {
 	m := *v.(*map[string]string)
 	assert.Nil(t, err)
 	assert.Equal(t, map[string]string{"hamburger": "rare", "potato": "fried"}, m)
+}
+
+func TestHttpErrorError(t *testing.T) {
+	e := errors.New(errors.ErrInternalError, nil)
+	err := HttpError{Cause: &e, StatusCode: 400}
+	assert.Equal(t, "[1000] error code InternalError with desc"+
+		" Internal Error. Please check the status of the service. "+
+		"with status code 400", err.Error())
+}
+
+func TestHttpBadRequest(t *testing.T) {
+	e := errors.New(errors.ErrInternalError, nil)
+	err := HttpBadRequest(context.Background(), e)
+	assert.Equal(t, http.StatusBadRequest, err.StatusCode)
+	assert.Equal(t, err.Cause, &e)
+}
+
+func TestHttpForbidden(t *testing.T) {
+	e := errors.New(errors.ErrInternalError, nil)
+	err := HttpForbidden(context.Background(), e)
+	assert.Equal(t, http.StatusForbidden, err.StatusCode)
+	assert.Equal(t, err.Cause, &e)
+}
+
+func TestHttpNotFound(t *testing.T) {
+	e := errors.New(errors.ErrInternalError, nil)
+	err := HttpNotFound(context.Background(), e)
+	assert.Equal(t, http.StatusNotFound, err.StatusCode)
+	assert.Equal(t, err.Cause, &e)
+}
+
+func TestHttpTooManyRequests(t *testing.T) {
+	e := errors.New(errors.ErrInternalError, nil)
+	err := HttpTooManyRequests(context.Background(), e)
+	assert.Equal(t, http.StatusTooManyRequests, err.StatusCode)
+	assert.Equal(t, err.Cause, &e)
+}
+
+func TestHttpNotImplemented(t *testing.T) {
+	e := errors.New(errors.ErrInternalError, nil)
+	err := HttpNotImplemented(context.Background(), e)
+	assert.Equal(t, http.StatusNotImplemented, err.StatusCode)
+	assert.Equal(t, err.Cause, &e)
+}
+
+func TestHttpInternalServerError(t *testing.T) {
+	e := errors.New(errors.ErrInternalError, nil)
+	err := HttpInternalServerError(context.Background(), e)
+	assert.Equal(t, http.StatusInternalServerError, err.StatusCode)
+	assert.Equal(t, err.Cause, &e)
 }

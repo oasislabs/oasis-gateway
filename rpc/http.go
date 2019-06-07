@@ -191,11 +191,12 @@ func (h *HttpRouter) reportSuccess(res http.ResponseWriter, req *http.Request, b
 	}
 
 	if err := h.encoder.Encode(res, body); err != nil {
+		res.WriteHeader(http.StatusInternalServerError)
 		h.logger.Warn(req.Context(), "failed to encode response to response writer", log.MapFields{
 			"path":        path,
 			"method":      method,
 			"call_type":   "HttpRequestHandleFailure",
-			"status_code": http.StatusNoContent,
+			"status_code": http.StatusInternalServerError,
 		})
 		return
 	}
@@ -239,6 +240,11 @@ func (h *HttpRouter) mapError(err errors.Error) *HttpError {
 		return &HttpError{
 			Cause:      &err,
 			StatusCode: http.StatusForbidden,
+		}
+	case errors.NotFound:
+		return &HttpError{
+			Cause:      &err,
+			StatusCode: http.StatusNotFound,
 		}
 	default:
 		return &HttpError{
@@ -350,7 +356,7 @@ func NewHttpJsonHandler(properties HttpJsonHandlerProperties) *HttpJsonHandler {
 // ServeHTTP is the implementation of HttpMiddleware for HttpJsonHandler
 func (h *HttpJsonHandler) ServeHTTP(req *http.Request) (interface{}, error) {
 	// verify that content length is set and it is correct
-	if req.ContentLength < 0 || (req.ContentLength == 0 && req.Body != nil) {
+	if req.ContentLength < 0 {
 		h.logger.Debug(req.Context(), "Content-length header missing from request", log.MapFields{
 			"path":      req.URL.EscapedPath(),
 			"method":    req.Method,
@@ -372,7 +378,7 @@ func (h *HttpJsonHandler) ServeHTTP(req *http.Request) (interface{}, error) {
 
 	// verify that content type is set and it is correct
 	contentType := req.Header.Get("Content-type")
-	if contentType != "application/json" {
+	if req.ContentLength > 0 && contentType != "application/json" {
 		h.logger.Debug(req.Context(), "Content-type is not for json", log.MapFields{
 			"path":           req.URL.EscapedPath(),
 			"method":         req.Method,
@@ -394,17 +400,7 @@ func (h *HttpJsonHandler) ServeHTTP(req *http.Request) (interface{}, error) {
 		return nil, errors.New(errors.ErrDeserializeJSON, nil)
 	}
 
-	if body != nil && (req.Body == nil || req.ContentLength == 0) {
-		h.logger.Debug(req.Context(), "received request body for handler that does not expect a request body", log.MapFields{
-			"path":           req.URL.EscapedPath(),
-			"method":         req.Method,
-			"content_length": req.ContentLength,
-			"call_type":      "HttpJsonRequestHandleFailure",
-		})
-		return nil, errors.New(errors.ErrDeserializeJSON, nil)
-	}
-
-	if body != nil {
+	if body != nil && req.ContentLength > 0 {
 		if err := h.decoder.DecodeWithLimit(req.Body, body, rw.ReadLimitProps{
 			Limit:        req.ContentLength,
 			FailOnExceed: true,

@@ -1,10 +1,10 @@
 package ekiden
 
 import (
-	"bytes"
 	"context"
 	"crypto/ecdsa"
 	"encoding/hex"
+	stderr "errors"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -12,10 +12,7 @@ import (
 	"github.com/oasislabs/developer-gateway/backend/core"
 	"github.com/oasislabs/developer-gateway/ekiden"
 	"github.com/oasislabs/developer-gateway/errors"
-	"github.com/oasislabs/developer-gateway/eth"
 	"github.com/oasislabs/developer-gateway/log"
-	tx "github.com/oasislabs/developer-gateway/tx/core"
-	"github.com/oasislabs/developer-gateway/tx/exec"
 )
 
 type NodeProps struct {
@@ -34,7 +31,6 @@ type Client struct {
 	runtime    *ekiden.Runtime
 	keyManager *ekiden.Enclave
 	runtimeID  []byte
-	handler    tx.TransactionHandler
 }
 
 func DialContext(ctx context.Context, props ClientProps) (*Client, errors.Err) {
@@ -51,22 +47,17 @@ func DialContext(ctx context.Context, props ClientProps) (*Client, errors.Err) {
 		return nil, errors.New(errors.ErrEkidenDial, err)
 	}
 
-	// TODO(ennsharma): Replace this with something more correct for ekiden-client
-	dialer := eth.NewUniDialer(ctx, props.KeyManagerProps.URL)
-	handler, err := exec.NewServer(ctx, props.Logger, props.PrivateKeys, dialer)
-
 	return &Client{
 		runtime:    runtime,
 		keyManager: keyManager,
 		runtimeID:  props.RuntimeID,
-		handler:    handler,
 	}, nil
 }
 
-func (c *Client) GetPublicKeyService(
+func (c *Client) GetPublicKey(
 	ctx context.Context,
-	req core.GetPublicKeyServiceRequest,
-) (*core.GetPublicKeyServiceResponse, errors.Err) {
+	req core.GetPublicKeyRequest,
+) (*core.GetPublicKeyResponse, errors.Err) {
 	decoded, err := hex.DecodeString(req.Address)
 	if err != nil {
 		return nil, errors.New(errors.ErrInvalidAddress, err)
@@ -86,7 +77,7 @@ func (c *Client) GetPublicKeyService(
 		return nil, errors.New(errors.ErrEkidenGetPublicKey, err)
 	}
 
-	return &core.GetPublicKeyServiceResponse{}, nil
+	return &core.GetPublicKeyResponse{}, nil
 }
 
 func (c *Client) ExecuteService(
@@ -131,17 +122,18 @@ func (c *Client) SubscribeRequest(
 }
 
 func (c *Client) generateTx(ctx context.Context, transaction *types.Transaction) ([]byte, errors.Err) {
-	tx, err := c.handler.Sign(ctx, tx.SignRequest{Transaction: transaction})
-	if err != nil {
-		return nil, errors.New(errors.ErrEkidenSignTx, err)
-	}
+	// tx, err := c.handler.Sign(ctx, tx.SignRequest{Transaction: transaction})
+	// if err != nil {
+	// 	return nil, errors.New(errors.ErrEkidenSignTx, err)
+	// }
 
-	buffer := bytes.NewBuffer(make([]byte, 0, 16))
-	if err := tx.EncodeRLP(buffer); err != nil {
-		return nil, errors.New(errors.ErrEkidenEncodeRLPTx, err)
-	}
+	// buffer := bytes.NewBuffer(make([]byte, 0, 16))
+	// if err := tx.EncodeRLP(buffer); err != nil {
+	// 	return nil, errors.New(errors.ErrEkidenEncodeRLPTx, err)
+	// }
 
-	return buffer.Bytes(), nil
+	// return buffer.Bytes(), nil
+	return nil, errors.New(errors.ErrAPINotImplemented, stderr.New("generate tx not implemented because we need to define a way to manage the nonce"))
 }
 
 func (c *Client) createTx(address string, data string) *types.Transaction {

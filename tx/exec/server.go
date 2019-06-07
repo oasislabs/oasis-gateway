@@ -22,11 +22,7 @@ type Server struct {
 	logger log.Logger
 }
 
-func NewServer(ctx context.Context, logger log.Logger, pks []*ecdsa.PrivateKey, dialer *eth.UniDialer) (*Server, error) {
-	client := eth.NewPooledClient(eth.PooledClientProps{
-		Pool:        dialer,
-		RetryConfig: conc.RandomConfig,
-	})
+func NewServer(ctx context.Context, logger log.Logger, pks []*ecdsa.PrivateKey, client eth.Client) (*Server, error) {
 	s := &Server{
 		client: client,
 		logger: logger.ForClass("tx/wallet", "Server"),
@@ -44,8 +40,8 @@ func NewServer(ctx context.Context, logger log.Logger, pks []*ecdsa.PrivateKey, 
 	// Create a worker for each provided private key
 	for _, pk := range pks {
 		if err := s.master.Create(ctx, crypto.PubkeyToAddress(pk.PublicKey).Hex(), pk); err != nil {
-			if e := s.master.Stop(); e != nil {
-				return nil, e
+			if err := s.master.Stop(); err != nil {
+				return nil, err
 			}
 			return nil, err
 		}
@@ -91,6 +87,10 @@ func (s *Server) destroy(ctx context.Context, ev conc.DestroyWorkerEvent) error 
 func (s *Server) Sign(ctx context.Context, req core.SignRequest) (*types.Transaction, errors.Err) {
 	tx, err := s.master.Execute(ctx, signRequest{Transaction: req.Transaction})
 	if err != nil {
+		if e, ok := err.(errors.Err); ok {
+			return nil, e
+		}
+
 		return nil, errors.New(errors.ErrSignTransaction, err)
 	}
 
@@ -98,17 +98,21 @@ func (s *Server) Sign(ctx context.Context, req core.SignRequest) (*types.Transac
 }
 
 // Executes the desired transaction.
-func (s *Server) Execute(ctx context.Context, req core.ExecuteRequest) (*types.Receipt, errors.Err) {
-	receipt, err := s.master.Execute(ctx, executeRequest{
+func (s *Server) Execute(ctx context.Context, req core.ExecuteRequest) (core.ExecuteResponse, errors.Err) {
+	res, err := s.master.Execute(ctx, executeRequest{
 		ID:      req.ID,
 		Address: req.Address,
 		Data:    req.Data,
 	})
 	if err != nil {
-		return nil, errors.New(errors.ErrExecuteTransaction, err)
+		if e, ok := err.(errors.Err); ok {
+			return core.ExecuteResponse{}, e
+		}
+
+		return core.ExecuteResponse{}, errors.New(errors.ErrExecuteTransaction, err)
 	}
 
-	return receipt.(*types.Receipt), nil
+	return res.(core.ExecuteResponse), nil
 }
 
 // Remove the key's wallet and it's associated resources.

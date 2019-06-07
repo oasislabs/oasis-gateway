@@ -4,17 +4,24 @@ import (
 	"context"
 	"crypto/ecdsa"
 	stderr "errors"
+	"fmt"
 	"math/big"
 
 	ethereum "github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/types"
 
 	"github.com/oasislabs/developer-gateway/conc"
 	"github.com/oasislabs/developer-gateway/errors"
 	"github.com/oasislabs/developer-gateway/eth"
 	"github.com/oasislabs/developer-gateway/log"
+	"github.com/oasislabs/developer-gateway/tx/core"
 )
+
+// StatusOK defined by ethereum is the value of status
+// for a transaction that succeeds
+const StatusOK = 1
 
 const gasPrice int64 = 1000000000
 
@@ -56,7 +63,8 @@ func NewTransactionExecutor(
 func (e *TransactionExecutor) handle(ctx context.Context, ev conc.WorkerEvent) (interface{}, error) {
 	switch ev := ev.(type) {
 	case conc.RequestWorkerEvent:
-		return e.handleRequestEvent(ctx, ev)
+		v, err := e.handleRequestEvent(ctx, ev)
+		return v, err
 	case conc.ErrorWorkerEvent:
 		return e.handleErrorEvent(ctx, ev)
 	default:
@@ -102,16 +110,13 @@ func (e *TransactionExecutor) updateNonce(ctx context.Context) errors.Err {
 			continue
 		}
 
-		if e.nonce < nonce {
-			e.nonce = nonce
+		e.nonce = nonce
+		e.logger.Debug(ctx, "", log.MapFields{
+			"call_type": "NonceSuccess",
+			"address":   address,
+		})
 
-			e.logger.Debug(ctx, "", log.MapFields{
-				"call_type": "NonceSuccess",
-				"address":   address,
-			})
-
-			return nil
-		}
+		return nil
 	}
 
 	e.logger.Debug(ctx, "Exceeded NonceAt request limit", log.MapFields{
@@ -179,7 +184,19 @@ func (e *TransactionExecutor) estimateGas(ctx context.Context, id uint64, addres
 	return gas, nil
 }
 
-func (e *TransactionExecutor) executeTransaction(ctx context.Context, req executeRequest) (*types.Receipt, errors.Err) {
+func (e *TransactionExecutor) executeTransaction(ctx context.Context, req executeRequest) (core.ExecuteResponse, errors.Err) {
+	err := e.updateNonce(ctx)
+	if err != nil {
+		e.logger.Debug(ctx, "failed to retrieve nonce", log.MapFields{
+			"call_type": "ExecuteTransactionFailure",
+			"id":        req.ID,
+			"address":   req.Address,
+		}, err)
+
+		return core.ExecuteResponse{}, err
+	}
+
+	contractAddress := req.Address
 	gas, err := e.estimateGas(ctx, req.ID, req.Address, req.Data)
 	if err != nil {
 		e.logger.Debug(ctx, "failed to estimate gas", log.MapFields{
@@ -188,14 +205,13 @@ func (e *TransactionExecutor) executeTransaction(ctx context.Context, req execut
 			"address":   req.Address,
 		}, err)
 
-		e.updateNonce(ctx)
-		return nil, err
+		return core.ExecuteResponse{}, err
 	}
 
 	nonce := e.transactionNonce()
 
 	var tx *types.Transaction
-	if len(req.Address) == 0 {
+	if len(contractAddress) == 0 {
 		tx = types.NewContractCreation(nonce,
 			big.NewInt(0), gas, big.NewInt(gasPrice), req.Data)
 	} else {
@@ -212,36 +228,65 @@ func (e *TransactionExecutor) executeTransaction(ctx context.Context, req execut
 			"address":   req.Address,
 		}, err)
 
-		e.updateNonce(ctx)
-		return nil, err
+		return core.ExecuteResponse{}, err
 	}
 
-	if err := e.client.SendTransaction(ctx, tx); err != nil {
+	res, derr := e.client.SendTransaction(ctx, tx)
+	if derr != nil {
 		// depending on the error received it may be useful to return the error
 		// and have an upper logic to decide whether to retry the request
-		err := errors.New(errors.ErrSendTransaction, err)
+		err := errors.New(errors.ErrSendTransaction, derr)
 		e.logger.Debug(ctx, "failure to send transaction", log.MapFields{
 			"call_type": "ExecuteTransactionFailure",
 			"id":        req.ID,
 			"address":   req.Address,
 		}, err)
 
-		e.updateNonce(ctx)
-		return nil, err
+		return core.ExecuteResponse{}, err
 	}
 
-	receipt, receiptErr := e.client.TransactionReceipt(ctx, tx.Hash())
-	if receiptErr != nil {
-		err := errors.New(errors.ErrSendTransaction, receiptErr)
-		e.logger.Debug(ctx, "failure to send transaction", log.MapFields{
+	if res.Status != StatusOK {
+		p, derr := hexutil.Decode(res.Output)
+		if derr != nil {
+			e.logger.Debug(ctx, "failed to decode the output of the transaction as hex", log.MapFields{
+				"call_type": "DecodeTransactionOutputFailure",
+				"id":        req.ID,
+				"address":   req.Address,
+				"err":       derr.Error(),
+			})
+		}
+
+		output := string(p)
+		msg := fmt.Sprintf("transaction receipt has status 0 which indicates a transaction execution failure with error %s", output)
+		err := errors.New(errors.NewErrorCode(errors.InternalError, 1000, msg), stderr.New(msg))
+		e.logger.Debug(ctx, "transaction execution failed", log.MapFields{
 			"call_type": "ExecuteTransactionFailure",
 			"id":        req.ID,
 			"address":   req.Address,
 		}, err)
 
-		e.updateNonce(ctx)
-		return nil, err
+		return core.ExecuteResponse{}, err
 	}
 
-	return receipt, nil
+	if len(contractAddress) == 0 {
+		receipt, err := e.client.TransactionReceipt(ctx, tx.Hash())
+		if err != nil {
+			err := errors.New(errors.ErrTransactionReceipt, err)
+			e.logger.Debug(ctx, "failure to retrieve transaction receipt", log.MapFields{
+				"call_type": "ExecuteTransactionFailure",
+				"id":        req.ID,
+				"address":   req.Address,
+			}, err)
+
+			return core.ExecuteResponse{}, err
+		}
+
+		contractAddress = receipt.ContractAddress.Hex()
+	}
+
+	return core.ExecuteResponse{
+		Address: contractAddress,
+		Output:  res.Output,
+		Hash:    res.Hash,
+	}, nil
 }

@@ -13,6 +13,6 @@ ARG BUILD_IMAGE_TAG
 LABEL com.oasislabs.developer-gateway-commit-sha="${COMMIT_SHA}"
 LABEL com.oasislabs.developer-gateway-build-image-tag="${BUILD_IMAGE_TAG}"
 WORKDIR /
-COPY --from=builder /app/cmd/gateway/config/production.toml /config/production.toml
+COPY --from=builder /app/cmd/gateway/config/testing.toml /config/testing.toml
 COPY --from=builder /app/developer-gateway /developer-gateway
 ENTRYPOINT ["/developer-gateway"]

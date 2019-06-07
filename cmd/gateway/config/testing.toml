@@ -1,18 +1,18 @@
-title = "Development configuration"
+title = "Staging configuration"
 
 [wallet]
-private_key = "37e3836a1c6d6db32d21ac7f2b570b8cce9272aee5bcc0e175ec599b5c8b7052"
+private_key = ""
 
 [bind_public]
 http_interface = "127.0.0.1"
-http_port = 1236
+http_port = 1234
 http_read_timeout_ms = 10000
 http_write_timeout_ms = 10000
 http_max_header_bytes = 8192
 
 [bind_private]
 http_interface = "127.0.0.1"
-http_port = 1238
+http_port = 1235
 http_read_timeout_ms = 10000
 http_write_timeout_ms = 10000
 http_max_header_bytes = 8192
@@ -20,8 +20,8 @@ http_max_header_bytes = 8192
 [eth]
 url = "wss://web3.beta.oasiscloud-staging.net/ws"
 
-[mailbox]
-provider = "mem"
+[mqueue]
+backend = "mem"
 
 [auth]
 provider = "insecure"

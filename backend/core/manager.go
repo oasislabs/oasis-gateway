@@ -14,7 +14,7 @@ import (
 // Client is an interface for any type that sends requests and
 // receives responses
 type Client interface {
-	GetPublicKeyService(context.Context, GetPublicKeyServiceRequest) (GetPublicKeyServiceResponse, errors.Err)
+	GetPublicKey(context.Context, GetPublicKeyRequest) (GetPublicKeyResponse, errors.Err)
 	ExecuteService(context.Context, uint64, ExecuteServiceRequest) (ExecuteServiceResponse, errors.Err)
 	DeployService(context.Context, uint64, DeployServiceRequest) (DeployServiceResponse, errors.Err)
 	SubscribeRequest(context.Context, CreateSubscriptionRequest, chan<- interface{}) errors.Err
@@ -64,16 +64,16 @@ func NewRequestManager(properties RequestManagerProperties) *RequestManager {
 	}
 }
 
-// GetPublicKeyService retrieves the public key for a specific service
-func (m *RequestManager) GetPublicKeyService(
+// GetPublicKey retrieves the public key for a specific service
+func (m *RequestManager) GetPublicKey(
 	ctx context.Context,
-	req GetPublicKeyServiceRequest,
-) (GetPublicKeyServiceResponse, errors.Err) {
+	req GetPublicKeyRequest,
+) (GetPublicKeyResponse, errors.Err) {
 	if len(req.Address) == 0 {
-		return GetPublicKeyServiceResponse{}, errors.New(errors.ErrInvalidAddress, nil)
+		return GetPublicKeyResponse{}, errors.New(errors.ErrInvalidAddress, nil)
 	}
 
-	return m.client.GetPublicKeyService(ctx, req)
+	return m.client.GetPublicKey(ctx, req)
 }
 
 // RequestManager starts a request and provides an identifier for the caller to

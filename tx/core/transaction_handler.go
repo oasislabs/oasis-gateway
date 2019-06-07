@@ -25,6 +25,12 @@ type ExecuteRequest struct {
 	Data []byte
 }
 
+type ExecuteResponse struct {
+	Address string
+	Output  string
+	Hash    string
+}
+
 // RemoveRequest to ask to destroy the wallet identified
 // by the provided key
 type RemoveRequest struct {
@@ -39,7 +45,7 @@ type TransactionHandler interface {
 	Sign(context.Context, SignRequest) (*types.Transaction, errors.Err)
 
 	// Execute a transaction
-	Execute(context.Context, ExecuteRequest) (*types.Receipt, errors.Err)
+	Execute(context.Context, ExecuteRequest) (ExecuteResponse, errors.Err)
 
 	// Remove the wallet and associated resources with the key
 	Remove(context.Context, RemoveRequest) errors.Err

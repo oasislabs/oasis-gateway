@@ -25,10 +25,10 @@ type Client interface {
 	// PollService allows the client to poll for asynchronous responses
 	PollService(context.Context, backend.PollServiceRequest) (backend.Events, errors.Err)
 
-	// GetPublicKeyService retrieves the public key associated with a service
+	// GetPublicKey retrieves the public key associated with a service
 	// so that the client can encrypt and format the input data in a confidental
 	// and privacy preserving manner.
-	GetPublicKeyService(context.Context, backend.GetPublicKeyServiceRequest) (backend.GetPublicKeyServiceResponse, errors.Err)
+	GetPublicKey(context.Context, backend.GetPublicKeyRequest) (backend.GetPublicKeyResponse, errors.Err)
 }
 
 // Services required by the ServiceHandler execution
@@ -80,9 +80,18 @@ func (h ServiceHandler) ExecuteService(ctx context.Context, v interface{}) (inte
 	authData := ctx.Value(auth.ContextAuthDataKey).(auth.AuthData)
 	req := v.(*ExecuteServiceRequest)
 
+	if len(req.Address) == 0 {
+		e := errors.New(errors.ErrInvalidAddress, nil)
+		h.logger.Debug(ctx, "received empty address", log.MapFields{
+			"call_type": "ExecuteServiceFailure",
+		}, e)
+		return nil, e
+	}
+
 	if err := h.verifier.Verify(req.Data, authData.ExpectedAAD); err != nil {
 		e := errors.New(errors.ErrFailedAADVerification, err)
 		h.logger.Debug(ctx, "failed to verify AAD", log.MapFields{
+			"call_type":   "ExecuteServiceFailure",
 			"expectedAAD": authData.ExpectedAAD,
 			"err":         e,
 		})
@@ -156,34 +165,34 @@ func (h ServiceHandler) PollService(ctx context.Context, v interface{}) (interfa
 	return PollServiceResponse{Offset: res.Offset, Events: events}, nil
 }
 
-// GetPublicKeyService retrives the public key associated with a service
+// GetPublicKey retrives the public key associated with a service
 // to allow the client to encrypt the data that serves as argument for
 // a service deployment or service execution.
-func (h ServiceHandler) GetPublicKeyService(ctx context.Context, v interface{}) (interface{}, error) {
-	req := v.(*GetPublicKeyServiceRequest)
+func (h ServiceHandler) GetPublicKey(ctx context.Context, v interface{}) (interface{}, error) {
+	req := v.(*GetPublicKeyRequest)
 
 	if len(req.Address) == 0 {
-		err := errors.New(errors.ErrEmptyInput, stderr.New("address field has not been set"))
+		err := errors.New(errors.ErrInvalidAddress, stderr.New("address field has not been set"))
 		h.logger.Debug(ctx, "failed to start request", log.MapFields{
-			"call_type": "GetPublicKeyServiceFailure",
+			"call_type": "GetPublicKeyFailure",
 			"address":   req.Address,
 		}, err)
 		return nil, err
 	}
 
-	res, err := h.client.GetPublicKeyService(ctx, backend.GetPublicKeyServiceRequest{
+	res, err := h.client.GetPublicKey(ctx, backend.GetPublicKeyRequest{
 		Address: req.Address,
 	})
 
 	if err != nil {
 		h.logger.Debug(ctx, "request failed", log.MapFields{
-			"call_type": "GetPublicKeyServiceFailure",
+			"call_type": "GetPublicKeyFailure",
 			"address":   req.Address,
 		}, err)
 		return nil, err
 	}
 
-	return GetPublicKeyServiceResponse{
+	return GetPublicKeyResponse{
 		Timestamp: res.Timestamp,
 		Address:   res.Address,
 		PublicKey: res.PublicKey,
@@ -217,6 +226,6 @@ func BindHandler(services Services, binder rpc.HandlerBinder) {
 		rpc.EntityFactoryFunc(func() interface{} { return &ExecuteServiceRequest{} }))
 	binder.Bind("POST", "/v0/api/service/poll", rpc.HandlerFunc(handler.PollService),
 		rpc.EntityFactoryFunc(func() interface{} { return &PollServiceRequest{} }))
-	binder.Bind("GET", "/v0/api/service/getPublicKey", rpc.HandlerFunc(handler.GetPublicKeyService),
-		rpc.EntityFactoryFunc(func() interface{} { return &GetPublicKeyServiceRequest{} }))
+	binder.Bind("GET", "/v0/api/service/getPublicKey", rpc.HandlerFunc(handler.GetPublicKey),
+		rpc.EntityFactoryFunc(func() interface{} { return &GetPublicKeyRequest{} }))
 }
