@@ -33,7 +33,7 @@ steps:
       .buildkite/common/pipelines/generic_docker_build_publish_and_deploy.sh
       --docker-build-arg BUILDKITE_ACCESS_TOKEN=$BUILDKITE_ACCESS_TOKEN
       --staging-environment staging
-      --staging-chart-name dashboard
+      --staging-chart-name developer-gateway
       --production-environment production
       --trigger-deploy
       oasislabs/developer-gateway

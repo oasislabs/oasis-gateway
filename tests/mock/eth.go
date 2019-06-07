@@ -18,13 +18,13 @@ import (
 
 func NewMockEthClient(
 	ctx context.Context,
-	config config.Config,
+	conf *config.Config,
 ) (*eth.EthClient, error) {
-	if len(config.Wallet.PrivateKey) == 0 {
+	if len(conf.WalletConfig.PrivateKey) == 0 {
 		return nil, errors.New("private_key not set in configuration")
 	}
 
-	privateKey, err := crypto.HexToECDSA(config.Wallet.PrivateKey)
+	privateKey, err := crypto.HexToECDSA(conf.WalletConfig.PrivateKey)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read private key with error %s", err.Error())
 	}
