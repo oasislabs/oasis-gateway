@@ -237,9 +237,10 @@ func (p *Parser) Usage() error {
 
 func Generate() (*Parser, error) {
 	v := viper.New()
-	// sets a default prefix for all environment variables that will be
-	// parsed by viper and automatically binds all expected variables
-	// from the environment
+	// all enviroment variables start with prefix OASIS_DG and are set
+	// by replacing `.` to _.
+	// For example, key wallet.private_key can be set from an environment
+	// variable with OASIS_DG_WALLET_PRIVATE_KEY
 	v.SetEnvPrefix("OASIS_DG")
 	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	v.AutomaticEnv()
