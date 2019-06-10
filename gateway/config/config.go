@@ -19,6 +19,9 @@ type BindConfig struct {
 	HttpReadTimeoutMs  int32
 	HttpWriteTimeoutMs int32
 	HttpMaxHeaderBytes int32
+	HttpsEnabled       bool
+	TlsCertificatePath string
+	TlsPrivateKeyPath  string
 }
 
 func (c *BindConfig) Configure(prefix string, v *viper.Viper) error {
@@ -47,6 +50,17 @@ func (c *BindConfig) Configure(prefix string, v *viper.Viper) error {
 		return errors.New(prefix + ".http_max_header_bytes cannot be negative")
 	}
 
+	c.HttpsEnabled = v.GetBool(prefix + ".https_enabled")
+	c.TlsCertificatePath = v.GetString(prefix + ".tls_certificate_path")
+	c.TlsPrivateKeyPath = v.GetString(prefix + ".tls_private_key_path")
+
+	if c.HttpsEnabled {
+		if len(c.TlsCertificatePath) == 0 || len(c.TlsPrivateKeyPath) == 0 {
+			return errors.New(prefix + ".tls_certificate_path and " + prefix + ".tls_private_key_path " +
+				"must be set if " + prefix + ".https_enabled is set")
+		}
+	}
+
 	return nil
 }
 
@@ -61,6 +75,14 @@ func (c *BindConfig) Bind(prefix string, v *viper.Viper, cmd *cobra.Command) err
 		10000, "http write timeout for http interface")
 	cmd.PersistentFlags().Int32(prefix+".http_max_header_bytes",
 		10000, "http max header bytes for http")
+	cmd.PersistentFlags().Bool(prefix+".https_enabled",
+		false, "if set the interface will listen with https. If this option is "+
+			"set, then "+prefix+".tls_certificate_path and "+prefix+
+			".tls_private_key_path must be set as well")
+	cmd.PersistentFlags().String(prefix+".tls_certificate_path",
+		"", "path to the tls certificate for https")
+	cmd.PersistentFlags().String(prefix+".tls_private_key_path",
+		"", "path to the private key for https")
 
 	return nil
 }
@@ -75,6 +97,9 @@ func (c *BindPublicConfig) Log(fields log.Fields) {
 	fields.Add("bind_public.http_read_timeout_ms", c.BindConfig.HttpReadTimeoutMs)
 	fields.Add("bind_public.http_write_timeout_ms", c.BindConfig.HttpWriteTimeoutMs)
 	fields.Add("bind_public.http_max_header_bytes", c.BindConfig.HttpMaxHeaderBytes)
+	fields.Add("bind_public.https_enabled", c.BindConfig.HttpsEnabled)
+	fields.Add("bind_public.tls_certificate_path", c.BindConfig.TlsCertificatePath)
+	fields.Add("bind_public.tls_private_key_path", c.BindConfig.TlsPrivateKeyPath)
 }
 
 func (c *BindPublicConfig) Configure(v *viper.Viper) error {
@@ -95,6 +120,9 @@ func (c *BindPrivateConfig) Log(fields log.Fields) {
 	fields.Add("bind_private.http_read_timeout_ms", c.BindConfig.HttpReadTimeoutMs)
 	fields.Add("bind_private.http_write_timeout_ms", c.BindConfig.HttpWriteTimeoutMs)
 	fields.Add("bind_private.http_max_header_bytes", c.BindConfig.HttpMaxHeaderBytes)
+	fields.Add("bind_private.https_enabled", c.BindConfig.HttpsEnabled)
+	fields.Add("bind_private.tls_certificate_path", c.BindConfig.TlsCertificatePath)
+	fields.Add("bind_private.tls_private_key_path", c.BindConfig.TlsPrivateKeyPath)
 }
 
 func (c *BindPrivateConfig) Name() string {
