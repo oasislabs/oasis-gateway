@@ -185,7 +185,7 @@ func (e *TransactionExecutor) estimateGas(ctx context.Context, id uint64, addres
 	return gas, nil
 }
 
-func (e *TransactionExecutor) generateAndSignTransaction(ctx context.Context, req executeRequest, gas uint64) (*types.Transaction, error) {
+func (e *TransactionExecutor) generateAndSignTransaction(ctx context.Context, req executeRequest, gas uint64) (*types.Transaction, errors.Err) {
 	nonce := e.transactionNonce()
 
 	var tx *types.Transaction
@@ -224,9 +224,8 @@ func (e *TransactionExecutor) executeTransaction(ctx context.Context, req execut
 		return core.ExecuteResponse{}, err
 	}
 
-	tx, terr := e.generateAndSignTransaction(ctx, req, gas)
-	if terr != nil {
-		err := errors.New(errors.ErrSendTransaction, terr)
+	tx, err := e.generateAndSignTransaction(ctx, req, gas)
+	if err != nil {
 		return core.ExecuteResponse{}, err
 	}
 
@@ -245,9 +244,8 @@ func (e *TransactionExecutor) executeTransaction(ctx context.Context, req execut
 				return core.ExecuteResponse{}, err
 			}
 
-			tx, terr = e.generateAndSignTransaction(ctx, req, gas)
-			if terr != nil {
-				err := errors.New(errors.ErrSendTransaction, terr)
+			tx, err = e.generateAndSignTransaction(ctx, req, gas)
+			if err != nil {
 				return core.ExecuteResponse{}, err
 			}
 
