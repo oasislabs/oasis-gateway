@@ -6,6 +6,7 @@ import (
 	stderr "errors"
 	"fmt"
 	"math/big"
+	"strings"
 
 	ethereum "github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
@@ -184,18 +185,33 @@ func (e *TransactionExecutor) estimateGas(ctx context.Context, id uint64, addres
 	return gas, nil
 }
 
-func (e *TransactionExecutor) executeTransaction(ctx context.Context, req executeRequest) (core.ExecuteResponse, errors.Err) {
-	err := e.updateNonce(ctx)
+func (e *TransactionExecutor) generateAndSignTransaction(ctx context.Context, req executeRequest, gas uint64) (*types.Transaction, error) {
+	nonce := e.transactionNonce()
+
+	var tx *types.Transaction
+	if len(req.Address) == 0 {
+		tx = types.NewContractCreation(nonce,
+			big.NewInt(0), gas, big.NewInt(gasPrice), req.Data)
+	} else {
+		tx = types.NewTransaction(nonce, common.HexToAddress(req.Address),
+			big.NewInt(0), gas, big.NewInt(gasPrice), req.Data)
+	}
+
+	tx, err := e.signTransaction(tx)
 	if err != nil {
-		e.logger.Debug(ctx, "failed to retrieve nonce", log.MapFields{
+		err := errors.New(errors.ErrSignedTx, err)
+		e.logger.Debug(ctx, "failure to sign transaction", log.MapFields{
 			"call_type": "ExecuteTransactionFailure",
 			"id":        req.ID,
 			"address":   req.Address,
 		}, err)
 
-		return core.ExecuteResponse{}, err
+		return nil, err
 	}
+	return tx, nil
+}
 
+func (e *TransactionExecutor) executeTransaction(ctx context.Context, req executeRequest) (core.ExecuteResponse, errors.Err) {
 	contractAddress := req.Address
 	gas, err := e.estimateGas(ctx, req.ID, req.Address, req.Data)
 	if err != nil {
@@ -208,41 +224,46 @@ func (e *TransactionExecutor) executeTransaction(ctx context.Context, req execut
 		return core.ExecuteResponse{}, err
 	}
 
-	nonce := e.transactionNonce()
-
-	var tx *types.Transaction
-	if len(contractAddress) == 0 {
-		tx = types.NewContractCreation(nonce,
-			big.NewInt(0), gas, big.NewInt(gasPrice), req.Data)
-	} else {
-		tx = types.NewTransaction(nonce, common.HexToAddress(req.Address),
-			big.NewInt(0), gas, big.NewInt(gasPrice), req.Data)
-	}
-
-	tx, err = e.signTransaction(tx)
-	if err != nil {
-		err := errors.New(errors.ErrSignedTx, err)
-		e.logger.Debug(ctx, "failure to sign transaction", log.MapFields{
-			"call_type": "ExecuteTransactionFailure",
-			"id":        req.ID,
-			"address":   req.Address,
-		}, err)
-
+	tx, terr := e.generateAndSignTransaction(ctx, req, gas)
+	if terr != nil {
+		err := errors.New(errors.ErrSendTransaction, terr)
 		return core.ExecuteResponse{}, err
 	}
 
 	res, derr := e.client.SendTransaction(ctx, tx)
 	if derr != nil {
-		// depending on the error received it may be useful to return the error
-		// and have an upper logic to decide whether to retry the request
-		err := errors.New(errors.ErrSendTransaction, derr)
-		e.logger.Debug(ctx, "failure to send transaction", log.MapFields{
-			"call_type": "ExecuteTransactionFailure",
-			"id":        req.ID,
-			"address":   req.Address,
-		}, err)
+		// If the nonce is incorrect, update the nonce and try again
+		if strings.Contains(derr.Error(), "Invalid transaction nonce") {
+			err := e.updateNonce(ctx)
+			if err != nil {
+				e.logger.Debug(ctx, "failed to retrieve nonce", log.MapFields{
+					"call_type": "ExecuteTransactionFailure",
+					"id":        req.ID,
+					"address":   req.Address,
+				}, err)
 
-		return core.ExecuteResponse{}, err
+				return core.ExecuteResponse{}, err
+			}
+
+			tx, terr = e.generateAndSignTransaction(ctx, req, gas)
+			if terr != nil {
+				err := errors.New(errors.ErrSendTransaction, terr)
+				return core.ExecuteResponse{}, err
+			}
+
+			res, derr = e.client.SendTransaction(ctx, tx)
+			if derr != nil {
+				// depending on the error received it may be useful to return the error
+				// and have an upper logic to decide whether to retry the request
+				err := errors.New(errors.ErrSendTransaction, derr)
+				e.logger.Debug(ctx, "failure to send transaction", log.MapFields{
+					"call_type": "ExecuteTransactionFailure",
+					"id":        req.ID,
+					"address":   req.Address,
+				}, err)
+				return core.ExecuteResponse{}, err
+			}
+		}
 	}
 
 	if res.Status != StatusOK {
