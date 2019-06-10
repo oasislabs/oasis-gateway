@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"math/big"
 	"strings"
+	"time"
 
 	ethereum "github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
@@ -25,6 +26,15 @@ import (
 const StatusOK = 1
 
 const gasPrice int64 = 1000000000
+
+var retryConfig = conc.RetryConfig{
+	Random:            false,
+	UnlimitedAttempts: false,
+	Attempts:          2,
+	BaseExp:           1,
+	BaseTimeout:       time.Second,
+	MaxRetryTimeout:   5 * time.Second,
+}
 
 type signRequest struct {
 	Transaction *types.Transaction
@@ -224,45 +234,48 @@ func (e *TransactionExecutor) executeTransaction(ctx context.Context, req execut
 		return core.ExecuteResponse{}, err
 	}
 
-	tx, err := e.generateAndSignTransaction(ctx, req, gas)
-	if err != nil {
+	var tx *types.Transaction
+
+	sendRes, derr := conc.RetryWithConfig(ctx, conc.SupplierFunc(func() (interface{}, error) {
+		tx, err = e.generateAndSignTransaction(ctx, req, gas)
+		if err != nil {
+			return core.ExecuteResponse{}, err
+		}
+
+		res, derr := e.client.SendTransaction(ctx, tx)
+		if derr != nil {
+			// depending on the error received it may be useful to return the error
+			// and have an upper logic to decide whether to retry the request
+			err := errors.New(errors.ErrSendTransaction, derr)
+			e.logger.Debug(ctx, "failure to send transaction", log.MapFields{
+				"call_type": "ExecuteTransactionFailure",
+				"id":        req.ID,
+				"address":   req.Address,
+			}, err)
+
+			// If the nonce is incorrect, update the nonce and try again
+			if strings.Contains(derr.Error(), "Invalid transaction nonce") {
+				nerr := e.updateNonce(ctx)
+				if nerr != nil {
+					e.logger.Debug(ctx, "failed to retrieve nonce", log.MapFields{
+						"call_type": "ExecuteTransactionFailure",
+						"id":        req.ID,
+						"address":   req.Address,
+					}, nerr)
+
+					return eth.SendTransactionResponse{}, derr
+				}
+				return eth.SendTransactionResponse{}, derr
+			}
+			return eth.SendTransactionResponse{}, conc.ErrCannotRecover{Cause: derr}
+		}
+		return res, nil
+	}), retryConfig)
+	if derr != nil {
+		err = errors.New(errors.ErrSendTransaction, derr)
 		return core.ExecuteResponse{}, err
 	}
-
-	res, derr := e.client.SendTransaction(ctx, tx)
-	if derr != nil {
-		// If the nonce is incorrect, update the nonce and try again
-		if strings.Contains(derr.Error(), "Invalid transaction nonce") {
-			err := e.updateNonce(ctx)
-			if err != nil {
-				e.logger.Debug(ctx, "failed to retrieve nonce", log.MapFields{
-					"call_type": "ExecuteTransactionFailure",
-					"id":        req.ID,
-					"address":   req.Address,
-				}, err)
-
-				return core.ExecuteResponse{}, err
-			}
-
-			tx, err = e.generateAndSignTransaction(ctx, req, gas)
-			if err != nil {
-				return core.ExecuteResponse{}, err
-			}
-
-			res, derr = e.client.SendTransaction(ctx, tx)
-			if derr != nil {
-				// depending on the error received it may be useful to return the error
-				// and have an upper logic to decide whether to retry the request
-				err := errors.New(errors.ErrSendTransaction, derr)
-				e.logger.Debug(ctx, "failure to send transaction", log.MapFields{
-					"call_type": "ExecuteTransactionFailure",
-					"id":        req.ID,
-					"address":   req.Address,
-				}, err)
-				return core.ExecuteResponse{}, err
-			}
-		}
-	}
+	res := sendRes.(eth.SendTransactionResponse)
 
 	if res.Status != StatusOK {
 		p, derr := hexutil.Decode(res.Output)
