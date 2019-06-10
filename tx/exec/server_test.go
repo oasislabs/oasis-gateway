@@ -29,11 +29,11 @@ var (
 	numKeys = 2
 )
 
-type MockClient struct {
+type ServerMockClient struct {
 	mock.Mock
 }
 
-func (m *MockClient) EstimateGas(
+func (m *ServerMockClient) EstimateGas(
 	ctx context.Context,
 	msg ethereum.CallMsg,
 ) (uint64, error) {
@@ -41,7 +41,7 @@ func (m *MockClient) EstimateGas(
 	return args.Get(0).(uint64), args.Error(1)
 }
 
-func (m *MockClient) GetPublicKey(
+func (m *ServerMockClient) GetPublicKey(
 	ctx context.Context,
 	addr common.Address,
 ) (eth.PublicKey, error) {
@@ -49,7 +49,7 @@ func (m *MockClient) GetPublicKey(
 	return args.Get(0).(eth.PublicKey), args.Error(1)
 }
 
-func (m *MockClient) NonceAt(
+func (m *ServerMockClient) NonceAt(
 	ctx context.Context,
 	addr common.Address,
 ) (uint64, error) {
@@ -57,7 +57,7 @@ func (m *MockClient) NonceAt(
 	return args.Get(0).(uint64), args.Error(1)
 }
 
-func (m *MockClient) SendTransaction(
+func (m *ServerMockClient) SendTransaction(
 	ctx context.Context,
 	tx *types.Transaction,
 ) (eth.SendTransactionResponse, error) {
@@ -65,7 +65,7 @@ func (m *MockClient) SendTransaction(
 	return args.Get(0).(eth.SendTransactionResponse), args.Error(1)
 }
 
-func (m *MockClient) SubscribeFilterLogs(
+func (m *ServerMockClient) SubscribeFilterLogs(
 	ctx context.Context,
 	q ethereum.FilterQuery,
 	c chan<- types.Log,
@@ -74,7 +74,7 @@ func (m *MockClient) SubscribeFilterLogs(
 	return args.Get(0).(ethereum.Subscription), args.Error(1)
 }
 
-func (m *MockClient) TransactionReceipt(ctx context.Context, txHash common.Hash) (*types.Receipt, error) {
+func (m *ServerMockClient) TransactionReceipt(ctx context.Context, txHash common.Hash) (*types.Receipt, error) {
 	args := m.Called(ctx, txHash)
 	return args.Get(0).(*types.Receipt), args.Error(1)
 }
@@ -86,7 +86,7 @@ func initializeServer() (*Server, context.CancelFunc) {
 		pks[i] = privateKey
 	}
 	ctx, cancel := context.WithCancel(context.Background())
-	s, err := NewServer(ctx, logger, pks, &MockClient{})
+	s, err := NewServer(ctx, logger, pks, &ServerMockClient{})
 
 	if err != nil {
 		return nil, cancel
