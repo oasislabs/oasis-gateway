@@ -17,6 +17,4 @@ make lint
 echo "+++ Testing Backend"
 make test-coverage
 
-
-# Integration testing
 exit 0

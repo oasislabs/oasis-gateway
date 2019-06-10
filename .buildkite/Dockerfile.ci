@@ -12,4 +12,9 @@ RUN go get golang.org/x/tools/cmd/cover
 
 WORKDIR /app
 COPY . /app
-RUN go get
+
+# make to force pulling all the dependencies
+RUN make
+
+# remove the contents in /app
+RUN rm -rf /app/*

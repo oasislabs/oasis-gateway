@@ -35,8 +35,12 @@ test-coverage:
 test-lua:
 	redis-cli --eval mqueue/redis/redis.lua , test
 
-test-component:
+test-component: test-component-redis-single test-component-dev
+
+test-component-redis-single:
 	OASIS_DG_CONFIG_PATH=config/redis_single.toml go test -v -covermode=count -coverprofile=coverage.redis_single.out github.com/oasislabs/developer-gateway/tests
+
+test-component-dev:
 	OASIS_DG_CONFIG_PATH=config/dev.toml go test -v -covermode=count -coverprofile=coverage.dev.out github.com/oasislabs/developer-gateway/tests
 
 show-coverage:
