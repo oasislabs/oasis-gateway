@@ -1,4 +1,4 @@
-title = "Staging configuration"
+title = "Local configuration"
 
 [wallet]
 private_key = ""
@@ -9,6 +9,9 @@ http_port = 1234
 http_read_timeout_ms = 10000
 http_write_timeout_ms = 10000
 http_max_header_bytes = 8192
+https_enabled = true
+tls_private_key_path = "/config/tls/private.pem"
+tls_certificate_path = "/config/tls/cert.pem"
 
 [bind_private]
 http_interface = "127.0.0.1"
@@ -16,12 +19,15 @@ http_port = 1235
 http_read_timeout_ms = 10000
 http_write_timeout_ms = 10000
 http_max_header_bytes = 8192
+https_enabled = true
+tls_private_key_path = "/config/tls/private.pem"
+tls_certificate_path = "/config/tls/cert.pem"
 
 [eth]
 url = "wss://web3.beta.oasiscloud-staging.net/ws"
 
-[mqueue]
-backend = "mem"
+[mailbox]
+provider = "mem"
 
 [auth]
 provider = "insecure"

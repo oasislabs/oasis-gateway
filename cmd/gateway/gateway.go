@@ -45,14 +45,28 @@ func publicServer(conf *config.Config) {
 		"port":      httpPort,
 		"interface": httpInterface,
 	})
-	if err := s.ListenAndServe(); err != nil {
-		gateway.RootLogger.Fatal(gateway.RootContext, "http server failed to listen", log.MapFields{
-			"call_type": "HttpPublicListenFailure",
-			"port":      httpPort,
-			"interface": httpInterface,
-			"err":       err.Error(),
-		})
-		os.Exit(1)
+
+	if bindConfig.HttpsEnabled {
+		if err := s.ListenAndServeTLS(bindConfig.TlsCertificatePath, bindConfig.TlsPrivateKeyPath); err != nil {
+			gateway.RootLogger.Fatal(gateway.RootContext, "http server failed to listen", log.MapFields{
+				"call_type": "HttpPublicListenFailure",
+				"port":      httpPort,
+				"interface": httpInterface,
+				"err":       err.Error(),
+			})
+			os.Exit(1)
+		}
+
+	} else {
+		if err := s.ListenAndServe(); err != nil {
+			gateway.RootLogger.Fatal(gateway.RootContext, "http server failed to listen", log.MapFields{
+				"call_type": "HttpPublicListenFailure",
+				"port":      httpPort,
+				"interface": httpInterface,
+				"err":       err.Error(),
+			})
+			os.Exit(1)
+		}
 	}
 }
 
@@ -75,14 +89,30 @@ func privateServer(conf *config.Config) {
 		"port":      httpPort,
 		"interface": httpInterface,
 	})
-	if err := s.ListenAndServe(); err != nil {
-		gateway.RootLogger.Fatal(gateway.RootContext, "http server failed to listen", log.MapFields{
-			"call_type": "HttpPrivateListenFailure",
-			"port":      httpPort,
-			"interface": httpInterface,
-			"err":       err.Error(),
-		})
-		os.Exit(1)
+
+	d, err := os.Getwd()
+	fmt.Println("current WD: ", d, err)
+	if bindConfig.HttpsEnabled {
+		if err := s.ListenAndServeTLS(bindConfig.TlsCertificatePath, bindConfig.TlsPrivateKeyPath); err != nil {
+			gateway.RootLogger.Fatal(gateway.RootContext, "http server failed to listen", log.MapFields{
+				"call_type": "HttpPrivateListenFailure",
+				"port":      httpPort,
+				"interface": httpInterface,
+				"err":       err.Error(),
+			})
+			os.Exit(1)
+		}
+
+	} else {
+		if err := s.ListenAndServe(); err != nil {
+			gateway.RootLogger.Fatal(gateway.RootContext, "http server failed to listen", log.MapFields{
+				"call_type": "HttpPrivateListenFailure",
+				"port":      httpPort,
+				"interface": httpInterface,
+				"err":       err.Error(),
+			})
+			os.Exit(1)
+		}
 	}
 }
 
