@@ -29,11 +29,11 @@ var (
 	numKeys = 2
 )
 
-type ServerMockClient struct {
+type MockClient struct {
 	mock.Mock
 }
 
-func (m *ServerMockClient) EstimateGas(
+func (m *MockClient) EstimateGas(
 	ctx context.Context,
 	msg ethereum.CallMsg,
 ) (uint64, error) {
@@ -41,7 +41,7 @@ func (m *ServerMockClient) EstimateGas(
 	return args.Get(0).(uint64), args.Error(1)
 }
 
-func (m *ServerMockClient) GetPublicKey(
+func (m *MockClient) GetPublicKey(
 	ctx context.Context,
 	addr common.Address,
 ) (eth.PublicKey, error) {
@@ -49,7 +49,7 @@ func (m *ServerMockClient) GetPublicKey(
 	return args.Get(0).(eth.PublicKey), args.Error(1)
 }
 
-func (m *ServerMockClient) NonceAt(
+func (m *MockClient) NonceAt(
 	ctx context.Context,
 	addr common.Address,
 ) (uint64, error) {
@@ -57,7 +57,7 @@ func (m *ServerMockClient) NonceAt(
 	return args.Get(0).(uint64), args.Error(1)
 }
 
-func (m *ServerMockClient) SendTransaction(
+func (m *MockClient) SendTransaction(
 	ctx context.Context,
 	tx *types.Transaction,
 ) (eth.SendTransactionResponse, error) {
@@ -65,7 +65,7 @@ func (m *ServerMockClient) SendTransaction(
 	return args.Get(0).(eth.SendTransactionResponse), args.Error(1)
 }
 
-func (m *ServerMockClient) SubscribeFilterLogs(
+func (m *MockClient) SubscribeFilterLogs(
 	ctx context.Context,
 	q ethereum.FilterQuery,
 	c chan<- types.Log,
@@ -74,7 +74,7 @@ func (m *ServerMockClient) SubscribeFilterLogs(
 	return args.Get(0).(ethereum.Subscription), args.Error(1)
 }
 
-func (m *ServerMockClient) TransactionReceipt(ctx context.Context, txHash common.Hash) (*types.Receipt, error) {
+func (m *MockClient) TransactionReceipt(ctx context.Context, txHash common.Hash) (*types.Receipt, error) {
 	args := m.Called(ctx, txHash)
 	return args.Get(0).(*types.Receipt), args.Error(1)
 }
@@ -86,7 +86,7 @@ func initializeServer() (*Server, context.CancelFunc) {
 		pks[i] = privateKey
 	}
 	ctx, cancel := context.WithCancel(context.Background())
-	s, err := NewServer(ctx, logger, pks, &ServerMockClient{})
+	s, err := NewServer(ctx, logger, pks, &MockClient{})
 
 	if err != nil {
 		return nil, cancel
