@@ -2,6 +2,7 @@ package exec
 
 import (
 	"context"
+	stderr "errors"
 	"fmt"
 	"math/big"
 	"strings"
@@ -11,13 +12,33 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 
-	"github.com/oasislabs/developer-gateway/conc"
-	ethereum "github.com/oasislabs/developer-gateway/eth"
+	"github.com/oasislabs/developer-gateway/eth"
 	"github.com/oasislabs/developer-gateway/log"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 )
 
 const address string = "0x6f6704e5a10332af6672e50b3d9754dc460dfa4d"
+
+func implementMockClient(client *MockClient) {
+	client.On("EstimateGas", mock.AnythingOfType("*context.emptyCtx"), mock.AnythingOfType("ethereum.CallMsg")).Return(uint64(0), nil)
+	client.On("NonceAt", mock.AnythingOfType("*context.emptyCtx"), mock.AnythingOfType("common.Address")).Return(uint64(1), nil)
+	client.On("TransactionReceipt", mock.AnythingOfType("*context.emptyCtx"), mock.AnythingOfType("common.Hash")).Return(&types.Receipt{
+		ContractAddress: common.HexToAddress(strings.Repeat("0", 20)),
+	}, nil)
+
+	client.On("SendTransaction", mock.AnythingOfType("*context.emptyCtx"), mock.MatchedBy(func(tx *types.Transaction) bool {
+		return tx.Nonce() != 1
+	})).Return(eth.SendTransactionResponse{}, stderr.New("Invalid transaction nonce"))
+
+	client.On("SendTransaction", mock.AnythingOfType("*context.emptyCtx"), mock.MatchedBy(func(tx *types.Transaction) bool {
+		return tx.Nonce() == 1
+	})).Return(eth.SendTransactionResponse{
+		Status: StatusOK,
+		Output: "Success",
+		Hash:   "Some hash",
+	}, nil)
+}
 
 func initializeExecutor() (*TransactionExecutor, error) {
 	privateKey, err := crypto.HexToECDSA(strings.Repeat("1", 64))
@@ -25,19 +46,15 @@ func initializeExecutor() (*TransactionExecutor, error) {
 		return nil, fmt.Errorf("failed to initialize private key with error %s", err.Error())
 	}
 
-	ctx := context.Background()
-	dialer := ethereum.NewUniDialer(ctx, "https://localhost:1111")
-	pooledClient := ethereum.NewPooledClient(ethereum.PooledClientProps{
-		Pool:        dialer,
-		RetryConfig: conc.RandomConfig,
-	})
 	logger := log.NewLogrus(log.LogrusLoggerProperties{})
+	client := MockClient{}
+	implementMockClient(&client)
 
 	executor := NewTransactionExecutor(
 		privateKey,
 		types.FrontierSigner{},
 		0,
-		pooledClient,
+		&client,
 		logger.ForClass("wallet", "InternalWallet"),
 	)
 
@@ -78,4 +95,32 @@ func TestExecutorSignTransaction(t *testing.T) {
 	assert.NotEqual(t, new(big.Int), V)
 	assert.NotEqual(t, new(big.Int), R)
 	assert.NotEqual(t, new(big.Int), S)
+}
+
+func TestExecuteTransactionNoAddressBadNonce(t *testing.T) {
+	executor, err := initializeExecutor()
+	assert.Nil(t, err)
+
+	req := executeRequest{
+		ID:      0,
+		Address: "",
+		Data:    []byte(""),
+	}
+	_, err = executor.executeTransaction(context.TODO(), req)
+	assert.Nil(t, err)
+	executor.client.(*MockClient).AssertNumberOfCalls(t, "SendTransaction", 2)
+}
+
+func TestExecuteTransactionAddressBadNonce(t *testing.T) {
+	executor, err := initializeExecutor()
+	assert.Nil(t, err)
+
+	req := executeRequest{
+		ID:      0,
+		Address: strings.Repeat("0", 20),
+		Data:    []byte(""),
+	}
+	_, err = executor.executeTransaction(context.TODO(), req)
+	assert.Nil(t, err)
+	executor.client.(*MockClient).AssertNumberOfCalls(t, "SendTransaction", 2)
 }
