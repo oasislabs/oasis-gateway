@@ -108,7 +108,7 @@ func TestExecuteTransactionNoAddressBadNonce(t *testing.T) {
 	}
 	_, err = executor.executeTransaction(context.TODO(), req)
 	assert.Nil(t, err)
-	// assert.Equal(t, 2, executor.client.(*ExecutorMockClient).SendTransactionCount)
+	executor.client.(*MockClient).AssertNumberOfCalls(t, "SendTransaction", 2)
 }
 
 func TestExecuteTransactionAddressBadNonce(t *testing.T) {
@@ -122,5 +122,5 @@ func TestExecuteTransactionAddressBadNonce(t *testing.T) {
 	}
 	_, err = executor.executeTransaction(context.TODO(), req)
 	assert.Nil(t, err)
-	// assert.Equal(t, 2, executor.client.(*ExecutorMockClient).SendTransactionCount)
+	executor.client.(*MockClient).AssertNumberOfCalls(t, "SendTransaction", 2)
 }
