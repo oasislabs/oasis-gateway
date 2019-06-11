@@ -115,7 +115,7 @@ type MailboxRedisClusterConfig struct {
 }
 
 func (c *MailboxRedisClusterConfig) Log(fields log.Fields) {
-	fields.Add("mailbox.redis_cluster.addrs", strings.Join(c.Addrs, " - "))
+	fields.Add("mailbox.redis_cluster.addrs", strings.Join(c.Addrs, ","))
 }
 
 func (c *MailboxRedisClusterConfig) ID() MailboxProvider {
@@ -123,10 +123,19 @@ func (c *MailboxRedisClusterConfig) ID() MailboxProvider {
 }
 
 func (c *MailboxRedisClusterConfig) Configure(v *viper.Viper) error {
+	c.Addrs = v.GetStringSlice("mailbox.redis_cluster.addrs")
+	if len(c.Addrs) == 0 {
+		return errors.New("mailbox.redis_cluster.addrs must be set")
+	}
+
 	return nil
 }
 
 func (c *MailboxRedisClusterConfig) Bind(v *viper.Viper, cmd *cobra.Command) error {
+	cmd.PersistentFlags().StringArray(
+		"mailbox.redis_cluster.addrs",
+		[]string{"127.0.0.1:6379"},
+		"array of addresses for bootstrap redis instances in the cluster")
 	return nil
 }
 

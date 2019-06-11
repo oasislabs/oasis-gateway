@@ -36,7 +36,16 @@ test-lua:
 	redis-cli --eval mqueue/redis/redis.lua , test
 
 test-component:
+	mkdir -p output
+	go test -v -covermode=count -coverprofile=output/coverage.out github.com/oasislabs/developer-gateway/tests
+
+test-component-redis-single:
 	OASIS_DG_CONFIG_PATH=config/redis_single.toml go test -v -covermode=count -coverprofile=coverage.redis_single.out github.com/oasislabs/developer-gateway/tests
+
+test-component-redis-cluster:
+	OASIS_DG_CONFIG_PATH=config/redis_cluster.toml go test -v -covermode=count -coverprofile=coverage.redis_cluster.out github.com/oasislabs/developer-gateway/tests
+
+test-component-dev:
 	OASIS_DG_CONFIG_PATH=config/dev.toml go test -v -covermode=count -coverprofile=coverage.dev.out github.com/oasislabs/developer-gateway/tests
 
 show-coverage:
@@ -47,4 +56,5 @@ clean:
 	rm -f ekiden-client
 	rm -f eth-client
 	rm -f $GRPCFILES
+	rm -rf output
 	go clean ./...
