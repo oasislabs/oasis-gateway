@@ -1,5 +1,5 @@
-#!/bin/bash
-# shellcheck disable=SC1117,SC2103,SC2086
+#!/bin/sh
+# shellcheck disable=SC1117,SC2103,SC2086,SC2039
 
 # Settings
 PORT=30000
@@ -17,6 +17,14 @@ then
         echo "Starting $PORT"
         redis-server --port $PORT --cluster-enabled yes --cluster-config-file nodes-${PORT}.conf --cluster-node-timeout $TIMEOUT --appendonly yes --appendfilename appendonly-${PORT}.aof --dbfilename dump-${PORT}.rdb --logfile ${PORT}.log --daemonize yes
     done
+
+    # if running docker as a daemon container we still want a process
+    # to keep running so that the container does not die
+    while true; do
+        echo "Redis cluster running"
+        sleep 10
+    done
+
     exit 0
 fi
 
@@ -26,7 +34,9 @@ then
     while [ $((PORT < ENDPORT)) != "0" ]; do
         PORT=$((PORT+1))
         HOSTS="$HOSTS 127.0.0.1:$PORT"
+        redis-cli -p $PORT --eval /app/mqueue/redis/redis.lua
     done
+
     redis-cli --cluster create $HOSTS --cluster-replicas $REPLICAS
     exit 0
 fi
