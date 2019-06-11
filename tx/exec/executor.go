@@ -289,7 +289,7 @@ func (e *TransactionExecutor) executeTransaction(ctx context.Context, req execut
 		}
 
 		output := string(p)
-		msg := fmt.Sprintf("transaction receipt has status 0 which indicates a transaction execution failure with error %s", output)
+		msg := fmt.Sprintf("transaction receipt has status %d which indicates a transaction execution failure with error %s", res.Status, output)
 		err := errors.New(errors.NewErrorCode(errors.InternalError, 1000, msg), stderr.New(msg))
 		e.logger.Debug(ctx, "transaction execution failed", log.MapFields{
 			"call_type": "ExecuteTransactionFailure",
