@@ -30,6 +30,7 @@ func TestServeHTTP(t *testing.T) {
 	response, err := httpMiddlewareAuth.ServeHTTP(req)
 	assert.Nil(t, err)
 	authData := response.(AuthData)
+	assert.Equal(t, "017fdef9eeec58e0ad6b94721a2eb52a9bd96dddd9aa2f1e058153568f4ed42d:session-key", authData.SessionKey)
 	assert.Equal(t, "insecure-key", authData.ExpectedAAD)
 	assert.NotNil(t, authData.SessionKey)
 }
