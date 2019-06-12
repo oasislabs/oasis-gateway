@@ -3,6 +3,7 @@ package core
 import (
 	"context"
 	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"net/http"
 
@@ -57,8 +58,8 @@ func (m *HttpMiddlewareAuth) ServeHTTP(req *http.Request) (interface{}, error) {
 	if _, err = hasher.Write([]byte(expectedAAD)); err != nil {
 		return nil, rpc.HttpForbidden(context.TODO(), errors.New(errors.ErrInvalidAAD, err))
 	}
-	aadHash := string(hasher.Sum(nil))
 
+	aadHash := hex.EncodeToString(hasher.Sum(nil))
 	authData := AuthData{
 		ExpectedAAD: expectedAAD,
 		SessionKey:  fmt.Sprintf(sessionKeyFormat, aadHash, sessionKey),
