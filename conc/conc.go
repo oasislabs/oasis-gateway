@@ -2,7 +2,7 @@ package conc
 
 import (
 	"context"
-	"errors"
+	"fmt"
 	"math/rand"
 	"sync"
 	"sync/atomic"
@@ -20,13 +20,23 @@ func (e ErrCannotRecover) Error() string {
 	return e.Cause.Error()
 }
 
+// ErrMaxAttemptsReached is an error that is returned after attemping
+// an action multiple times with failures
+type ErrMaxAttemptsReached struct {
+	Causes []error
+}
+
+// Error implementation of error for ErrCannotRecover
+func (e ErrMaxAttemptsReached) Error() string {
+	return fmt.Sprintf("maximum number of attempts %d reached", len(e.Causes))
+}
+
 const (
-	defaultConcurrency      uint8         = 2
-	defaultBaseTimeout      time.Duration = 1 * time.Second
-	defaultBaseExp          uint8         = 4
-	defaultMaxRetryTimeout  time.Duration = 120 * time.Second
-	defaultAttempts         uint8         = 5
-	MaxAttemptsErrorMessage               = "maximum number of attempts reached"
+	defaultConcurrency     uint8         = 2
+	defaultBaseTimeout     time.Duration = 1 * time.Second
+	defaultBaseExp         uint8         = 4
+	defaultMaxRetryTimeout time.Duration = 120 * time.Second
+	defaultAttempts        uint8         = 5
 )
 
 var RandomConfig = RetryConfig{
@@ -97,6 +107,7 @@ func RetryWithConfig(
 	supplier Supplier,
 	config RetryConfig,
 ) (interface{}, error) {
+	var errs []error
 	timeout := config.BaseTimeout.Nanoseconds()
 	exp := int64(config.BaseExp)
 	maxTimeout := config.MaxRetryTimeout.Nanoseconds()
@@ -123,11 +134,13 @@ func RetryWithConfig(
 			if err, ok := err.(ErrCannotRecover); ok {
 				return nil, err.Cause
 			}
+
+			errs = append(errs, err)
 		}
 
 		attempts++
 		if attempts >= maxAttempts && maxAttempts >= 0 {
-			return nil, errors.New(MaxAttemptsErrorMessage)
+			return nil, ErrMaxAttemptsReached{Causes: errs}
 		}
 
 		// make sure that the timeout is set to at least 1ns

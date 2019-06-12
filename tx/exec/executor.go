@@ -174,6 +174,9 @@ func (e *TransactionExecutor) estimateGas(ctx context.Context, id uint64, addres
 		return 0, errors.New(errors.ErrEstimateGas, err)
 	}
 
+	// when the gateway fails to estimate the gas of a transaction
+	// returns this number which far exceeds the limit of gas in
+	// a block. In this case, we should just return an error
 	if gas == 2251799813685248 {
 		err := stderr.New("gas estimation could not be completed because of execution failure")
 		e.logger.Debug(ctx, "", log.MapFields{
