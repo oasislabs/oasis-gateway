@@ -19,7 +19,7 @@ http_port = 1235
 http_read_timeout_ms = 10000
 http_write_timeout_ms = 10000
 http_max_header_bytes = 8192
-https_enabled = true
+https_enabled = false
 tls_private_key_path = "/config/tls/private.pem"
 tls_certificate_path = "/config/tls/cert.pem"
 
