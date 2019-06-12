@@ -2,6 +2,8 @@ package eth
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"math/big"
 	"strconv"
 	"strings"
@@ -14,6 +16,12 @@ import (
 	"github.com/ethereum/go-ethereum/rlp"
 	rpc "github.com/ethereum/go-ethereum/rpc"
 	"github.com/oasislabs/developer-gateway/conc"
+)
+
+var (
+	ErrExceedsBalance    = errors.New("cost of transaction exceeds sender balance")
+	ErrExceedsBlockLimit = errors.New("requested gas greater than block gas limit")
+	ErrInvalidNonce      = errors.New("invalid transaction nonce")
 )
 
 type Client interface {
@@ -60,22 +68,24 @@ type PooledClient struct {
 	retryConfig conc.RetryConfig
 }
 
-func (c *PooledClient) shouldRetryAfterError(err error) bool {
+func (c *PooledClient) inferError(err error) error {
 	// TODO(stan): find out what's the right condition for returning
 	// a client to the pool in case of failure
 
 	switch {
+	case strings.Contains(err.Error(), "Cost of transaction exceeds sender balance"):
+		return conc.ErrCannotRecover{Cause: ErrExceedsBalance}
 	case strings.Contains(err.Error(), "Requested gas greater than block gas limit"):
-		return false
+		return conc.ErrCannotRecover{Cause: ErrExceedsBlockLimit}
 	case strings.Contains(err.Error(), "Invalid transaction nonce"):
-		return false
+		return conc.ErrCannotRecover{Cause: ErrInvalidNonce}
 	default:
-		return true
+		return err
 	}
 }
 
 func (c *PooledClient) request(ctx context.Context, fn func(conn *Conn) (interface{}, error)) (interface{}, error) {
-	return conc.RetryWithConfig(ctx, conc.SupplierFunc(func() (interface{}, error) {
+	v, err := conc.RetryWithConfig(ctx, conc.SupplierFunc(func() (interface{}, error) {
 		conn, err := c.pool.Conn(ctx)
 		if err != nil {
 			return nil, err
@@ -83,16 +93,24 @@ func (c *PooledClient) request(ctx context.Context, fn func(conn *Conn) (interfa
 
 		v, err := fn(conn)
 		if err != nil {
-			if c.shouldRetryAfterError(err) {
-				return nil, err
-
-			} else {
-				return nil, conc.ErrCannotRecover{Cause: err}
-			}
+			return nil, c.inferError(err)
 		}
 
 		return v, nil
 	}), c.retryConfig)
+
+	if err != nil {
+		// in case of a conc.ErrMaxAttemptsReached error return
+		// the last error message to be able to return useful information
+		if errMaxAttemptsReached, ok := err.(conc.ErrMaxAttemptsReached); ok {
+			errLast := errMaxAttemptsReached.Causes[len(errMaxAttemptsReached.Causes)-1]
+			return nil, fmt.Errorf("%s with last error %s", errMaxAttemptsReached.Error(), errLast)
+		}
+
+		return nil, err
+	}
+
+	return v, nil
 }
 
 func (c *PooledClient) EstimateGas(ctx context.Context, msg ethereum.CallMsg) (uint64, error) {
