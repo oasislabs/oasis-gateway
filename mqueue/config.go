@@ -1,9 +1,10 @@
-package config
+package mqueue
 
 import (
 	"errors"
 	"strings"
 
+	"github.com/oasislabs/developer-gateway/config"
 	"github.com/oasislabs/developer-gateway/log"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -17,48 +18,53 @@ const (
 	MailboxMem          MailboxProvider = "mem"
 )
 
-type MailboxConfig struct {
-	Binder
-	Provider string
-	Mailbox  Mailbox
+func (m MailboxProvider) String() string {
+	return string(m)
 }
 
-func (c *MailboxConfig) Log(fields log.Fields) {
+type Config struct {
+	Provider      MailboxProvider
+	MailboxConfig MailboxConfig
+}
+
+func (c *Config) Log(fields log.Fields) {
 	fields.Add("mailbox.provider", c.Provider)
 
-	if c.Mailbox != nil {
-		c.Mailbox.Log(fields)
+	if c.MailboxConfig != nil {
+		c.MailboxConfig.Log(fields)
 	}
 }
 
-func (c *MailboxConfig) Configure(v *viper.Viper) error {
-	c.Provider = v.GetString("mailbox.provider")
+func (c *Config) Configure(v *viper.Viper) error {
+	c.Provider = MailboxProvider(v.GetString("mailbox.provider"))
 	if len(c.Provider) == 0 {
-		return errors.New("mailbox.provider must be set. " +
-			"Options are " + string(MailboxMem) +
-			", " + string(MailboxRedisSingle) +
-			", " + string(MailboxRedisCluster) + ".")
+		return config.ErrKeyNotSet{Key: "mailbox.provider"}
 	}
 
-	switch MailboxProvider(c.Provider) {
+	switch c.Provider {
 	case MailboxMem:
-		c.Mailbox = &MailboxMemConfig{}
-		return c.Mailbox.(*MailboxMemConfig).Configure(v)
+		c.MailboxConfig = &MailboxMemConfig{}
+		return c.MailboxConfig.(*MailboxMemConfig).Configure(v)
 	case MailboxRedisSingle:
-		c.Mailbox = &MailboxRedisSingleConfig{}
-		return c.Mailbox.(*MailboxRedisSingleConfig).Configure(v)
+		c.MailboxConfig = &MailboxRedisSingleConfig{}
+		return c.MailboxConfig.(*MailboxRedisSingleConfig).Configure(v)
 	case MailboxRedisCluster:
-		c.Mailbox = &MailboxRedisClusterConfig{}
-		return c.Mailbox.(*MailboxRedisClusterConfig).Configure(v)
+		c.MailboxConfig = &MailboxRedisClusterConfig{}
+		return c.MailboxConfig.(*MailboxRedisClusterConfig).Configure(v)
 	default:
-		return errors.New("unknown mailbox.provider set. " +
-			"Options are " + string(MailboxMem) +
-			", " + string(MailboxRedisSingle) +
-			", " + string(MailboxRedisCluster) + ".")
+		return config.ErrInvalidValue{
+			Key:          "mailbox.provider",
+			InvalidValue: c.Provider.String(),
+			Values: []string{
+				MailboxRedisSingle.String(),
+				MailboxRedisCluster.String(),
+				MailboxMem.String(),
+			},
+		}
 	}
 }
 
-func (c *MailboxConfig) Bind(v *viper.Viper, cmd *cobra.Command) error {
+func (c *Config) Bind(v *viper.Viper, cmd *cobra.Command) error {
 	cmd.PersistentFlags().String("mailbox.provider", "mem",
 		"provider for the mailbox service. "+
 			"Options are "+string(MailboxMem)+
@@ -78,9 +84,9 @@ func (c *MailboxConfig) Bind(v *viper.Viper, cmd *cobra.Command) error {
 	return nil
 }
 
-type Mailbox interface {
+type MailboxConfig interface {
 	log.Loggable
-	Binder
+	config.Binder
 	ID() MailboxProvider
 }
 

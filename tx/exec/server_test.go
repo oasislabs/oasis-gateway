@@ -86,7 +86,10 @@ func initializeServer() (*Server, context.CancelFunc) {
 		pks[i] = privateKey
 	}
 	ctx, cancel := context.WithCancel(context.Background())
-	s, err := NewServer(ctx, logger, pks, &MockClient{})
+	s, err := NewServer(ctx, &ServerServices{
+		Logger: logger,
+		Client: &MockClient{},
+	}, &ServerProps{PrivateKeys: pks})
 
 	if err != nil {
 		return nil, cancel

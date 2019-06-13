@@ -34,20 +34,20 @@ type executeTransactionResponse struct {
 	Output  string
 }
 
-type EthClientProperties struct {
-	PrivateKeys []*ecdsa.PrivateKey
-	URL         string
+type ClientProps struct {
+	PrivateKey *ecdsa.PrivateKey
+	URL        string
 }
 
-type EthClient struct {
-	ctx     context.Context
-	logger  log.Logger
-	client  eth.Client
-	handler tx.TransactionHandler
-	subman  *eth.SubscriptionManager
+type Client struct {
+	ctx      context.Context
+	logger   log.Logger
+	client   eth.Client
+	executor tx.TransactionHandler
+	subman   *eth.SubscriptionManager
 }
 
-func (c *EthClient) GetPublicKey(
+func (c *Client) GetPublicKey(
 	ctx context.Context,
 	req backend.GetPublicKeyRequest,
 ) (backend.GetPublicKeyResponse, errors.Err) {
@@ -83,7 +83,7 @@ func (c *EthClient) GetPublicKey(
 	}, nil
 }
 
-func (c *EthClient) verifyAddress(addr string) errors.Err {
+func (c *Client) verifyAddress(addr string) errors.Err {
 	if len(addr) != 42 {
 		return errors.New(errors.ErrInvalidAddress, nil)
 	}
@@ -95,7 +95,7 @@ func (c *EthClient) verifyAddress(addr string) errors.Err {
 	return nil
 }
 
-func (c *EthClient) DeployService(
+func (c *Client) DeployService(
 	ctx context.Context,
 	id uint64,
 	req backend.DeployServiceRequest,
@@ -120,7 +120,7 @@ func (c *EthClient) DeployService(
 	}, nil
 }
 
-func (c *EthClient) ExecuteService(
+func (c *Client) ExecuteService(
 	ctx context.Context,
 	id uint64,
 	req backend.ExecuteServiceRequest,
@@ -150,7 +150,7 @@ func (c *EthClient) ExecuteService(
 	}, nil
 }
 
-func (c *EthClient) SubscribeRequest(
+func (c *Client) SubscribeRequest(
 	ctx context.Context,
 	req backend.CreateSubscriptionRequest,
 	ch chan<- interface{},
@@ -180,7 +180,7 @@ func (c *EthClient) SubscribeRequest(
 	return nil
 }
 
-func (c *EthClient) UnsubscribeRequest(
+func (c *Client) UnsubscribeRequest(
 	ctx context.Context,
 	req backend.DestroySubscriptionRequest,
 ) errors.Err {
@@ -195,7 +195,7 @@ func (c *EthClient) UnsubscribeRequest(
 	return nil
 }
 
-func (c *EthClient) executeTransaction(
+func (c *Client) executeTransaction(
 	ctx context.Context,
 	req executeTransactionRequest,
 ) (*executeTransactionResponse, errors.Err) {
@@ -207,7 +207,7 @@ func (c *EthClient) executeTransaction(
 		"address":   req.Address,
 	})
 
-	res, err := c.handler.Execute(ctx, tx.ExecuteRequest{
+	res, err := c.executor.Execute(ctx, tx.ExecuteRequest{
 		ID:      req.ID,
 		Address: req.Address,
 		Data:    req.Data,
@@ -251,7 +251,7 @@ func (c *EthClient) executeTransaction(
 	}, nil
 }
 
-func (c *EthClient) decodeBytes(s string) ([]byte, errors.Err) {
+func (c *Client) decodeBytes(s string) ([]byte, errors.Err) {
 	data, err := hexutil.Decode(s)
 	if err != nil {
 		return nil, errors.New(errors.ErrStringNotHex, err)
@@ -260,33 +260,36 @@ func (c *EthClient) decodeBytes(s string) ([]byte, errors.Err) {
 	return data, nil
 }
 
-func NewClient(ctx context.Context, logger log.Logger, privateKeys []*ecdsa.PrivateKey, client eth.Client) (*EthClient, error) {
-	handler, err := exec.NewServer(ctx, logger, privateKeys, client)
-	if err != nil {
-		return nil, err
-	}
-
-	c := &EthClient{
-		ctx:     ctx,
-		logger:  logger.ForClass("eth", "EthClient"),
-		client:  client,
-		handler: handler,
-		subman: eth.NewSubscriptionManager(eth.SubscriptionManagerProps{
-			Context: ctx,
-			Logger:  logger,
-			Client:  client,
-		}),
-	}
-
-	return c, nil
+type ClientDeps struct {
+	Logger   log.Logger
+	Client   eth.Client
+	Executor tx.TransactionHandler
 }
 
-func DialContext(ctx context.Context, logger log.Logger, properties EthClientProperties) (*EthClient, error) {
-	if len(properties.URL) == 0 {
+type ClientServices struct {
+	Logger log.Logger
+}
+
+func NewClientWithDeps(ctx context.Context, deps *ClientDeps) *Client {
+	return &Client{
+		ctx:      ctx,
+		logger:   deps.Logger.ForClass("eth", "Client"),
+		client:   deps.Client,
+		executor: deps.Executor,
+		subman: eth.NewSubscriptionManager(eth.SubscriptionManagerProps{
+			Context: ctx,
+			Logger:  deps.Logger,
+			Client:  deps.Client,
+		}),
+	}
+}
+
+func DialContext(ctx context.Context, services *ClientServices, props *ClientProps) (*Client, error) {
+	if len(props.URL) == 0 {
 		return nil, stderr.New("no url provided for eth client")
 	}
 
-	url, err := url.Parse(properties.URL)
+	url, err := url.Parse(props.URL)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to parse url %s", err.Error())
 	}
@@ -295,11 +298,23 @@ func DialContext(ctx context.Context, logger log.Logger, properties EthClientPro
 		return nil, stderr.New("Only schemes supported are ws and wss")
 	}
 
-	dialer := eth.NewUniDialer(ctx, properties.URL)
+	dialer := eth.NewUniDialer(ctx, props.URL)
 	client := eth.NewPooledClient(eth.PooledClientProps{
 		Pool:        dialer,
 		RetryConfig: conc.RandomConfig,
 	})
 
-	return NewClient(ctx, logger, properties.PrivateKeys, client)
+	executor, err := exec.NewServer(ctx, &exec.ServerServices{
+		Logger: services.Logger,
+		Client: client,
+	}, &exec.ServerProps{PrivateKeys: []*ecdsa.PrivateKey{props.PrivateKey}})
+	if err != nil {
+		return nil, err
+	}
+
+	return NewClientWithDeps(ctx, &ClientDeps{
+		Logger:   services.Logger,
+		Client:   client,
+		Executor: executor,
+	}), nil
 }

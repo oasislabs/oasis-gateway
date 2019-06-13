@@ -21,7 +21,7 @@ var (
 
 func initializeServer() (*Server, context.CancelFunc) {
 	ctx, cancel := context.WithCancel(context.Background())
-	s := NewServer(ctx, logger)
+	s := NewServer(ctx, Services{Logger: logger})
 
 	return s, cancel
 }

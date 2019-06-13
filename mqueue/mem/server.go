@@ -16,9 +16,13 @@ type Server struct {
 	logger log.Logger
 }
 
-func NewServer(ctx context.Context, logger log.Logger) *Server {
+type Services struct {
+	Logger log.Logger
+}
+
+func NewServer(ctx context.Context, services Services) *Server {
 	s := &Server{
-		logger: logger.ForClass("mqueue/mem", "Server"),
+		logger: services.Logger.ForClass("mqueue/mem", "Server"),
 	}
 
 	s.master = conc.NewMaster(conc.MasterProps{
