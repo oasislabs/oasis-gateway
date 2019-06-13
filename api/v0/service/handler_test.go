@@ -15,7 +15,7 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
-var Context = context.Background()
+var Context = context.TODO()
 
 var Logger = log.NewLogrus(log.LogrusLoggerProperties{
 	Output: ioutil.Discard,
