@@ -34,7 +34,8 @@ func getSignedTransaction() (*types.Transaction, error) {
 		return nil, err
 	}
 
-	tx := types.NewTransaction(0, common.Address([20]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}),
+	tx := types.NewTransaction(0,
+		common.Address([20]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}),
 		big.NewInt(0), 1024, big.NewInt(1), []byte("0x00"))
 	signer := types.FrontierSigner{}
 

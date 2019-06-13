@@ -5,8 +5,8 @@ import (
 	"io/ioutil"
 	"os"
 
+	"github.com/oasislabs/developer-gateway/config"
 	"github.com/oasislabs/developer-gateway/gateway"
-	"github.com/oasislabs/developer-gateway/gateway/config"
 	"github.com/oasislabs/developer-gateway/log"
 	"github.com/oasislabs/developer-gateway/rpc"
 	"github.com/oasislabs/developer-gateway/tests/mock"
@@ -31,38 +31,34 @@ func init() {
 }
 
 func Initialize() (*rpc.HttpRouter, error) {
-	parser, err := config.Generate()
+	parser, err := config.Generate(&gateway.Config{})
 	if err != nil {
 		return nil, err
 	}
 
-	conf, err := parser.Parse()
+	err = parser.Parse()
 	if err != nil {
 		return nil, err
 	}
 
+	config := parser.Config.(*gateway.Config)
 	gateway.RootLogger.Info(gateway.RootContext, "bind public configuration parsed", log.MapFields{
 		"callType": "BindPublicConfigParseSuccess",
-	}, &conf.BindPublicConfig)
+	}, &config.BindPublicConfig)
 	gateway.RootLogger.Info(gateway.RootContext, "bind private configuration parsed", log.MapFields{
 		"callType": "BindPrivateConfigParseSuccess",
-	}, &conf.BindPrivateConfig)
-	gateway.RootLogger.Info(gateway.RootContext, "wallet configuration parsed", log.MapFields{
-		"callType": "WalletConfigParseSuccess",
-	}, &conf.WalletConfig)
-	gateway.RootLogger.Info(gateway.RootContext, "eth configuration parsed", log.MapFields{
-		"callType": "EthConfigParseSuccess",
-	}, &conf.EthConfig)
+	}, &config.BindPrivateConfig)
+	gateway.RootLogger.Info(gateway.RootContext, "backend configuration parsed", log.MapFields{
+		"callType": "BackendConfigParseSuccess",
+	}, &config.BackendConfig)
 	gateway.RootLogger.Info(gateway.RootContext, "mailbox configuration parsed", log.MapFields{
 		"callType": "MailboxConfigParseSuccess",
-	}, &conf.MailboxConfig)
+	}, &config.MailboxConfig)
 	gateway.RootLogger.Info(gateway.RootContext, "auth config configuration parsed", log.MapFields{
 		"callType": "AuthConfigParseSuccess",
-	}, &conf.AuthConfig)
+	}, &config.AuthConfig)
 
-	services, err := gateway.NewServices(gateway.RootContext, conf, gateway.Factories{
-		EthClientFactory: gateway.EthClientFactoryFunc(mock.NewMockEthClient),
-	})
+	services, err := mock.NewServices(gateway.RootContext, config)
 	if err != nil {
 		return nil, err
 	}

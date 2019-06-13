@@ -2,40 +2,14 @@ package mock
 
 import (
 	"context"
-	"crypto/ecdsa"
 	"errors"
-	"fmt"
 
 	ethereum "github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/oasislabs/developer-gateway/backend/eth"
 	ethimpl "github.com/oasislabs/developer-gateway/eth"
-	"github.com/oasislabs/developer-gateway/gateway"
-	"github.com/oasislabs/developer-gateway/gateway/config"
 )
-
-func NewMockEthClient(
-	ctx context.Context,
-	conf *config.Config,
-) (*eth.EthClient, error) {
-	if len(conf.WalletConfig.PrivateKeys) == 0 {
-		return nil, errors.New("private_key not set in configuration")
-	}
-
-	privateKeys := make([]*ecdsa.PrivateKey, len(conf.WalletConfig.PrivateKeys))
-	for i := 0; i < len(conf.WalletConfig.PrivateKeys); i++ {
-		privateKey, err := crypto.HexToECDSA(conf.WalletConfig.PrivateKeys[i])
-		if err != nil {
-			return nil, fmt.Errorf("failed to read private key with error %s", err.Error())
-		}
-		privateKeys[i] = privateKey
-	}
-
-	return eth.NewClient(ctx, gateway.RootLogger, privateKeys, EthMockClient{})
-}
 
 type EthMockClient struct{}
 

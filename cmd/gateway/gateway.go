@@ -7,19 +7,17 @@ import (
 	"sync"
 	"time"
 
+	"github.com/oasislabs/developer-gateway/config"
 	"github.com/oasislabs/developer-gateway/gateway"
-	"github.com/oasislabs/developer-gateway/gateway/config"
 	"github.com/oasislabs/developer-gateway/log"
 )
 
-func publicServer(conf *config.Config) {
-	bindConfig := conf.BindPublicConfig
+func publicServer(config *gateway.Config) {
+	bindConfig := config.BindPublicConfig
 	httpInterface := bindConfig.HttpInterface
 	httpPort := bindConfig.HttpPort
 
-	services, err := gateway.NewServices(gateway.RootContext, conf, gateway.Factories{
-		EthClientFactory: gateway.EthClientFactoryFunc(gateway.NewEthClient),
-	})
+	services, err := gateway.NewServices(gateway.RootContext, config)
 	if err != nil {
 		gateway.RootLogger.Fatal(gateway.RootContext, "failed to initialize services", log.MapFields{
 			"call_type": "HttpPublicListenFailure",
@@ -70,8 +68,8 @@ func publicServer(conf *config.Config) {
 	}
 }
 
-func privateServer(conf *config.Config) {
-	bindConfig := conf.BindPrivateConfig
+func privateServer(config *gateway.Config) {
+	bindConfig := config.BindPrivateConfig
 	httpInterface := bindConfig.HttpInterface
 	httpPort := bindConfig.HttpPort
 
@@ -90,8 +88,6 @@ func privateServer(conf *config.Config) {
 		"interface": httpInterface,
 	})
 
-	d, err := os.Getwd()
-	fmt.Println("current WD: ", d, err)
 	if bindConfig.HttpsEnabled {
 		if err := s.ListenAndServeTLS(bindConfig.TlsCertificatePath, bindConfig.TlsPrivateKeyPath); err != nil {
 			gateway.RootLogger.Fatal(gateway.RootContext, "http server failed to listen", log.MapFields{
@@ -117,13 +113,13 @@ func privateServer(conf *config.Config) {
 }
 
 func main() {
-	parser, err := config.Generate()
+	parser, err := config.Generate(&gateway.Config{})
 	if err != nil {
 		fmt.Println("Failed to generate configurations: ", err.Error())
 		os.Exit(1)
 	}
 
-	conf, err := parser.Parse()
+	err = parser.Parse()
 	if err != nil {
 		fmt.Println("Failed to parse configuration: ", err.Error())
 		if err := parser.Usage(); err != nil {
@@ -132,35 +128,33 @@ func main() {
 		os.Exit(1)
 	}
 
+	config := parser.Config.(*gateway.Config)
 	gateway.RootLogger.Info(gateway.RootContext, "bind public configuration parsed", log.MapFields{
 		"callType": "BindPublicConfigParseSuccess",
-	}, &conf.BindPublicConfig)
+	}, &config.BindPublicConfig)
 	gateway.RootLogger.Info(gateway.RootContext, "bind private configuration parsed", log.MapFields{
 		"callType": "BindPrivateConfigParseSuccess",
-	}, &conf.BindPrivateConfig)
-	gateway.RootLogger.Info(gateway.RootContext, "wallet configuration parsed", log.MapFields{
-		"callType": "WalletConfigParseSuccess",
-	}, &conf.WalletConfig)
-	gateway.RootLogger.Info(gateway.RootContext, "eth configuration parsed", log.MapFields{
-		"callType": "EthConfigParseSuccess",
-	}, &conf.EthConfig)
+	}, &config.BindPrivateConfig)
+	gateway.RootLogger.Info(gateway.RootContext, "backend configuration parsed", log.MapFields{
+		"callType": "BackendConfigParseSuccess",
+	}, &config.BackendConfig)
 	gateway.RootLogger.Info(gateway.RootContext, "mailbox configuration parsed", log.MapFields{
 		"callType": "MailboxConfigParseSuccess",
-	}, &conf.MailboxConfig)
+	}, &config.MailboxConfig)
 	gateway.RootLogger.Info(gateway.RootContext, "auth config configuration parsed", log.MapFields{
 		"callType": "AuthConfigParseSuccess",
-	}, &conf.AuthConfig)
+	}, &config.AuthConfig)
 
 	var wg sync.WaitGroup
 	wg.Add(2)
 
 	go func() {
-		publicServer(conf)
+		publicServer(config)
 		wg.Done()
 	}()
 
 	go func() {
-		privateServer(conf)
+		privateServer(config)
 		wg.Done()
 	}()
 
