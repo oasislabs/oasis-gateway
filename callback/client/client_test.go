@@ -1,4 +1,4 @@
-package callback
+package client
 
 import (
 	"context"
@@ -41,10 +41,10 @@ func (c *MockHttpClient) Do(req *http.Request) (*http.Response, error) {
 }
 
 func newClient() *Client {
-	return NewClientWithDeps(&ClientDeps{
+	return NewClientWithDeps(&Deps{
 		Client: &MockHttpClient{},
 		Logger: Logger,
-	}, &ClientProps{
+	}, &Props{
 		Callbacks:   Callbacks{},
 		RetryConfig: TestRetryConfig,
 	})

@@ -7,6 +7,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
+	callback "github.com/oasislabs/developer-gateway/callback/client"
 	"github.com/oasislabs/developer-gateway/conc"
 	"github.com/oasislabs/developer-gateway/errors"
 	"github.com/oasislabs/developer-gateway/eth"
@@ -16,16 +17,26 @@ import (
 
 const maxInactivityTimeout = time.Duration(10) * time.Minute
 
+type ServerServices struct {
+	Logger    log.Logger
+	Client    eth.Client
+	Callbacks callback.Calls
+}
+
+type ServerProps struct {
+	PrivateKeys []*ecdsa.PrivateKey
+}
+
 type Server struct {
 	master *conc.Master
 	client eth.Client
 	logger log.Logger
 }
 
-func NewServer(ctx context.Context, logger log.Logger, pks []*ecdsa.PrivateKey, client eth.Client) (*Server, error) {
+func NewServer(ctx context.Context, services *ServerServices, props *ServerProps) (*Server, error) {
 	s := &Server{
-		client: client,
-		logger: logger.ForClass("tx/wallet", "Server"),
+		client: services.Client,
+		logger: services.Logger.ForClass("tx/wallet", "Server"),
 	}
 
 	s.master = conc.NewMaster(conc.MasterProps{
@@ -38,7 +49,7 @@ func NewServer(ctx context.Context, logger log.Logger, pks []*ecdsa.PrivateKey, 
 	}
 
 	// Create a worker for each provided private key
-	for _, pk := range pks {
+	for _, pk := range props.PrivateKeys {
 		if err := s.master.Create(ctx, crypto.PubkeyToAddress(pk.PublicKey).Hex(), pk); err != nil {
 			if err := s.master.Stop(); err != nil {
 				return nil, err
@@ -74,7 +85,6 @@ func (s *Server) create(ctx context.Context, ev conc.CreateWorkerEvent) error {
 	ev.Props.WorkerHandler = conc.WorkerHandlerFunc(executor.handle)
 	ev.Props.UserData = executor
 	ev.Props.MaxInactivity = maxInactivityTimeout
-
 	return nil
 }
 

@@ -10,6 +10,8 @@ import (
 	authcore "github.com/oasislabs/developer-gateway/auth/core"
 	"github.com/oasislabs/developer-gateway/backend"
 	backendcore "github.com/oasislabs/developer-gateway/backend/core"
+	"github.com/oasislabs/developer-gateway/callback"
+	callbackclient "github.com/oasislabs/developer-gateway/callback/client"
 	"github.com/oasislabs/developer-gateway/log"
 	"github.com/oasislabs/developer-gateway/mqueue"
 	"github.com/oasislabs/developer-gateway/rpc"
@@ -23,32 +25,49 @@ var RootLogger = log.NewLogrus(log.LogrusLoggerProperties{
 var RootContext = context.Background()
 
 type Services struct {
+	Callback      *callbackclient.Client
 	Request       *backendcore.RequestManager
+	Backend       backendcore.Client
 	Authenticator authcore.Auth
 }
 
-func NewServices(ctx context.Context, config *Config) (Services, error) {
+func NewServices(ctx context.Context, config *Config) (*Services, error) {
 	mqueue, err := mqueue.NewMailbox(ctx, mqueue.Services{Logger: RootLogger}, &config.MailboxConfig)
 	if err != nil {
-		return Services{}, err
+		return nil, err
 	}
 
-	request, err := backend.NewRequestManager(ctx, backend.Services{
+	callback := callback.NewClient(ctx, &callback.ClientServices{
 		Logger: RootLogger,
-		MQueue: mqueue,
+	}, &config.CallbackConfig)
+
+	client, err := backend.NewBackendClient(ctx, &backend.ClientServices{
+		Logger:   RootLogger,
+		Callback: callback,
 	}, &config.BackendConfig)
 	if err != nil {
-		return Services{}, err
+		return nil, err
+	}
+
+	request, err := backend.NewRequestManagerWithDeps(ctx, &backend.Deps{
+		Logger: RootLogger,
+		MQueue: mqueue,
+		Client: client,
+	})
+	if err != nil {
+		return nil, err
 	}
 
 	authenticator, err := auth.NewAuth(&config.AuthConfig)
 	if err != nil {
-		return Services{}, err
+		return nil, err
 	}
 
-	return Services{
+	return &Services{
 		Request:       request,
+		Backend:       client,
 		Authenticator: authenticator,
+		Callback:      callback,
 	}, nil
 }
 
@@ -73,7 +92,7 @@ func NewPrivateRouter() *rpc.HttpRouter {
 	return binder.Build()
 }
 
-func NewPublicRouter(services Services) *rpc.HttpRouter {
+func NewPublicRouter(services *Services) *rpc.HttpRouter {
 	binder := rpc.NewHttpBinder(rpc.HttpBinderProperties{
 		Encoder: rpc.JsonEncoder{},
 		Logger:  RootLogger,

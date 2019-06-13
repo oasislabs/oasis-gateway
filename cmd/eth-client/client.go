@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"crypto/ecdsa"
 	"fmt"
 
 	"github.com/ethereum/go-ethereum/crypto"
@@ -16,7 +15,7 @@ type ClientProps struct {
 	URL        string
 }
 
-func dialClient(props ClientProps) (*eth.EthClient, error) {
+func dialClient(props ClientProps) (*eth.Client, error) {
 	privateKey, err := crypto.HexToECDSA(props.PrivateKey)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse private key with error %s", err.Error())
@@ -24,9 +23,11 @@ func dialClient(props ClientProps) (*eth.EthClient, error) {
 
 	ctx := context.Background()
 	logger := log.NewLogrus(log.LogrusLoggerProperties{})
-	client, err := eth.DialContext(ctx, logger, eth.EthClientProperties{
-		PrivateKeys: []*ecdsa.PrivateKey{privateKey},
-		URL:         props.URL,
+	client, err := eth.DialContext(ctx, &eth.ClientServices{
+		Logger: logger,
+	}, &eth.ClientProps{
+		PrivateKey: privateKey,
+		URL:        props.URL,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to endpoint %s", err.Error())

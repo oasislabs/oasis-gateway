@@ -1,4 +1,4 @@
-package callback
+package client
 
 import (
 	"context"
@@ -10,6 +10,11 @@ import (
 	"github.com/oasislabs/developer-gateway/log"
 )
 
+// Calls are all the callbacks that the client implements
+type Calls interface {
+	WalletOutOfFunds(ctx context.Context, body WalletOutOfFundsBody) error
+}
+
 // HttpClient is the basic interface for the
 // underlying http client used by the Client
 type HttpClient interface {
@@ -20,31 +25,31 @@ type HttpClient interface {
 // client supports and the behaviour that the client
 // should have on those callbacks
 type Callbacks struct {
-	WalletOutOfFunds WalletOutOfFunds
+	WalletOutOfFunds Callback
 }
 
-// ClientServices are services required by the client
-type ClientServices struct {
+// Services are services required by the client
+type Services struct {
 	Logger log.Logger
 }
 
-// ClientProps are the properties that define
+// Props are the properties that define
 // the behaviour of the client to send callbacks
-type ClientProps struct {
+type Props struct {
 	Callbacks   Callbacks
 	RetryConfig conc.RetryConfig
 }
 
-// ClientDeps are the required instantiated dependencies
+// Deps are the required instantiated dependencies
 // that a Client requires
-type ClientDeps struct {
+type Deps struct {
 	Logger log.Logger
 	Client HttpClient
 }
 
 // NewClient creates a new callback client
-func NewClient(services *ClientServices, props *ClientProps) *Client {
-	return NewClientWithDeps(&ClientDeps{
+func NewClient(services *Services, props *Props) *Client {
+	return NewClientWithDeps(&Deps{
 		Logger: services.Logger,
 		Client: &http.Client{},
 	}, props)
@@ -52,7 +57,7 @@ func NewClient(services *ClientServices, props *ClientProps) *Client {
 
 // NewClientWithDeps creates a new client using the external
 // dependencies provided
-func NewClientWithDeps(deps *ClientDeps, props *ClientProps) *Client {
+func NewClientWithDeps(deps *Deps, props *Props) *Client {
 	return &Client{
 		callbacks:   props.Callbacks,
 		retryConfig: props.RetryConfig,
@@ -122,7 +127,7 @@ func (c *Client) WalletOutOfFunds(ctx context.Context, body WalletOutOfFundsBody
 		"address":   body.Address,
 	})
 
-	err := c.callback(ctx, &c.callbacks.WalletOutOfFunds.Callback)
+	err := c.callback(ctx, &c.callbacks.WalletOutOfFunds)
 	if err != nil {
 		c.logger.Warn(ctx, "", log.MapFields{
 			"call_type": "SendWalletOutOfFundsFailure",
