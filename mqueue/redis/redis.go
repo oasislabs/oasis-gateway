@@ -48,7 +48,7 @@ func NewClusterMQueue(props ClusterProps) (*MQueue, error) {
 		Addrs: props.Addrs,
 	})
 
-	return &MQueue{client: c, logger: logger}, nil
+	return &MQueue{client: c.Pipeline(), logger: logger}, nil
 }
 
 // NewSingleMQueue creates a new instance of a redis client
@@ -59,7 +59,7 @@ func NewSingleMQueue(props SingleInstanceProps) (*MQueue, error) {
 		Addr: props.Addr,
 	})
 
-	return &MQueue{client: c, logger: logger}, nil
+	return &MQueue{client: c.Pipeline(), logger: logger}, nil
 }
 
 func (m *MQueue) exec(ctx context.Context, cmd command) (interface{}, error) {
