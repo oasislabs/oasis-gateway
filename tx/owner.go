@@ -50,12 +50,6 @@ type createOwnerRequest struct {
 	PrivateKey *ecdsa.PrivateKey
 }
 
-type executeRequest struct {
-	ID      uint64
-	Address string
-	Data    []byte
-}
-
 // WalletOwner is the only instance that should interact
 // with a wallet. Its main goal is to send transactions
 // and keep the funding and nonce of the wallet up to
@@ -115,7 +109,7 @@ func (e *WalletOwner) handleRequestEvent(ctx context.Context, ev conc.RequestWor
 	switch req := ev.Value.(type) {
 	case signRequest:
 		return e.signTransaction(req.Transaction)
-	case executeRequest:
+	case ExecuteRequest:
 		return e.executeTransaction(ctx, req)
 	default:
 		panic("invalid request received for worker")
@@ -294,7 +288,7 @@ func (e *WalletOwner) sendTransaction(
 	return v.(eth.SendTransactionResponse), nil
 }
 
-func (e *WalletOwner) executeTransaction(ctx context.Context, req executeRequest) (ExecuteResponse, errors.Err) {
+func (e *WalletOwner) executeTransaction(ctx context.Context, req ExecuteRequest) (ExecuteResponse, errors.Err) {
 	contractAddress := req.Address
 	gas, err := e.estimateGas(ctx, req.ID, req.Address, req.Data)
 	if err != nil {

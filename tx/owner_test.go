@@ -135,7 +135,7 @@ func TestExecuteTransactionNoAddressBadNonce(t *testing.T) {
 	mockclient := owner.client.(*MockClient)
 	mockClientForNonce(mockclient)
 
-	_, err := owner.executeTransaction(context.TODO(), executeRequest{
+	_, err := owner.executeTransaction(context.TODO(), ExecuteRequest{
 		ID:      0,
 		Address: "",
 		Data:    []byte(""),
@@ -150,7 +150,7 @@ func TestExecuteTransactionAddressBadNonce(t *testing.T) {
 	mockclient := owner.client.(*MockClient)
 	mockClientForNonce(mockclient)
 
-	_, err := owner.executeTransaction(context.TODO(), executeRequest{
+	_, err := owner.executeTransaction(context.TODO(), ExecuteRequest{
 		ID:      0,
 		Address: strings.Repeat("0", 20),
 		Data:    []byte(""),
@@ -171,7 +171,7 @@ func TestExecuteTransactionExceedsBalance(t *testing.T) {
 		mock.AnythingOfType("client.WalletOutOfFundsBody"),
 	).Return()
 
-	_, err := owner.executeTransaction(context.TODO(), executeRequest{
+	_, err := owner.executeTransaction(context.TODO(), ExecuteRequest{
 		ID:      0,
 		Address: strings.Repeat("0", 20),
 		Data:    []byte(""),

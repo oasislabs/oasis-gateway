@@ -5,8 +5,6 @@ import (
 	"crypto/ecdsa"
 	"fmt"
 	"io/ioutil"
-	"strconv"
-	"strings"
 
 	ethereum "github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
@@ -86,17 +84,4 @@ func (m *MockClient) SubscribeFilterLogs(
 func (m *MockClient) TransactionReceipt(ctx context.Context, txHash common.Hash) (*types.Receipt, error) {
 	args := m.Called(ctx, txHash)
 	return args.Get(0).(*types.Receipt), args.Error(1)
-}
-
-func newExecutor(numKeys int) (*Executor, error) {
-	pks := make([]*ecdsa.PrivateKey, numKeys)
-	for i := 0; i < numKeys; i++ {
-		privateKey, _ := crypto.HexToECDSA(strings.Repeat(strconv.Itoa(i+1), 64))
-		pks[i] = privateKey
-	}
-
-	return NewExecutor(context.TODO(), &ExecutorServices{
-		Logger: Logger,
-		Client: &MockClient{},
-	}, &ExecutorProps{PrivateKeys: pks})
 }

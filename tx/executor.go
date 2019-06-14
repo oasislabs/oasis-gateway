@@ -102,11 +102,7 @@ func (s *Executor) destroy(ctx context.Context, ev conc.DestroyWorkerEvent) erro
 
 // Executes the desired transaction.
 func (s *Executor) Execute(ctx context.Context, req ExecuteRequest) (ExecuteResponse, errors.Err) {
-	res, err := s.master.Execute(ctx, executeRequest{
-		ID:      req.ID,
-		Address: req.Address,
-		Data:    req.Data,
-	})
+	res, err := s.master.Execute(ctx, req)
 	if err != nil {
 		if e, ok := err.(errors.Err); ok {
 			return ExecuteResponse{}, e

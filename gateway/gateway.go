@@ -37,9 +37,12 @@ func NewServices(ctx context.Context, config *Config) (*Services, error) {
 		return nil, err
 	}
 
-	callback := callback.NewClient(ctx, &callback.ClientServices{
+	callback, err := callback.NewClient(ctx, &callback.ClientServices{
 		Logger: RootLogger,
 	}, &config.CallbackConfig)
+	if err != nil {
+		return nil, err
+	}
 
 	client, err := backend.NewBackendClient(ctx, &backend.ClientServices{
 		Logger:   RootLogger,

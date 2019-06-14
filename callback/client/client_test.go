@@ -2,6 +2,8 @@ package client
 
 import (
 	"context"
+	"fmt"
+	"html/template"
 	"io/ioutil"
 	"net/http"
 	"testing"
@@ -74,11 +76,11 @@ func TestClientCallbackSendOK(t *testing.T) {
 		})).Return(&http.Response{StatusCode: http.StatusOK}, nil)
 
 	err := client.Callback(Context, &Callback{
-		Enabled: true,
-		Method:  http.MethodPost,
-		URL:     "http://localhost:1234/",
-		Body:    "some body",
-		Headers: []string{"Content-type:plain/text"},
+		Enabled:    true,
+		Method:     http.MethodPost,
+		URL:        "http://localhost:1234/",
+		BodyFormat: nil,
+		Headers:    []string{"Content-type:plain/text"},
 	}, &CallbackProps{Sync: true})
 
 	assert.Nil(t, err)
@@ -97,14 +99,45 @@ func TestClientCallbackSendNotOK(t *testing.T) {
 		})).Return(&http.Response{StatusCode: http.StatusInternalServerError}, nil)
 
 	err := client.Callback(Context, &Callback{
-		Enabled: true,
-		Method:  http.MethodPost,
-		URL:     "http://localhost:1234/",
-		Body:    "some body",
-		Headers: []string{"Content-type:plain/text"},
+		Enabled:    true,
+		Method:     http.MethodPost,
+		URL:        "http://localhost:1234/",
+		BodyFormat: nil,
+		Headers:    []string{"Content-type:plain/text"},
 	}, &CallbackProps{Sync: true})
 
 	_, ok := err.(conc.ErrMaxAttemptsReached)
 	assert.True(t, ok)
 	mockclient.AssertCalled(t, "Do", mock.Anything)
+}
+
+func TestClientWalletOutOfFundsOK(t *testing.T) {
+	tmpl, err := template.New("WalletOutOfFunds").Parse("{\"address\": \"{{.Address}}\"}")
+	assert.Nil(t, err)
+	client := newClient()
+	mockclient := client.client.(*MockHttpClient)
+
+	mockclient.On("Do", mock.Anything).
+		Return(&http.Response{StatusCode: http.StatusOK}, nil)
+
+	err = client.Callback(Context, &Callback{
+		Enabled:    true,
+		Method:     http.MethodPost,
+		URL:        "http://localhost:1234/",
+		BodyFormat: tmpl,
+		Headers:    []string{"Content-type:plain/text"},
+	}, &CallbackProps{Sync: true, Body: WalletOutOfFundsBody{
+		Address: "myAddress",
+	}})
+
+	assert.Nil(t, err)
+	mockclient.AssertCalled(t, "Do", mock.MatchedBy(func(req *http.Request) bool {
+		v, err := ioutil.ReadAll(req.Body)
+		if err != nil {
+			return false
+		}
+		fmt.Println(string(v))
+
+		return string(v) == "{\"address\": \"myAddress\"}"
+	}))
 }

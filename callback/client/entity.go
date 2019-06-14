@@ -1,6 +1,9 @@
 package client
 
-import "time"
+import (
+	"html/template"
+	"time"
+)
 
 // Callback is the definition of how a callback
 // will be sent and what data along with it
@@ -19,9 +22,9 @@ type Callback struct {
 	// be sent
 	URL string
 
-	// Body is the body of the http request that needs to
+	// BodyFormat is the body of the http request that needs to
 	// be sent
-	Body string
+	BodyFormat *template.Template
 
 	// Headers a slice of http headers (':' separated)
 	// that will be sent through the client

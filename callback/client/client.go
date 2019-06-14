@@ -1,6 +1,7 @@
 package client
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"net/http"
@@ -18,6 +19,11 @@ type CallbackProps struct {
 	// Sync if true the callback will be delivered
 	// synchronously
 	Sync bool
+
+	// Body is the type that will be used by for the
+	// template to generate the body that will be
+	// sent on the request
+	Body interface{}
 }
 
 // Calls are all the callbacks that the client implements
@@ -103,7 +109,34 @@ func (c *Client) request(ctx context.Context, req *http.Request) error {
 	return err
 }
 
-func (c *Client) Callback(ctx context.Context, callback *Callback, props *CallbackProps) error {
+func (c *Client) createRequest(
+	ctx context.Context,
+	callback *Callback,
+	props *CallbackProps,
+) (*http.Request, error) {
+	if callback.BodyFormat != nil && props.Body != nil {
+		buffer := bytes.NewBuffer([]byte{})
+		if err := callback.BodyFormat.Execute(buffer, props.Body); err != nil {
+			c.logger.Warn(ctx, "failed to generate request body", log.MapFields{
+				"call_type": "SendCallbackFailure",
+				"method":    callback.Method,
+				"url":       callback.URL,
+				"err":       err.Error(),
+			})
+			return nil, err
+		}
+
+		return http.NewRequest(callback.Method, callback.URL, buffer)
+	}
+
+	return http.NewRequest(callback.Method, callback.URL, nil)
+}
+
+func (c *Client) Callback(
+	ctx context.Context,
+	callback *Callback,
+	props *CallbackProps,
+) error {
 	if !callback.Enabled {
 		return nil
 	}
@@ -113,7 +146,7 @@ func (c *Client) Callback(ctx context.Context, callback *Callback, props *Callba
 		return nil
 	}
 
-	req, err := http.NewRequest(callback.Method, callback.URL, nil)
+	req, err := c.createRequest(ctx, callback, props)
 	if err != nil {
 		c.logger.Warn(ctx, "failed to create http request", log.MapFields{
 			"call_type": "SendCallbackFailure",
@@ -156,5 +189,6 @@ func (c *Client) Callback(ctx context.Context, callback *Callback, props *Callba
 func (c *Client) WalletOutOfFunds(ctx context.Context, body WalletOutOfFundsBody) {
 	_ = c.Callback(ctx, &c.callbacks.WalletOutOfFunds, &CallbackProps{
 		Sync: false,
+		Body: body,
 	})
 }
