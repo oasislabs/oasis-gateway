@@ -101,6 +101,16 @@ local mqremove = function(key)
   return redis.call('del', key)
 end
 
+-- mark subscription listener status
+local subcheckin = function(sub_key, listener_id)
+  return redis.call('set', sub_key, listener_id, 'EX', '300')
+end
+
+-- check subscription listener status
+local subcheck = function(sub_key)
+  return redis.call('get', sub_key)
+end
+
 -- attach the API to the global namespace so that it can be
 -- accessed from other scripts
 rawset(_G, "mqremove", mqremove)
@@ -108,6 +118,8 @@ rawset(_G, "mqdiscard", mqdiscard)
 rawset(_G, "mqretrieve", mqretrieve)
 rawset(_G, "mqinsert", mqinsert)
 rawset(_G, "mqnext", mqnext)
+rawset(_G, "subcheckin", subcheckin)
+rawset(_G, "subcheck", subcheck)
 
 -- test the basic functionality of the script
 local test = function()
