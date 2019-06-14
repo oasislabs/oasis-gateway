@@ -1,12 +1,12 @@
-package exec
+package tx
 
 import (
 	"context"
 	"crypto/ecdsa"
+	"fmt"
 	"io/ioutil"
 	"strconv"
 	"strings"
-	"testing"
 
 	ethereum "github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
@@ -14,20 +14,29 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/oasislabs/developer-gateway/eth"
 	"github.com/oasislabs/developer-gateway/log"
-	"github.com/oasislabs/developer-gateway/tx/core"
 	"github.com/sirupsen/logrus"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
 
 var (
-	ctx    = context.Background()
-	logger = log.NewLogrus(log.LogrusLoggerProperties{
+	Logger = log.NewLogrus(log.LogrusLoggerProperties{
 		Level:  logrus.DebugLevel,
 		Output: ioutil.Discard,
 	})
-	numKeys = 2
 )
+
+const (
+	PrivateKey string = "17be884d0713e46a983fe65900c0ee0f45696cee60e5611ebc80841cfad407b7"
+)
+
+func GetPrivateKey() *ecdsa.PrivateKey {
+	privateKey, err := crypto.HexToECDSA(PrivateKey)
+	if err != nil {
+		panic(fmt.Sprintf("failed to create private key: %s", err.Error()))
+	}
+
+	return privateKey
+}
 
 type MockClient struct {
 	mock.Mock
@@ -79,30 +88,15 @@ func (m *MockClient) TransactionReceipt(ctx context.Context, txHash common.Hash)
 	return args.Get(0).(*types.Receipt), args.Error(1)
 }
 
-func initializeServer() (*Server, context.CancelFunc) {
+func newExecutor(numKeys int) (*Executor, error) {
 	pks := make([]*ecdsa.PrivateKey, numKeys)
 	for i := 0; i < numKeys; i++ {
 		privateKey, _ := crypto.HexToECDSA(strings.Repeat(strconv.Itoa(i+1), 64))
 		pks[i] = privateKey
 	}
-	ctx, cancel := context.WithCancel(context.Background())
-	s, err := NewServer(ctx, &ServerServices{
-		Logger: logger,
+
+	return NewExecutor(context.TODO(), &ExecutorServices{
+		Logger: Logger,
 		Client: &MockClient{},
-	}, &ServerProps{PrivateKeys: pks})
-
-	if err != nil {
-		return nil, cancel
-	}
-	return s, cancel
-}
-
-func TestServerRemove(t *testing.T) {
-	s, cancel := initializeServer()
-	defer cancel()
-
-	pk, _ := crypto.HexToECDSA(strings.Repeat("1", 64))
-
-	err := s.Remove(ctx, core.RemoveRequest{Key: crypto.PubkeyToAddress(pk.PublicKey).Hex()})
-	assert.Nil(t, err)
+	}, &ExecutorProps{PrivateKeys: pks})
 }

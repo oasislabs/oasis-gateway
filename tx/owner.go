@@ -1,4 +1,4 @@
-package exec
+package tx
 
 import (
 	"context"
@@ -18,7 +18,6 @@ import (
 	"github.com/oasislabs/developer-gateway/errors"
 	"github.com/oasislabs/developer-gateway/eth"
 	"github.com/oasislabs/developer-gateway/log"
-	"github.com/oasislabs/developer-gateway/tx/core"
 )
 
 // StatusOK defined by ethereum is the value of status
@@ -46,32 +45,40 @@ type executeRequest struct {
 	Data    []byte
 }
 
-type TransactionExecutor struct {
+type WalletOwner struct {
 	wallet *InternalWallet
 	nonce  uint64
 	client eth.Client
 	logger log.Logger
 }
 
-func NewTransactionExecutor(
-	privateKey *ecdsa.PrivateKey,
-	signer types.Signer,
-	nonce uint64,
-	client eth.Client,
-	logger log.Logger,
-) *TransactionExecutor {
-	wallet := NewWallet(privateKey, signer)
-	executor := &TransactionExecutor{
+type WalletOwnerServices struct {
+	Client eth.Client
+	Logger log.Logger
+}
+
+type WalletOwnerProps struct {
+	PrivateKey *ecdsa.PrivateKey
+	Signer     types.Signer
+	Nonce      uint64
+}
+
+func NewWalletOwner(
+	services *WalletOwnerServices,
+	props *WalletOwnerProps,
+) *WalletOwner {
+	wallet := NewWallet(props.PrivateKey, props.Signer)
+	executor := &WalletOwner{
 		wallet: wallet,
-		nonce:  nonce,
-		client: client,
-		logger: logger,
+		nonce:  props.Nonce,
+		client: services.Client,
+		logger: services.Logger.ForClass("tx", "WalletOwner"),
 	}
 
 	return executor
 }
 
-func (e *TransactionExecutor) handle(ctx context.Context, ev conc.WorkerEvent) (interface{}, error) {
+func (e *WalletOwner) handle(ctx context.Context, ev conc.WorkerEvent) (interface{}, error) {
 	switch ev := ev.(type) {
 	case conc.RequestWorkerEvent:
 		v, err := e.handleRequestEvent(ctx, ev)
@@ -83,7 +90,7 @@ func (e *TransactionExecutor) handle(ctx context.Context, ev conc.WorkerEvent) (
 	}
 }
 
-func (e *TransactionExecutor) handleRequestEvent(ctx context.Context, ev conc.RequestWorkerEvent) (interface{}, error) {
+func (e *WalletOwner) handleRequestEvent(ctx context.Context, ev conc.RequestWorkerEvent) (interface{}, error) {
 	switch req := ev.Value.(type) {
 	case signRequest:
 		return e.signTransaction(req.Transaction)
@@ -94,20 +101,20 @@ func (e *TransactionExecutor) handleRequestEvent(ctx context.Context, ev conc.Re
 	}
 }
 
-func (e *TransactionExecutor) handleErrorEvent(ctx context.Context, ev conc.ErrorWorkerEvent) (interface{}, error) {
+func (e *WalletOwner) handleErrorEvent(ctx context.Context, ev conc.ErrorWorkerEvent) (interface{}, error) {
 	// a worker should not be passing errors to the conc.Worker so
 	// in that case the error is returned and the execution of the
 	// worker should halt
 	return nil, ev.Error
 }
 
-func (e *TransactionExecutor) transactionNonce() uint64 {
+func (e *WalletOwner) transactionNonce() uint64 {
 	nonce := e.nonce
 	e.nonce++
 	return nonce
 }
 
-func (e *TransactionExecutor) updateNonce(ctx context.Context) errors.Err {
+func (e *WalletOwner) updateNonce(ctx context.Context) errors.Err {
 	var err error
 	for attempts := 0; attempts < 10; attempts++ {
 
@@ -137,11 +144,11 @@ func (e *TransactionExecutor) updateNonce(ctx context.Context) errors.Err {
 	return errors.New(errors.ErrFetchNonce, err)
 }
 
-func (e *TransactionExecutor) signTransaction(tx *types.Transaction) (*types.Transaction, errors.Err) {
+func (e *WalletOwner) signTransaction(tx *types.Transaction) (*types.Transaction, errors.Err) {
 	return e.wallet.SignTransaction(tx)
 }
 
-func (e *TransactionExecutor) estimateGas(ctx context.Context, id uint64, address string, data []byte) (uint64, errors.Err) {
+func (e *WalletOwner) estimateGas(ctx context.Context, id uint64, address string, data []byte) (uint64, errors.Err) {
 	e.logger.Debug(ctx, "", log.MapFields{
 		"call_type": "EstimateGasAttempt",
 		"id":        id,
@@ -198,7 +205,7 @@ func (e *TransactionExecutor) estimateGas(ctx context.Context, id uint64, addres
 	return gas, nil
 }
 
-func (e *TransactionExecutor) generateAndSignTransaction(ctx context.Context, req executeRequest, gas uint64) (*types.Transaction, errors.Err) {
+func (e *WalletOwner) generateAndSignTransaction(ctx context.Context, req executeRequest, gas uint64) (*types.Transaction, errors.Err) {
 	nonce := e.transactionNonce()
 
 	var tx *types.Transaction
@@ -224,7 +231,7 @@ func (e *TransactionExecutor) generateAndSignTransaction(ctx context.Context, re
 	return tx, nil
 }
 
-func (e *TransactionExecutor) executeTransaction(ctx context.Context, req executeRequest) (core.ExecuteResponse, errors.Err) {
+func (e *WalletOwner) executeTransaction(ctx context.Context, req executeRequest) (ExecuteResponse, errors.Err) {
 	contractAddress := req.Address
 	gas, err := e.estimateGas(ctx, req.ID, req.Address, req.Data)
 	if err != nil {
@@ -234,7 +241,7 @@ func (e *TransactionExecutor) executeTransaction(ctx context.Context, req execut
 			"address":   req.Address,
 		}, err)
 
-		return core.ExecuteResponse{}, err
+		return ExecuteResponse{}, err
 	}
 
 	var tx *types.Transaction
@@ -242,7 +249,7 @@ func (e *TransactionExecutor) executeTransaction(ctx context.Context, req execut
 	sendRes, derr := conc.RetryWithConfig(ctx, conc.SupplierFunc(func() (interface{}, error) {
 		tx, err = e.generateAndSignTransaction(ctx, req, gas)
 		if err != nil {
-			return core.ExecuteResponse{}, err
+			return ExecuteResponse{}, err
 		}
 
 		res, derr := e.client.SendTransaction(ctx, tx)
@@ -276,7 +283,7 @@ func (e *TransactionExecutor) executeTransaction(ctx context.Context, req execut
 	}), retryConfig)
 	if derr != nil {
 		err = errors.New(errors.ErrSendTransaction, derr)
-		return core.ExecuteResponse{}, err
+		return ExecuteResponse{}, err
 	}
 	res := sendRes.(eth.SendTransactionResponse)
 
@@ -300,7 +307,7 @@ func (e *TransactionExecutor) executeTransaction(ctx context.Context, req execut
 			"address":   req.Address,
 		}, err)
 
-		return core.ExecuteResponse{}, err
+		return ExecuteResponse{}, err
 	}
 
 	if len(contractAddress) == 0 {
@@ -313,13 +320,13 @@ func (e *TransactionExecutor) executeTransaction(ctx context.Context, req execut
 				"address":   req.Address,
 			}, err)
 
-			return core.ExecuteResponse{}, err
+			return ExecuteResponse{}, err
 		}
 
 		contractAddress = receipt.ContractAddress.Hex()
 	}
 
-	return core.ExecuteResponse{
+	return ExecuteResponse{
 		Address: contractAddress,
 		Output:  res.Output,
 		Hash:    res.Hash,
