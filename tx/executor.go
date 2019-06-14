@@ -7,7 +7,6 @@ import (
 
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
-	callback "github.com/oasislabs/developer-gateway/callback/client"
 	"github.com/oasislabs/developer-gateway/conc"
 	"github.com/oasislabs/developer-gateway/errors"
 	"github.com/oasislabs/developer-gateway/eth"
@@ -19,7 +18,7 @@ const maxInactivityTimeout = time.Duration(10) * time.Minute
 type ExecutorServices struct {
 	Logger    log.Logger
 	Client    eth.Client
-	Callbacks callback.Calls
+	Callbacks Callbacks
 }
 
 type ExecutorProps struct {
@@ -27,9 +26,10 @@ type ExecutorProps struct {
 }
 
 type Executor struct {
-	master *conc.Master
-	client eth.Client
-	logger log.Logger
+	master    *conc.Master
+	client    eth.Client
+	logger    log.Logger
+	Callbacks Callbacks
 }
 
 func NewExecutor(ctx context.Context, services *ExecutorServices, props *ExecutorProps) (*Executor, error) {
@@ -49,7 +49,9 @@ func NewExecutor(ctx context.Context, services *ExecutorServices, props *Executo
 
 	// Create a worker for each provided private key
 	for _, pk := range props.PrivateKeys {
-		if err := s.master.Create(ctx, crypto.PubkeyToAddress(pk.PublicKey).Hex(), pk); err != nil {
+		address := crypto.PubkeyToAddress(pk.PublicKey).Hex()
+		req := createOwnerRequest{PrivateKey: pk}
+		if err := s.master.Create(ctx, address, &req); err != nil {
 			if err := s.master.Stop(); err != nil {
 				return nil, err
 			}
@@ -72,13 +74,16 @@ func (m *Executor) handle(ctx context.Context, ev conc.MasterEvent) error {
 }
 
 func (s *Executor) create(ctx context.Context, ev conc.CreateWorkerEvent) error {
+	req := ev.Value.(*createOwnerRequest)
+
 	owner := NewWalletOwner(
 		&WalletOwnerServices{
-			Client: s.client,
-			Logger: s.logger,
+			Client:    s.client,
+			Callbacks: s.Callbacks,
+			Logger:    s.logger,
 		},
 		&WalletOwnerProps{
-			PrivateKey: ev.Value.(*ecdsa.PrivateKey),
+			PrivateKey: req.PrivateKey,
 			Signer:     types.FrontierSigner{},
 			Nonce:      0,
 		})

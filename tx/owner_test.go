@@ -2,7 +2,6 @@ package tx
 
 import (
 	"context"
-	stderr "errors"
 	"math/big"
 	"strings"
 	"testing"
@@ -10,6 +9,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 
+	callback "github.com/oasislabs/developer-gateway/callback/client"
 	"github.com/oasislabs/developer-gateway/eth"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -17,7 +17,7 @@ import (
 
 const address string = "0x6f6704e5a10332af6672e50b3d9754dc460dfa4d"
 
-func mockClient(client *MockClient) {
+func mockClientForNonce(client *MockClient) {
 	client.On("EstimateGas",
 		mock.AnythingOfType("*context.emptyCtx"),
 		mock.AnythingOfType("ethereum.CallMsg")).
@@ -37,7 +37,7 @@ func mockClient(client *MockClient) {
 		mock.MatchedBy(func(tx *types.Transaction) bool {
 			return tx.Nonce() == 0
 		})).
-		Return(eth.SendTransactionResponse{}, stderr.New("Invalid transaction nonce"))
+		Return(eth.SendTransactionResponse{}, eth.ErrInvalidNonce)
 	client.On("SendTransaction",
 		mock.AnythingOfType("*context.emptyCtx"),
 		mock.MatchedBy(func(tx *types.Transaction) bool {
@@ -50,31 +50,44 @@ func mockClient(client *MockClient) {
 		}, nil)
 }
 
-func implementMockClient(client *MockClient) {
-	client.On("EstimateGas", mock.AnythingOfType("*context.emptyCtx"), mock.AnythingOfType("ethereum.CallMsg")).Return(uint64(0), nil)
-	client.On("NonceAt", mock.AnythingOfType("*context.emptyCtx"), mock.AnythingOfType("common.Address")).Return(uint64(1), nil)
-	client.On("TransactionReceipt", mock.AnythingOfType("*context.emptyCtx"), mock.AnythingOfType("common.Hash")).Return(&types.Receipt{
-		ContractAddress: common.HexToAddress(strings.Repeat("0", 20)),
-	}, nil)
+func mockClientForWalletOutOfFundsBodyCallback(client *MockClient) {
+	client.On("EstimateGas",
+		mock.AnythingOfType("*context.emptyCtx"),
+		mock.AnythingOfType("ethereum.CallMsg")).
+		Return(uint64(0), nil)
+	client.On("NonceAt",
+		mock.AnythingOfType("*context.emptyCtx"),
+		mock.AnythingOfType("common.Address")).
+		Return(uint64(1), nil)
+	client.On("TransactionReceipt",
+		mock.AnythingOfType("*context.emptyCtx"),
+		mock.AnythingOfType("common.Hash")).
+		Return(&types.Receipt{
+			ContractAddress: common.HexToAddress(strings.Repeat("0", 20)),
+		}, nil)
+	client.On("SendTransaction",
+		mock.AnythingOfType("*context.emptyCtx"),
+		mock.Anything).
+		Return(eth.SendTransactionResponse{}, eth.ErrExceedsBalance)
+}
 
-	client.On("SendTransaction", mock.AnythingOfType("*context.emptyCtx"), mock.MatchedBy(func(tx *types.Transaction) bool {
-		return tx.Nonce() != 1
-	})).Return(eth.SendTransactionResponse{}, stderr.New("Invalid transaction nonce"))
+type MockCallbacks struct {
+	mock.Mock
+}
 
-	client.On("SendTransaction", mock.AnythingOfType("*context.emptyCtx"), mock.MatchedBy(func(tx *types.Transaction) bool {
-		return tx.Nonce() == 1
-	})).Return(eth.SendTransactionResponse{
-		Status: StatusOK,
-		Output: "Success",
-		Hash:   "Some hash",
-	}, nil)
+func (m *MockCallbacks) WalletOutOfFunds(
+	ctx context.Context,
+	body callback.WalletOutOfFundsBody,
+) {
+	_ = m.Called(ctx, body)
 }
 
 func newOwner() *WalletOwner {
 	return NewWalletOwner(
 		&WalletOwnerServices{
-			Client: &MockClient{},
-			Logger: Logger,
+			Client:    &MockClient{},
+			Callbacks: &MockCallbacks{},
+			Logger:    Logger,
 		},
 		&WalletOwnerProps{
 			PrivateKey: GetPrivateKey(),
@@ -119,31 +132,52 @@ func TestExecutorSignTransaction(t *testing.T) {
 
 func TestExecuteTransactionNoAddressBadNonce(t *testing.T) {
 	owner := newOwner()
+	mockclient := owner.client.(*MockClient)
+	mockClientForNonce(mockclient)
 
-	mockClient(owner.client.(*MockClient))
-
-	req := executeRequest{
+	_, err := owner.executeTransaction(context.TODO(), executeRequest{
 		ID:      0,
 		Address: "",
 		Data:    []byte(""),
-	}
-	_, err := owner.executeTransaction(context.TODO(), req)
+	})
+
 	assert.Nil(t, err)
-	owner.client.(*MockClient).AssertNumberOfCalls(t, "SendTransaction", 2)
+	mockclient.AssertNumberOfCalls(t, "SendTransaction", 2)
 }
 
 func TestExecuteTransactionAddressBadNonce(t *testing.T) {
 	owner := newOwner()
+	mockclient := owner.client.(*MockClient)
+	mockClientForNonce(mockclient)
 
-	mockClient(owner.client.(*MockClient))
-
-	req := executeRequest{
+	_, err := owner.executeTransaction(context.TODO(), executeRequest{
 		ID:      0,
 		Address: strings.Repeat("0", 20),
 		Data:    []byte(""),
-	}
+	})
 
-	_, err := owner.executeTransaction(context.TODO(), req)
 	assert.Nil(t, err)
-	owner.client.(*MockClient).AssertNumberOfCalls(t, "SendTransaction", 2)
+	mockclient.AssertNumberOfCalls(t, "SendTransaction", 2)
+}
+
+func TestExecuteTransactionExceedsBalance(t *testing.T) {
+	owner := newOwner()
+	mockclient := owner.client.(*MockClient)
+	mockcallback := owner.callbacks.(*MockCallbacks)
+	mockClientForWalletOutOfFundsBodyCallback(mockclient)
+
+	mockcallback.On("WalletOutOfFunds",
+		mock.AnythingOfType("*context.emptyCtx"),
+		mock.AnythingOfType("client.WalletOutOfFundsBody"),
+	).Return()
+
+	_, err := owner.executeTransaction(context.TODO(), executeRequest{
+		ID:      0,
+		Address: strings.Repeat("0", 20),
+		Data:    []byte(""),
+	})
+
+	assert.Error(t, err)
+
+	mockcallback.AssertCalled(t, "WalletOutOfFunds", mock.Anything, mock.Anything)
 }

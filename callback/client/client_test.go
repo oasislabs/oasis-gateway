@@ -52,50 +52,59 @@ func newClient() *Client {
 
 func TestClientCallbackDisabledNoSend(t *testing.T) {
 	client := newClient()
+	mockclient := client.client.(*MockHttpClient)
 
-	err := client.callback(Context, &Callback{Enabled: false})
+	err := client.Callback(Context,
+		&Callback{Enabled: false},
+		&CallbackProps{Sync: true})
 
 	assert.Nil(t, err)
-	client.client.(*MockHttpClient).AssertNotCalled(t, "Do", mock.Anything)
+	mockclient.AssertNotCalled(t, "Do", mock.Anything)
 }
 
 func TestClientCallbackSendOK(t *testing.T) {
 	client := newClient()
+	mockclient := client.client.(*MockHttpClient)
 
-	client.client.(*MockHttpClient).On("Do", mock.MatchedBy(func(req *http.Request) bool {
-		return req.Method == http.MethodPost &&
-			req.URL.String() == "http://localhost:1234/" &&
-			req.Header.Get("Content-type") == "plain/text"
-	})).Return(&http.Response{StatusCode: http.StatusOK}, nil)
+	mockclient.On("Do",
+		mock.MatchedBy(func(req *http.Request) bool {
+			return req.Method == http.MethodPost &&
+				req.URL.String() == "http://localhost:1234/" &&
+				req.Header.Get("Content-type") == "plain/text"
+		})).Return(&http.Response{StatusCode: http.StatusOK}, nil)
 
-	err := client.callback(Context, &Callback{
+	err := client.Callback(Context, &Callback{
 		Enabled: true,
 		Method:  http.MethodPost,
 		URL:     "http://localhost:1234/",
 		Body:    "some body",
 		Headers: []string{"Content-type:plain/text"},
-	})
+	}, &CallbackProps{Sync: true})
 
 	assert.Nil(t, err)
+	mockclient.AssertCalled(t, "Do", mock.Anything)
 }
 
 func TestClientCallbackSendNotOK(t *testing.T) {
 	client := newClient()
+	mockclient := client.client.(*MockHttpClient)
 
-	client.client.(*MockHttpClient).On("Do", mock.MatchedBy(func(req *http.Request) bool {
-		return req.Method == http.MethodPost &&
-			req.URL.String() == "http://localhost:1234/" &&
-			req.Header.Get("Content-type") == "plain/text"
-	})).Return(&http.Response{StatusCode: http.StatusInternalServerError}, nil)
+	mockclient.On("Do",
+		mock.MatchedBy(func(req *http.Request) bool {
+			return req.Method == http.MethodPost &&
+				req.URL.String() == "http://localhost:1234/" &&
+				req.Header.Get("Content-type") == "plain/text"
+		})).Return(&http.Response{StatusCode: http.StatusInternalServerError}, nil)
 
-	err := client.callback(Context, &Callback{
+	err := client.Callback(Context, &Callback{
 		Enabled: true,
 		Method:  http.MethodPost,
 		URL:     "http://localhost:1234/",
 		Body:    "some body",
 		Headers: []string{"Content-type:plain/text"},
-	})
+	}, &CallbackProps{Sync: true})
 
-	assert.Error(t, err)
-	client.client.(*MockHttpClient).AssertCalled(t, "Do", mock.Anything)
+	_, ok := err.(conc.ErrMaxAttemptsReached)
+	assert.True(t, ok)
+	mockclient.AssertCalled(t, "Do", mock.Anything)
 }

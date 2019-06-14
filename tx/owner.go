@@ -6,7 +6,6 @@ import (
 	stderr "errors"
 	"fmt"
 	"math/big"
-	"strings"
 	"time"
 
 	ethereum "github.com/ethereum/go-ethereum"
@@ -14,11 +13,19 @@ import (
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/types"
 
+	callback "github.com/oasislabs/developer-gateway/callback/client"
 	"github.com/oasislabs/developer-gateway/conc"
 	"github.com/oasislabs/developer-gateway/errors"
 	"github.com/oasislabs/developer-gateway/eth"
 	"github.com/oasislabs/developer-gateway/log"
 )
+
+// Callbacks implemented by the WalletOwner
+type Callbacks interface {
+	// WalletOutOfFunds is called when the wallet owned by the
+	// WalletOwner does not have enough funds for a transaction
+	WalletOutOfFunds(ctx context.Context, body callback.WalletOutOfFundsBody)
+}
 
 // StatusOK defined by ethereum is the value of status
 // for a transaction that succeeds
@@ -39,22 +46,32 @@ type signRequest struct {
 	Transaction *types.Transaction
 }
 
+type createOwnerRequest struct {
+	PrivateKey *ecdsa.PrivateKey
+}
+
 type executeRequest struct {
 	ID      uint64
 	Address string
 	Data    []byte
 }
 
+// WalletOwner is the only instance that should interact
+// with a wallet. Its main goal is to send transactions
+// and keep the funding and nonce of the wallet up to
+// date
 type WalletOwner struct {
-	wallet *InternalWallet
-	nonce  uint64
-	client eth.Client
-	logger log.Logger
+	wallet    Wallet
+	nonce     uint64
+	client    eth.Client
+	callbacks Callbacks
+	logger    log.Logger
 }
 
 type WalletOwnerServices struct {
-	Client eth.Client
-	Logger log.Logger
+	Client    eth.Client
+	Callbacks Callbacks
+	Logger    log.Logger
 }
 
 type WalletOwnerProps struct {
@@ -63,16 +80,20 @@ type WalletOwnerProps struct {
 	Nonce      uint64
 }
 
+// NewWalletOwner creates a new instance of a wallet
+// owner. The wallet is derived from the private key
+// provided
 func NewWalletOwner(
 	services *WalletOwnerServices,
 	props *WalletOwnerProps,
 ) *WalletOwner {
 	wallet := NewWallet(props.PrivateKey, props.Signer)
 	executor := &WalletOwner{
-		wallet: wallet,
-		nonce:  props.Nonce,
-		client: services.Client,
-		logger: services.Logger.ForClass("tx", "WalletOwner"),
+		wallet:    wallet,
+		nonce:     props.Nonce,
+		client:    services.Client,
+		callbacks: services.Callbacks,
+		logger:    services.Logger.ForClass("tx", "WalletOwner"),
 	}
 
 	return executor
@@ -115,33 +136,25 @@ func (e *WalletOwner) transactionNonce() uint64 {
 }
 
 func (e *WalletOwner) updateNonce(ctx context.Context) errors.Err {
-	var err error
-	for attempts := 0; attempts < 10; attempts++ {
-
-		address := e.wallet.Address().Hex()
-		nonce, err := e.client.NonceAt(ctx, common.HexToAddress(address))
-		if err != nil {
-			e.logger.Debug(ctx, "NonceAt request failed", log.MapFields{
-				"call_type": "NonceFailure",
-				"address":   address,
-			}, errors.New(errors.ErrFetchNonce, err))
-			continue
-		}
-
-		e.nonce = nonce
-		e.logger.Debug(ctx, "", log.MapFields{
-			"call_type": "NonceSuccess",
+	address := e.wallet.Address().Hex()
+	nonce, err := e.client.NonceAt(ctx, common.HexToAddress(address))
+	if err != nil {
+		err := errors.New(errors.ErrFetchNonce, err)
+		e.logger.Debug(ctx, "NonceAt request failed", log.MapFields{
+			"call_type": "NonceFailure",
 			"address":   address,
-		})
-
-		return nil
+		}, err)
+		return err
 	}
 
-	e.logger.Debug(ctx, "Exceeded NonceAt request limit", log.MapFields{
-		"call_type": "NonceFailure",
-	}, errors.New(errors.ErrFetchNonce, err))
+	e.nonce = nonce
+	e.logger.Debug(ctx, "", log.MapFields{
+		"call_type": "NonceSuccess",
+		"address":   address,
+		"nonce":     nonce,
+	})
 
-	return errors.New(errors.ErrFetchNonce, err)
+	return nil
 }
 
 func (e *WalletOwner) signTransaction(tx *types.Transaction) (*types.Transaction, errors.Err) {
@@ -205,7 +218,7 @@ func (e *WalletOwner) estimateGas(ctx context.Context, id uint64, address string
 	return gas, nil
 }
 
-func (e *WalletOwner) generateAndSignTransaction(ctx context.Context, req executeRequest, gas uint64) (*types.Transaction, errors.Err) {
+func (e *WalletOwner) generateAndSignTransaction(ctx context.Context, req sendTransactionRequest, gas uint64) (*types.Transaction, error) {
 	nonce := e.transactionNonce()
 
 	var tx *types.Transaction
@@ -217,18 +230,68 @@ func (e *WalletOwner) generateAndSignTransaction(ctx context.Context, req execut
 			big.NewInt(0), gas, big.NewInt(gasPrice), req.Data)
 	}
 
-	tx, err := e.signTransaction(tx)
-	if err != nil {
-		err := errors.New(errors.ErrSignedTx, err)
-		e.logger.Debug(ctx, "failure to sign transaction", log.MapFields{
-			"call_type": "ExecuteTransactionFailure",
-			"id":        req.ID,
-			"address":   req.Address,
-		}, err)
+	return e.wallet.SignTransaction(tx)
+}
 
-		return nil, err
+type sendTransactionRequest struct {
+	ID      uint64
+	Address string
+	Gas     uint64
+	Data    []byte
+}
+
+func (e *WalletOwner) sendTransaction(
+	ctx context.Context,
+	req sendTransactionRequest,
+) (eth.SendTransactionResponse, errors.Err) {
+	v, err := conc.RetryWithConfig(ctx, conc.SupplierFunc(func() (interface{}, error) {
+		tx, err := e.generateAndSignTransaction(ctx, req, req.Gas)
+		if err != nil {
+			return ExecuteResponse{}, errors.New(errors.ErrSignedTx, err)
+		}
+
+		res, err := e.client.SendTransaction(ctx, tx)
+		if err != nil {
+			switch {
+			case err == eth.ErrExceedsBalance:
+				e.callbacks.WalletOutOfFunds(ctx, callback.WalletOutOfFundsBody{
+					Address: req.Address,
+				})
+
+				return eth.SendTransactionResponse{},
+					conc.ErrCannotRecover{Cause: errors.New(errors.ErrSendTransaction, err)}
+
+			case err == eth.ErrExceedsBlockLimit:
+				return eth.SendTransactionResponse{},
+					conc.ErrCannotRecover{Cause: errors.New(errors.ErrSendTransaction, err)}
+			case err == eth.ErrInvalidNonce:
+				if err := e.updateNonce(ctx); err != nil {
+					// if we fail to update the nonce we cannot proceed
+					return eth.SendTransactionResponse{},
+						conc.ErrCannotRecover{Cause: err}
+				}
+
+				return eth.SendTransactionResponse{}, err
+			default:
+				return eth.SendTransactionResponse{},
+					conc.ErrCannotRecover{
+						Cause: errors.New(errors.ErrSendTransaction, err),
+					}
+			}
+		}
+
+		return res, nil
+	}), retryConfig)
+
+	if err != nil {
+		if err, ok := err.(errors.Err); ok {
+			return eth.SendTransactionResponse{}, err
+		}
+
+		return eth.SendTransactionResponse{}, errors.New(errors.ErrSendTransaction, err)
 	}
-	return tx, nil
+
+	return v.(eth.SendTransactionResponse), nil
 }
 
 func (e *WalletOwner) executeTransaction(ctx context.Context, req executeRequest) (ExecuteResponse, errors.Err) {
@@ -244,48 +307,15 @@ func (e *WalletOwner) executeTransaction(ctx context.Context, req executeRequest
 		return ExecuteResponse{}, err
 	}
 
-	var tx *types.Transaction
-
-	sendRes, derr := conc.RetryWithConfig(ctx, conc.SupplierFunc(func() (interface{}, error) {
-		tx, err = e.generateAndSignTransaction(ctx, req, gas)
-		if err != nil {
-			return ExecuteResponse{}, err
-		}
-
-		res, derr := e.client.SendTransaction(ctx, tx)
-		if derr != nil {
-			// depending on the error received it may be useful to return the error
-			// and have an upper logic to decide whether to retry the request
-			err := errors.New(errors.ErrSendTransaction, derr)
-			e.logger.Debug(ctx, "failure to send transaction", log.MapFields{
-				"call_type": "ExecuteTransactionFailure",
-				"id":        req.ID,
-				"address":   req.Address,
-			}, err)
-
-			// If the nonce is incorrect, update the nonce and try again
-			if strings.Contains(derr.Error(), "Invalid transaction nonce") {
-				nerr := e.updateNonce(ctx)
-				if nerr != nil {
-					e.logger.Debug(ctx, "failed to retrieve nonce", log.MapFields{
-						"call_type": "ExecuteTransactionFailure",
-						"id":        req.ID,
-						"address":   req.Address,
-					}, nerr)
-
-					return eth.SendTransactionResponse{}, derr
-				}
-				return eth.SendTransactionResponse{}, derr
-			}
-			return eth.SendTransactionResponse{}, conc.ErrCannotRecover{Cause: derr}
-		}
-		return res, nil
-	}), retryConfig)
-	if derr != nil {
-		err = errors.New(errors.ErrSendTransaction, derr)
+	res, err := e.sendTransaction(ctx, sendTransactionRequest{
+		ID:      req.ID,
+		Address: req.Address,
+		Data:    req.Data,
+		Gas:     gas,
+	})
+	if err != nil {
 		return ExecuteResponse{}, err
 	}
-	res := sendRes.(eth.SendTransactionResponse)
 
 	if res.Status != StatusOK {
 		p, derr := hexutil.Decode(res.Output)
@@ -311,7 +341,7 @@ func (e *WalletOwner) executeTransaction(ctx context.Context, req executeRequest
 	}
 
 	if len(contractAddress) == 0 {
-		receipt, err := e.client.TransactionReceipt(ctx, tx.Hash())
+		receipt, err := e.client.TransactionReceipt(ctx, common.HexToHash(res.Hash))
 		if err != nil {
 			err := errors.New(errors.ErrTransactionReceipt, err)
 			e.logger.Debug(ctx, "failure to retrieve transaction receipt", log.MapFields{

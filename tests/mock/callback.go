@@ -11,7 +11,6 @@ type MockCallbackClient struct {
 	mock.Mock
 }
 
-func (c *MockCallbackClient) WalletOutOfFunds(ctx context.Context, body callback.WalletOutOfFundsBody) error {
-	args := c.Called(ctx, body)
-	return args.Error(0)
+func (c *MockCallbackClient) WalletOutOfFunds(ctx context.Context, body callback.WalletOutOfFundsBody) {
+	_ = c.Called(ctx, body)
 }

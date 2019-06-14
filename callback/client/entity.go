@@ -1,11 +1,16 @@
 package client
 
+import "time"
+
 // Callback is the definition of how a callback
 // will be sent and what data along with it
 type Callback struct {
 	// Enabled if set the callback will be send by the
 	// client, otherwise it will be ignored
 	Enabled bool
+
+	// Name is a human readable name to identify the callback
+	Name string
 
 	// Method is the http method send in the http request
 	Method string
@@ -21,6 +26,14 @@ type Callback struct {
 	// Headers a slice of http headers (':' separated)
 	// that will be sent through the client
 	Headers []string
+
+	// PeriodLimit is the minimum duration that there should
+	// be between notifications of this callback
+	PeriodLimit time.Duration
+
+	// LastAttempt is the unix timestamp of the last time
+	// the request type was attempted
+	LastAttempt int64
 }
 
 // WalletOutOfFundsBody is the body sent on a WalletOutOfFunds

@@ -2,6 +2,7 @@ package callback
 
 import (
 	"context"
+	"time"
 
 	"github.com/oasislabs/developer-gateway/callback/client"
 	"github.com/oasislabs/developer-gateway/log"
@@ -24,11 +25,13 @@ func NewClient(ctx context.Context, services *ClientServices, config *Config) *c
 	}, &client.Props{
 		Callbacks: client.Callbacks{
 			WalletOutOfFunds: client.Callback{
-				Enabled: config.WalletOutOfFunds.Enabled,
-				Method:  config.WalletOutOfFunds.Method,
-				URL:     config.WalletOutOfFunds.URL,
-				Body:    config.WalletOutOfFunds.Body,
-				Headers: config.WalletOutOfFunds.Headers,
+				Enabled:     config.WalletOutOfFunds.Enabled,
+				Name:        "WalletOutOfFunds",
+				Method:      config.WalletOutOfFunds.Method,
+				URL:         config.WalletOutOfFunds.URL,
+				Body:        config.WalletOutOfFunds.Body,
+				Headers:     config.WalletOutOfFunds.Headers,
+				PeriodLimit: 1 * time.Minute,
 			},
 		},
 	})
