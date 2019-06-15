@@ -12,7 +12,7 @@ import (
 	"github.com/oasislabs/developer-gateway/backend/eth"
 	"github.com/oasislabs/developer-gateway/gateway"
 	"github.com/oasislabs/developer-gateway/mqueue"
-	"github.com/oasislabs/developer-gateway/tx/exec"
+	"github.com/oasislabs/developer-gateway/tx"
 )
 
 func NewBackendClient(
@@ -41,11 +41,11 @@ func NewEthClient(
 	}
 
 	mockclient := EthMockClient{}
-	executor, err := exec.NewServer(ctx, &exec.ServerServices{
+	executor, err := tx.NewExecutor(ctx, &tx.ExecutorServices{
 		Logger:    gateway.RootLogger,
 		Client:    mockclient,
 		Callbacks: services.Callback,
-	}, &exec.ServerProps{
+	}, &tx.ExecutorProps{
 		PrivateKeys: []*ecdsa.PrivateKey{privateKey},
 	})
 	if err != nil {

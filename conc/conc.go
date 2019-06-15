@@ -9,6 +9,14 @@ import (
 	"time"
 )
 
+// ErrNoOccurrence is returned failing to wait for an
+// event that never occurred
+type ErrNoOccurrence struct{}
+
+func (e ErrNoOccurrence) Error() string {
+	return "the expected event never occurred"
+}
+
 // ErrCannotRecover is an error that can be passed by clients to
 // retry mechanisms so that the attempted action is not retried
 type ErrCannotRecover struct {
@@ -53,7 +61,6 @@ var RandomConfig = RetryConfig{
 // the Supplier actually does. The preferred method to use it
 // might be through SupplierFunc with a closure
 type Supplier interface {
-
 	// Supply executes the operation the supplier is expected to perform
 	// and returns the value and error related with the operation
 	Supply() (interface{}, error)

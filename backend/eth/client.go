@@ -16,8 +16,7 @@ import (
 	"github.com/oasislabs/developer-gateway/errors"
 	"github.com/oasislabs/developer-gateway/eth"
 	"github.com/oasislabs/developer-gateway/log"
-	tx "github.com/oasislabs/developer-gateway/tx/core"
-	"github.com/oasislabs/developer-gateway/tx/exec"
+	"github.com/oasislabs/developer-gateway/tx"
 )
 
 const StatusOK = 1
@@ -43,7 +42,7 @@ type Client struct {
 	ctx      context.Context
 	logger   log.Logger
 	client   eth.Client
-	executor tx.TransactionHandler
+	executor *tx.Executor
 	subman   *eth.SubscriptionManager
 }
 
@@ -263,7 +262,7 @@ func (c *Client) decodeBytes(s string) ([]byte, errors.Err) {
 type ClientDeps struct {
 	Logger   log.Logger
 	Client   eth.Client
-	Executor tx.TransactionHandler
+	Executor *tx.Executor
 }
 
 type ClientServices struct {
@@ -304,10 +303,10 @@ func DialContext(ctx context.Context, services *ClientServices, props *ClientPro
 		RetryConfig: conc.RandomConfig,
 	})
 
-	executor, err := exec.NewServer(ctx, &exec.ServerServices{
+	executor, err := tx.NewExecutor(ctx, &tx.ExecutorServices{
 		Logger: services.Logger,
 		Client: client,
-	}, &exec.ServerProps{PrivateKeys: []*ecdsa.PrivateKey{props.PrivateKey}})
+	}, &tx.ExecutorProps{PrivateKeys: []*ecdsa.PrivateKey{props.PrivateKey}})
 	if err != nil {
 		return nil, err
 	}
