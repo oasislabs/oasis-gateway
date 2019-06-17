@@ -31,20 +31,52 @@ type Services struct {
 	Authenticator authcore.Auth
 }
 
-func NewServices(ctx context.Context, config *Config) (*Services, error) {
-	mqueue, err := mqueue.NewMailbox(ctx, mqueue.Services{Logger: RootLogger}, &config.MailboxConfig)
+type ServiceFactories struct {
+	MailboxFactory        mqueue.MailboxFactory
+	CallbacksFactory      callback.ClientFactory
+	BackendClientFactory  backend.ClientFactory
+	BackendRequestManager backend.RequestManagerFactory
+	AuthFactory           auth.Factory
+}
+
+func setDefaults(factories *ServiceFactories) *ServiceFactories {
+	if factories == nil {
+		factories = &ServiceFactories{}
+	}
+	if factories.MailboxFactory == nil {
+		factories.MailboxFactory = mqueue.NewMailbox
+	}
+	if factories.CallbacksFactory == nil {
+		factories.CallbacksFactory = callback.NewClient
+	}
+	if factories.BackendClientFactory == nil {
+		factories.BackendClientFactory = backend.NewBackendClient
+	}
+	if factories.BackendRequestManager == nil {
+		factories.BackendRequestManager = backend.NewRequestManagerWithDeps
+	}
+	if factories.AuthFactory == nil {
+		factories.AuthFactory = auth.NewAuth
+	}
+
+	return factories
+}
+
+func NewServicesWithFactories(ctx context.Context, config *Config, factories *ServiceFactories) (*Services, error) {
+	factories = setDefaults(factories)
+	mqueue, err := factories.MailboxFactory.New(ctx, mqueue.Services{Logger: RootLogger}, &config.MailboxConfig)
 	if err != nil {
 		return nil, err
 	}
 
-	callbacks, err := callback.NewClient(ctx, &callback.ClientServices{
+	callbacks, err := factories.CallbacksFactory.New(ctx, &callback.ClientServices{
 		Logger: RootLogger,
 	}, &config.CallbackConfig)
 	if err != nil {
 		return nil, err
 	}
 
-	client, err := backend.NewBackendClient(ctx, &backend.ClientServices{
+	client, err := factories.BackendClientFactory.New(ctx, &backend.ClientServices{
 		Logger:    RootLogger,
 		Callbacks: callbacks,
 	}, &config.BackendConfig)
@@ -52,7 +84,7 @@ func NewServices(ctx context.Context, config *Config) (*Services, error) {
 		return nil, err
 	}
 
-	request, err := backend.NewRequestManagerWithDeps(ctx, &backend.Deps{
+	request, err := factories.BackendRequestManager.New(ctx, &backend.Deps{
 		Logger: RootLogger,
 		MQueue: mqueue,
 		Client: client,
@@ -61,7 +93,7 @@ func NewServices(ctx context.Context, config *Config) (*Services, error) {
 		return nil, err
 	}
 
-	authenticator, err := auth.NewAuth(&config.AuthConfig)
+	authenticator, err := factories.AuthFactory.New(&config.AuthConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -72,6 +104,10 @@ func NewServices(ctx context.Context, config *Config) (*Services, error) {
 		Authenticator: authenticator,
 		Callback:      callbacks,
 	}, nil
+}
+
+func NewServices(ctx context.Context, config *Config) (*Services, error) {
+	return NewServicesWithFactories(ctx, config, nil)
 }
 
 func NewPrivateRouter() *rpc.HttpRouter {

@@ -18,9 +18,19 @@ type ClientServices struct {
 	Logger log.Logger
 }
 
+type ClientFactory interface {
+	New(ctx context.Context, services *ClientServices, config *Config) (*client.Client, error)
+}
+
+type CallbacksFactoryFunc func(ctx context.Context, services *ClientServices, config *Config) (*client.Client, error)
+
+func (f CallbacksFactoryFunc) New(ctx context.Context, services *ClientServices, config *Config) (*client.Client, error) {
+	return f(ctx, services, config)
+}
+
 // NewClient creates a new instance of the client with the
 // specified configuration and the provided services
-func NewClient(ctx context.Context, services *ClientServices, config *Config) (*client.Client, error) {
+var NewClient = CallbacksFactoryFunc(func(ctx context.Context, services *ClientServices, config *Config) (*client.Client, error) {
 	var bodyFormat *template.Template
 	if len(config.WalletOutOfFunds.Body) > 0 {
 		tmpl, err := template.New("WalletOutOfFunds").Parse(config.WalletOutOfFunds.Body)
@@ -46,4 +56,4 @@ func NewClient(ctx context.Context, services *ClientServices, config *Config) (*
 			},
 		},
 	}), nil
-}
+})
