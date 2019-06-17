@@ -26,6 +26,10 @@ type Callback struct {
 	// be sent
 	BodyFormat *template.Template
 
+	// QueryURLFormat is the query url of the http request that
+	// will be sent in the callback
+	QueryURLFormat *template.Template
+
 	// Headers a slice of http headers (':' separated)
 	// that will be sent through the client
 	Headers []string

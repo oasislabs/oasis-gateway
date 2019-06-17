@@ -114,22 +114,31 @@ func (c *Client) createRequest(
 	callback *Callback,
 	props *CallbackProps,
 ) (*http.Request, error) {
-	if callback.BodyFormat != nil && props.Body != nil {
+	url := callback.URL
+
+	if callback.QueryURLFormat != nil && props.Body != nil {
 		buffer := bytes.NewBuffer([]byte{})
-		if err := callback.BodyFormat.Execute(buffer, props.Body); err != nil {
-			c.logger.Warn(ctx, "failed to generate request body", log.MapFields{
-				"call_type": "SendCallbackFailure",
-				"method":    callback.Method,
-				"url":       callback.URL,
-				"err":       err.Error(),
-			})
+		if err := callback.QueryURLFormat.Execute(buffer, props.Body); err != nil {
 			return nil, err
 		}
 
-		return http.NewRequest(callback.Method, callback.URL, buffer)
+		queryURL := buffer.String()
+		if !strings.HasPrefix(queryURL, "?") {
+			queryURL = "?" + queryURL
+		}
+		url += queryURL
 	}
 
-	return http.NewRequest(callback.Method, callback.URL, nil)
+	if callback.BodyFormat != nil && props.Body != nil {
+		buffer := bytes.NewBuffer([]byte{})
+		if err := callback.BodyFormat.Execute(buffer, props.Body); err != nil {
+			return nil, err
+		}
+
+		return http.NewRequest(callback.Method, url, buffer)
+	}
+
+	return http.NewRequest(callback.Method, url, nil)
 }
 
 func (c *Client) Callback(
