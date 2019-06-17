@@ -31,9 +31,12 @@ func (f CallbacksFactoryFunc) New(ctx context.Context, services *ClientServices,
 // NewClient creates a new instance of the client with the
 // specified configuration and the provided services
 var NewClient = CallbacksFactoryFunc(func(ctx context.Context, services *ClientServices, config *Config) (*client.Client, error) {
-	var bodyFormat *template.Template
+	var (
+		bodyFormat     *template.Template
+		queryURLFormat *template.Template
+	)
 	if len(config.WalletOutOfFunds.Body) > 0 {
-		tmpl, err := template.New("WalletOutOfFunds").Parse(config.WalletOutOfFunds.Body)
+		tmpl, err := template.New("WalletOutOfFundsBody").Parse(config.WalletOutOfFunds.Body)
 		if err != nil {
 			return nil, err
 		}
@@ -41,18 +44,28 @@ var NewClient = CallbacksFactoryFunc(func(ctx context.Context, services *ClientS
 		bodyFormat = tmpl
 	}
 
+	if len(config.WalletOutOfFunds.QueryURL) > 0 {
+		tmpl, err := template.New("WalletOutOfFundsQueryURL").Parse(config.WalletOutOfFunds.QueryURL)
+		if err != nil {
+			return nil, err
+		}
+
+		queryURLFormat = tmpl
+	}
+
 	return client.NewClient(&client.Services{
 		Logger: services.Logger,
 	}, &client.Props{
 		Callbacks: client.Callbacks{
 			WalletOutOfFunds: client.Callback{
-				Enabled:     config.WalletOutOfFunds.Enabled,
-				Name:        "WalletOutOfFunds",
-				Method:      config.WalletOutOfFunds.Method,
-				URL:         config.WalletOutOfFunds.URL,
-				BodyFormat:  bodyFormat,
-				Headers:     config.WalletOutOfFunds.Headers,
-				PeriodLimit: 1 * time.Minute,
+				Enabled:        config.WalletOutOfFunds.Enabled,
+				Name:           "WalletOutOfFunds",
+				Method:         config.WalletOutOfFunds.Method,
+				URL:            config.WalletOutOfFunds.URL,
+				BodyFormat:     bodyFormat,
+				QueryURLFormat: queryURLFormat,
+				Headers:        config.WalletOutOfFunds.Headers,
+				PeriodLimit:    1 * time.Minute,
 			},
 		},
 	}), nil
