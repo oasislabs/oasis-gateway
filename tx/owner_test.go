@@ -179,5 +179,8 @@ func TestExecuteTransactionExceedsBalance(t *testing.T) {
 
 	assert.Error(t, err)
 
-	mockcallback.AssertCalled(t, "WalletOutOfFunds", mock.Anything, mock.Anything)
+	mockcallback.AssertCalled(t, "WalletOutOfFunds", mock.Anything,
+		mock.MatchedBy(func(body callback.WalletOutOfFundsBody) bool {
+			return body.Address == owner.wallet.Address().Hex()
+		}))
 }

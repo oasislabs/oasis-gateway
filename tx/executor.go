@@ -29,13 +29,14 @@ type Executor struct {
 	master    *conc.Master
 	client    eth.Client
 	logger    log.Logger
-	Callbacks Callbacks
+	callbacks Callbacks
 }
 
 func NewExecutor(ctx context.Context, services *ExecutorServices, props *ExecutorProps) (*Executor, error) {
 	s := &Executor{
-		client: services.Client,
-		logger: services.Logger.ForClass("tx/wallet", "Executor"),
+		client:    services.Client,
+		callbacks: services.Callbacks,
+		logger:    services.Logger.ForClass("tx/wallet", "Executor"),
 	}
 
 	s.master = conc.NewMaster(conc.MasterProps{
@@ -79,7 +80,7 @@ func (s *Executor) create(ctx context.Context, ev conc.CreateWorkerEvent) error 
 	owner := NewWalletOwner(
 		&WalletOwnerServices{
 			Client:    s.client,
-			Callbacks: s.Callbacks,
+			Callbacks: s.callbacks,
 			Logger:    s.logger,
 		},
 		&WalletOwnerProps{

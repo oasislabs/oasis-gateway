@@ -12,6 +12,7 @@ import (
 	"github.com/ethereum/go-ethereum/common/hexutil"
 
 	backend "github.com/oasislabs/developer-gateway/backend/core"
+	callback "github.com/oasislabs/developer-gateway/callback/client"
 	"github.com/oasislabs/developer-gateway/conc"
 	"github.com/oasislabs/developer-gateway/errors"
 	"github.com/oasislabs/developer-gateway/eth"
@@ -266,7 +267,8 @@ type ClientDeps struct {
 }
 
 type ClientServices struct {
-	Logger log.Logger
+	Logger    log.Logger
+	Callbacks callback.Calls
 }
 
 func NewClientWithDeps(ctx context.Context, deps *ClientDeps) *Client {
@@ -304,8 +306,9 @@ func DialContext(ctx context.Context, services *ClientServices, props *ClientPro
 	})
 
 	executor, err := tx.NewExecutor(ctx, &tx.ExecutorServices{
-		Logger: services.Logger,
-		Client: client,
+		Logger:    services.Logger,
+		Client:    client,
+		Callbacks: services.Callbacks,
 	}, &tx.ExecutorProps{PrivateKeys: []*ecdsa.PrivateKey{props.PrivateKey}})
 	if err != nil {
 		return nil, err
