@@ -19,8 +19,8 @@ type Deps struct {
 }
 
 type ClientServices struct {
-	Logger   log.Logger
-	Callback callback.Calls
+	Logger    log.Logger
+	Callbacks callback.Calls
 }
 
 func NewRequestManagerWithDeps(ctx context.Context, deps *Deps) (*core.RequestManager, error) {
@@ -35,7 +35,8 @@ func NewBackendClient(ctx context.Context, services *ClientServices, config *Con
 	switch config.Provider {
 	case BackendEthereum:
 		return NewEthClient(ctx, &eth.ClientServices{
-			Logger: services.Logger,
+			Logger:    services.Logger,
+			Callbacks: services.Callbacks,
 		}, config.BackendConfig.(*EthereumConfig))
 	case BackendEkiden:
 		return nil, ErrEkidenBackendNotImplemented

@@ -44,7 +44,7 @@ func NewEthClient(
 	executor, err := tx.NewExecutor(ctx, &tx.ExecutorServices{
 		Logger:    gateway.RootLogger,
 		Client:    mockclient,
-		Callbacks: services.Callback,
+		Callbacks: services.Callbacks,
 	}, &tx.ExecutorProps{
 		PrivateKeys: []*ecdsa.PrivateKey{privateKey},
 	})
@@ -72,8 +72,8 @@ func NewServices(ctx context.Context, config *gateway.Config) (*gateway.Services
 	}
 
 	backendClient, err := NewBackendClient(ctx, &backend.ClientServices{
-		Logger:   gateway.RootLogger,
-		Callback: &MockCallbackClient{},
+		Logger:    gateway.RootLogger,
+		Callbacks: &MockCallbackClient{},
 	}, &config.BackendConfig)
 	if err != nil {
 		return nil, err

@@ -166,19 +166,56 @@ func (c *Client) Callback(
 		req.Header.Add(h[0], h[1])
 	}
 
+	c.logger.Debug(ctx, "attempt to deliver http callback", log.MapFields{
+		"call_type": "SendCallbackAttempt",
+		"method":    callback.Method,
+		"url":       callback.URL,
+		"callback":  callback.Name,
+		"sync":      props.Sync,
+	})
+
 	if props.Sync {
-		return c.request(ctx, req)
+		if err := c.request(ctx, req); err != nil {
+			c.logger.Warn(ctx, "failed to deliver http callback", log.MapFields{
+				"call_type": "SendCallbackFailure",
+				"method":    callback.Method,
+				"url":       callback.URL,
+				"callback":  callback.Name,
+				"sync":      props.Sync,
+				"err":       err.Error(),
+			})
+			return err
+		}
+
+		c.logger.Debug(ctx, "http callback delivered", log.MapFields{
+			"call_type": "SendCallbackFailure",
+			"method":    callback.Method,
+			"url":       callback.URL,
+			"callback":  callback.Name,
+			"sync":      props.Sync,
+		})
 	}
 
 	go func() {
 		if err := c.request(ctx, req); err != nil {
-			c.logger.Warn(ctx, "failed to deliver http request", log.MapFields{
+			c.logger.Warn(ctx, "failed to deliver http callback", log.MapFields{
 				"call_type": "SendCallbackFailure",
 				"method":    callback.Method,
 				"url":       callback.URL,
+				"callback":  callback.Name,
+				"sync":      props.Sync,
 				"err":       err.Error(),
 			})
+			return
 		}
+
+		c.logger.Debug(ctx, "http callback delivered", log.MapFields{
+			"call_type": "SendCallbackSuccess",
+			"method":    callback.Method,
+			"url":       callback.URL,
+			"callback":  callback.Name,
+			"sync":      props.Sync,
+		})
 	}()
 
 	return nil

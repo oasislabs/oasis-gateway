@@ -144,6 +144,9 @@ func main() {
 	gateway.RootLogger.Info(gateway.RootContext, "auth config configuration parsed", log.MapFields{
 		"callType": "AuthConfigParseSuccess",
 	}, &config.AuthConfig)
+	gateway.RootLogger.Info(gateway.RootContext, "callback config configuration parsed", log.MapFields{
+		"callType": "CallbackConfigParseSuccess",
+	}, &config.CallbackConfig)
 
 	var wg sync.WaitGroup
 	wg.Add(2)

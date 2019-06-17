@@ -249,7 +249,7 @@ func (e *WalletOwner) sendTransaction(
 			switch {
 			case err == eth.ErrExceedsBalance:
 				e.callbacks.WalletOutOfFunds(ctx, callback.WalletOutOfFundsBody{
-					Address: req.Address,
+					Address: e.wallet.Address().Hex(),
 				})
 
 				return eth.SendTransactionResponse{},
