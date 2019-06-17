@@ -35,14 +35,14 @@ type Client interface {
 type Services struct {
 	Logger   log.Logger
 	Client   Client
-	Verifier auth.Verifier
+	Verifier auth.Auth
 }
 
 // ServiceHandler implements the handlers for service management
 type ServiceHandler struct {
 	logger   log.Logger
 	client   Client
-	verifier auth.Verifier
+	verifier auth.Auth
 }
 
 // DeployService handles the deployment of new services

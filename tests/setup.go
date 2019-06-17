@@ -17,8 +17,8 @@ var router *rpc.HttpRouter
 func init() {
 	path := os.Getenv("OASIS_DG_CONFIG_PATH")
 	if len(path) == 0 {
-		fmt.Println("OASIS_DG_CONFIG_PATH not set. It must be set to a configuration file ")
-		os.Exit(1)
+		path = ".oasis_dev_gateway.toml"
+		fmt.Println("Using default configuration location of '.oasis_dev_gateway.toml'")
 	}
 
 	r, err := Initialize()

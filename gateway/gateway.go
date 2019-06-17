@@ -114,7 +114,7 @@ func NewPublicRouter(services *Services) *rpc.HttpRouter {
 	service.BindHandler(service.Services{
 		Logger:   RootLogger,
 		Client:   services.Request,
-		Verifier: authcore.TrustedPayloadVerifier{},
+		Verifier: services.Authenticator,
 	}, binder)
 	event.BindHandler(event.Services{
 		Logger:  RootLogger,

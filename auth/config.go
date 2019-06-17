@@ -17,16 +17,19 @@ const (
 // Config sets the configuration for the authentication
 // mechanism to use
 type Config struct {
-	Provider AuthProvider
+	Providers []AuthProvider
 }
 
 func (c *Config) Log(fields log.Fields) {
-	fields.Add("auth.provider", c.Provider)
+	fields.Add("auth.provider", c.Providers)
 }
 
 func (c *Config) Configure(v *viper.Viper) error {
-	c.Provider = AuthProvider(v.GetString("auth.provider"))
-	if len(c.Provider) == 0 {
+	providers := v.GetStringSlice("auth.provider")
+	for _, provider := range providers {
+		c.Providers = append(c.Providers, AuthProvider(provider))
+	}
+	if len(c.Providers) < len(providers) {
 		return config.ErrKeyNotSet{Key: "auth.provider"}
 	}
 
@@ -34,6 +37,6 @@ func (c *Config) Configure(v *viper.Viper) error {
 }
 
 func (c *Config) Bind(v *viper.Viper, cmd *cobra.Command) error {
-	cmd.PersistentFlags().String("auth.provider", "insecure", "provider for request authentication")
+	cmd.PersistentFlags().StringSlice("auth.provider", []string{"insecure"}, "provider for request authentication")
 	return nil
 }
