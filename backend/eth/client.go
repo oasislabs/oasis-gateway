@@ -17,6 +17,7 @@ import (
 	"github.com/oasislabs/developer-gateway/errors"
 	"github.com/oasislabs/developer-gateway/eth"
 	"github.com/oasislabs/developer-gateway/log"
+	"github.com/oasislabs/developer-gateway/stats"
 	"github.com/oasislabs/developer-gateway/tx"
 )
 
@@ -45,6 +46,14 @@ type Client struct {
 	client   eth.Client
 	executor *tx.Executor
 	subman   *eth.SubscriptionManager
+}
+
+func (c *Client) Name() string {
+	return "backend.eth.Client"
+}
+
+func (c *Client) Stats() stats.Metrics {
+	return nil
 }
 
 func (c *Client) GetPublicKey(

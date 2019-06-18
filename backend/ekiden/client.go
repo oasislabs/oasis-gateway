@@ -13,6 +13,7 @@ import (
 	"github.com/oasislabs/developer-gateway/ekiden"
 	"github.com/oasislabs/developer-gateway/errors"
 	"github.com/oasislabs/developer-gateway/log"
+	"github.com/oasislabs/developer-gateway/stats"
 )
 
 type NodeProps struct {
@@ -52,6 +53,14 @@ func DialContext(ctx context.Context, props ClientProps) (*Client, errors.Err) {
 		keyManager: keyManager,
 		runtimeID:  props.RuntimeID,
 	}, nil
+}
+
+func (c *Client) Name() string {
+	return "backend.ekiden.Client"
+}
+
+func (c *Client) Stats() stats.Metrics {
+	return nil
 }
 
 func (c *Client) GetPublicKey(

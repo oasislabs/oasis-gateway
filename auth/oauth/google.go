@@ -7,6 +7,7 @@ import (
 	"net/http"
 
 	oidc "github.com/coreos/go-oidc"
+	"github.com/oasislabs/developer-gateway/stats"
 )
 
 const (
@@ -42,6 +43,14 @@ type OpenIDClaims struct {
 
 func NewGoogleOauth(verifier IDTokenVerifier) GoogleOauth {
 	return GoogleOauth{verifier: verifier}
+}
+
+func (g GoogleOauth) Name() string {
+	return "auth.oauth.GoogleOauth"
+}
+
+func (g GoogleOauth) Stats() stats.Metrics {
+	return nil
 }
 
 // Authenticates the user using the ID Token receieved from Google.

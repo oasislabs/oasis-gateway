@@ -3,6 +3,8 @@ package core
 import (
 	"encoding/json"
 	"net/http"
+
+	"github.com/oasislabs/developer-gateway/stats"
 )
 
 type MultiAuth struct {
@@ -14,6 +16,19 @@ func (m *MultiAuth) Add(a Auth) {
 		m.auths = make([]Auth, 0)
 		m.auths = append(m.auths, a)
 	}
+}
+
+func (*MultiAuth) Name() string {
+	return "auth.MultiAuth"
+}
+func (m *MultiAuth) Stats() stats.Metrics {
+	metrics := make(map[string]stats.Stats)
+	for _, auth := range m.auths {
+		for k, val := range auth.Stats() {
+			metrics[k] = val
+		}
+	}
+	return metrics
 }
 
 func (m *MultiAuth) Authenticate(req *http.Request) (string, error) {

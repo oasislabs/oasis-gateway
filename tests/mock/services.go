@@ -65,7 +65,7 @@ func NewEthClient(
 	return client, nil
 }
 
-func NewServices(ctx context.Context, config *gateway.Config) (*gateway.Services, error) {
+func NewServices(ctx context.Context, config *gateway.Config) (*gateway.ServiceGroup, error) {
 	mqueue, err := mqueue.NewMailbox(ctx, mqueue.Services{Logger: gateway.RootLogger}, &config.MailboxConfig)
 	if err != nil {
 		return nil, err
@@ -93,7 +93,7 @@ func NewServices(ctx context.Context, config *gateway.Config) (*gateway.Services
 		return nil, err
 	}
 
-	return &gateway.Services{
+	return &gateway.ServiceGroup{
 		Request:       request,
 		Authenticator: authenticator,
 	}, nil
