@@ -18,10 +18,15 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+// RootLogger is the base logger of the application, all
+// loggers used in the gateway should derive from this
 var RootLogger = log.NewLogrus(log.LogrusLoggerProperties{
-	Level: logrus.DebugLevel,
+	Level: logrus.WarnLevel,
 })
 
+// RootContext is the base logger of the application,
+// all contexts created in the gateway should derive
+// from this
 var RootContext = context.Background()
 
 type Services struct {
@@ -39,7 +44,7 @@ type ServiceFactories struct {
 	AuthFactory           auth.Factory
 }
 
-func setDefaults(factories *ServiceFactories) *ServiceFactories {
+func setDefaultFactories(factories *ServiceFactories) *ServiceFactories {
 	if factories == nil {
 		factories = &ServiceFactories{}
 	}
@@ -62,8 +67,30 @@ func setDefaults(factories *ServiceFactories) *ServiceFactories {
 	return factories
 }
 
+// InitLogger initializes the static RootLogger with the
+// provided configuration. This should be called before
+// RootLogger is used
+func InitLogger(config *LoggingConfig) {
+	props := log.LogrusLoggerProperties{
+		Level: logrus.DebugLevel,
+	}
+
+	switch config.Level {
+	case "debug":
+		props.Level = logrus.DebugLevel
+	case "info":
+		props.Level = logrus.InfoLevel
+	case "warn":
+		props.Level = logrus.WarnLevel
+	default:
+		props.Level = logrus.DebugLevel
+	}
+
+	RootLogger = log.NewLogrus(props)
+}
+
 func NewServicesWithFactories(ctx context.Context, config *Config, factories *ServiceFactories) (*Services, error) {
-	factories = setDefaults(factories)
+	factories = setDefaultFactories(factories)
 	mqueue, err := factories.MailboxFactory.New(ctx, mqueue.Services{Logger: RootLogger}, &config.MailboxConfig)
 	if err != nil {
 		return nil, err

@@ -25,3 +25,6 @@ provider = "mem"
 
 [auth]
 provider = "insecure"
+
+[logging]
+level = "warn"

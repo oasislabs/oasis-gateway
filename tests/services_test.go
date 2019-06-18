@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/oasislabs/developer-gateway/api/v0/service"
+	"github.com/oasislabs/developer-gateway/gateway"
 	"github.com/oasislabs/developer-gateway/rpc"
 	"github.com/oasislabs/developer-gateway/tests/apitest"
 	"github.com/oasislabs/developer-gateway/tests/mock"
@@ -18,6 +19,12 @@ type ServicesTestSuite struct {
 }
 
 func (s *ServicesTestSuite) SetupTest() {
+	services, err := mock.NewServices(context.TODO(), Config)
+	if err != nil {
+		panic(err)
+	}
+
+	router := gateway.NewPublicRouter(services)
 	s.client = apitest.NewServiceClient(router)
 }
 
@@ -53,14 +60,13 @@ func (s *ServicesTestSuite) TestDeployServiceErr() {
 }
 
 func (s *ServicesTestSuite) TestDeployServiceOK() {
-	client := apitest.NewServiceClient(router)
-	deployRes, err := client.DeployService(context.Background(), service.DeployServiceRequest{
+	deployRes, err := s.client.DeployService(context.Background(), service.DeployServiceRequest{
 		Data: mock.TransactionDataOK,
 	})
 	assert.Nil(s.T(), err)
 	assert.Equal(s.T(), uint64(0), deployRes.ID)
 
-	pollRes, err := client.PollServiceUntilNotEmpty(context.Background(), service.PollServiceRequest{
+	pollRes, err := s.client.PollServiceUntilNotEmpty(context.Background(), service.PollServiceRequest{
 		Offset: deployRes.ID,
 	})
 
@@ -74,8 +80,7 @@ func (s *ServicesTestSuite) TestDeployServiceOK() {
 }
 
 func (s *ServicesTestSuite) TestExecuteServiceEmptyAddress() {
-	client := apitest.NewServiceClient(router)
-	_, err := client.ExecuteService(context.Background(), service.ExecuteServiceRequest{
+	_, err := s.client.ExecuteService(context.Background(), service.ExecuteServiceRequest{
 		Address: "",
 		Data:    mock.TransactionDataOK,
 	})

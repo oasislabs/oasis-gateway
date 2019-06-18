@@ -1,12 +1,15 @@
 package tests
 
 import (
+	"context"
 	"net/http"
 	"testing"
 
 	auth "github.com/oasislabs/developer-gateway/auth/core"
 	"github.com/oasislabs/developer-gateway/auth/insecure"
+	"github.com/oasislabs/developer-gateway/gateway"
 	"github.com/oasislabs/developer-gateway/tests/apitest"
+	"github.com/oasislabs/developer-gateway/tests/mock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 )
@@ -17,6 +20,12 @@ type ApiTestSuite struct {
 }
 
 func (s *ApiTestSuite) SetupTest() {
+	services, err := mock.NewServices(context.TODO(), Config)
+	if err != nil {
+		panic(err)
+	}
+
+	router := gateway.NewPublicRouter(services)
 	s.client = apitest.NewClient(router)
 }
 

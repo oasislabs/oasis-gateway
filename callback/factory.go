@@ -3,6 +3,7 @@ package callback
 import (
 	"context"
 	"html/template"
+	"net/http"
 	"time"
 
 	"github.com/oasislabs/developer-gateway/callback/client"
@@ -28,9 +29,7 @@ func (f CallbacksFactoryFunc) New(ctx context.Context, services *ClientServices,
 	return f(ctx, services, config)
 }
 
-// NewClient creates a new instance of the client with the
-// specified configuration and the provided services
-var NewClient = CallbacksFactoryFunc(func(ctx context.Context, services *ClientServices, config *Config) (*client.Client, error) {
+func NewClientWithDeps(ctx context.Context, deps *client.Deps, config *Config) (*client.Client, error) {
 	var (
 		bodyFormat     *template.Template
 		queryURLFormat *template.Template
@@ -53,9 +52,7 @@ var NewClient = CallbacksFactoryFunc(func(ctx context.Context, services *ClientS
 		queryURLFormat = tmpl
 	}
 
-	return client.NewClient(&client.Services{
-		Logger: services.Logger,
-	}, &client.Props{
+	return client.NewClientWithDeps(deps, &client.Props{
 		Callbacks: client.Callbacks{
 			WalletOutOfFunds: client.Callback{
 				Enabled:        config.WalletOutOfFunds.Enabled,
@@ -65,8 +62,18 @@ var NewClient = CallbacksFactoryFunc(func(ctx context.Context, services *ClientS
 				BodyFormat:     bodyFormat,
 				QueryURLFormat: queryURLFormat,
 				Headers:        config.WalletOutOfFunds.Headers,
+				Sync:           config.WalletOutOfFunds.Sync,
 				PeriodLimit:    1 * time.Minute,
 			},
 		},
 	}), nil
+}
+
+// NewClient creates a new instance of the client with the
+// specified configuration and the provided services
+var NewClient = CallbacksFactoryFunc(func(ctx context.Context, services *ClientServices, config *Config) (*client.Client, error) {
+	return NewClientWithDeps(ctx, &client.Deps{
+		Logger: services.Logger,
+		Client: &http.Client{},
+	}, config)
 })
