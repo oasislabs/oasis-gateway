@@ -13,7 +13,20 @@ import (
 	"github.com/oasislabs/developer-gateway/rw"
 )
 
+// HttpHeaderTraceID is the header that can be used in http
+// requests between client and server to pass a traceID
 const HttpHeaderTraceID = "X-OASIS-TRACE-ID"
+
+// HttpClient is the basic interface for the
+// underlying http client used by the Client
+type HttpClient interface {
+	Do(*http.Request) (*http.Response, error)
+}
+
+// HttpClientFactory creates a new instance of an HttpClient
+func HttpClientFactory(ctx context.Context) HttpClient {
+	return &http.Client{}
+}
 
 // HttpMiddleware are the handlers that offer extra functionality to a request and
 // that in success will forward the request to another handler

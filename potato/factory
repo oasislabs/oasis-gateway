@@ -1,0 +1,99 @@
+package gateway
+
+import (
+	"github.com/oasislabs/developer-gateway/auth"
+	"github.com/oasislabs/developer-gateway/backend"
+	"github.com/oasislabs/developer-gateway/callback"
+	"github.com/oasislabs/developer-gateway/mqueue"
+	"github.com/oasislabs/developer-gateway/rpc"
+)
+
+type Factory struct {
+	loggerFactory                log.Factory
+	mailboxFactory               mqueue.MailboxFactory
+	callbacksFactory             callback.ClientFactory
+	httpClientFactory            rpc.HttpClientFactory
+	backendEthClientFactory      backend.EthClientFactory
+	backendRequestManagerFactory backend.RequestManagerFactory
+	authFactory                  auth.Factory
+}
+
+func (f *Factory) Logger(factory log.Factory) *Factory {
+	f.loggerFactory = factory
+	return f
+}
+
+func (f *Factory) Mailbox(factory mqueue.MailboxFactory) *Factory {
+	f.mailboxFactory = factory
+	return f
+}
+
+func (f *Factory) Callbacks(factory callback.ClientFactory) *Factory {
+	f.callbacksFactory = factory
+	return f
+}
+
+func (f *Factory) HttpClient(factory rpc.HttpClientFactory) *Factory {
+	f.httpClientFactory = factory
+	return f
+}
+
+func (f *Factory) EthClient(factory backend.EthClientFactory) *Factory {
+	f.backendEthClientFactory = factory
+	return f
+}
+
+func (f *Factory) RequestManager(factory backend.RequestManagerFactory) *Factory {
+	f.backendRequestManagerFactory = factory
+	return f
+}
+
+func (f *Factory) Auth(factory auth.Factory) *Factory {
+	f.authFactory = factory
+	return f
+}
+
+func (f *Factory) Build(config *Config) (Services, error) {
+	services := NewServices()
+
+	// create logger
+	logger := f.loggerFactory.New(config.LoggingConfig)
+	services.Add(logger)
+
+	// create mailbox
+	mqueue, err := f.mailboxFactory.New(ctx, mqueue.Deps{
+		Logger: logger,
+	}, &config.MailboxConfig)
+	if err != nil {
+		return err
+	}
+	services.Add(mqueue)
+
+	// create http client
+	httpClient := f.httpClientFactory.New(ctx)
+	services.Add(httpClient)
+
+	// create callbacks
+	callbacks, err := factories.CallbacksFactory.New(ctx, &callback.Deps{
+		Logger:     RootLogger,
+		HttpClient: httpClient,
+	}, &config.CallbackConfig)
+	if err != nil {
+		return nil, err
+	}
+	services.Add(callbacks)
+
+	f.backendEthClientFactory.New(ctx, &eth.Deps{
+		Logger:    logger,
+		Callbacks: callbacks,
+	})
+}
+
+type BuildProps struct {
+	MailboxFactory        mqueue.MailboxFactory
+	CallbacksFactory      callback.ClientFactory
+	HttpClientFactory     rpc.HttpClientFactory
+	BackendClientFactory  backend.ClientFactory
+	BackendRequestManager backend.RequestManagerFactory
+	AuthFactory           auth.Factory
+}

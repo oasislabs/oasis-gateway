@@ -2,12 +2,9 @@ package backend
 
 import (
 	"context"
-	"fmt"
 
-	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/oasislabs/developer-gateway/backend/core"
 	"github.com/oasislabs/developer-gateway/backend/eth"
-	callback "github.com/oasislabs/developer-gateway/callback/client"
 	"github.com/oasislabs/developer-gateway/log"
 	mqueue "github.com/oasislabs/developer-gateway/mqueue/core"
 )
@@ -18,19 +15,14 @@ type Deps struct {
 	Client core.Client
 }
 
-type ClientServices struct {
-	Logger    log.Logger
-	Callbacks callback.Calls
+type EthClientFactory interface {
+	New(context.Context, *eth.Deps, *EthereumConfig) (core.Client, error)
 }
 
-type ClientFactory interface {
-	New(context.Context, *ClientServices, *Config) (core.Client, error)
-}
+type EthClientFactoryFunc func(context.Context, *eth.Deps, *EthereumConfig) (core.Client, error)
 
-type ClientFactoryFunc func(context.Context, *ClientServices, *Config) (core.Client, error)
-
-func (f ClientFactoryFunc) New(ctx context.Context, services *ClientServices, config *Config) (core.Client, error) {
-	return f(ctx, services, config)
+func (f EthClientFactoryFunc) New(ctx context.Context, deps *eth.Deps, config *EthereumConfig) (core.Client, error) {
+	return f(ctx, deps, config)
 }
 
 type RequestManagerFactory interface {
@@ -51,38 +43,6 @@ var NewRequestManagerWithDeps = RequestManagerFactoryFunc(func(ctx context.Conte
 	}), nil
 })
 
-var NewBackendClient = ClientFactoryFunc(func(ctx context.Context, services *ClientServices, config *Config) (core.Client, error) {
-	switch config.Provider {
-	case BackendEthereum:
-		return NewEthClient(ctx, &eth.ClientServices{
-			Logger:    services.Logger,
-			Callbacks: services.Callbacks,
-		}, config.BackendConfig.(*EthereumConfig))
-	case BackendEkiden:
-		return nil, ErrEkidenBackendNotImplemented
-	default:
-		return nil, ErrUnknownBackend{Backend: config.Provider.String()}
-	}
+var NewEthClient = EthClientFactoryFunc(func(ctx context.Context, deps *eth.Deps, config *EthereumConfig) (core.Client, error) {
+	return eth.NewClient(ctx, deps), nil
 })
-
-func NewEthClientWithDeps(ctx context.Context, deps *eth.ClientDeps) (*eth.Client, error) {
-	return eth.NewClientWithDeps(ctx, deps), nil
-}
-
-func NewEthClient(ctx context.Context, services *eth.ClientServices, config *EthereumConfig) (*eth.Client, error) {
-	privateKey, err := crypto.HexToECDSA(config.WalletConfig.PrivateKey)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read private key with error %s", err.Error())
-	}
-
-	client, err := eth.DialContext(ctx, services, &eth.ClientProps{
-		PrivateKey: privateKey,
-		URL:        config.URL,
-	})
-
-	if err != nil {
-		return nil, fmt.Errorf("failed to initialize eth client with error %s", err.Error())
-	}
-
-	return client, nil
-}

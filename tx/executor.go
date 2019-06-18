@@ -15,13 +15,13 @@ import (
 
 const maxInactivityTimeout = time.Duration(10) * time.Minute
 
-type ExecutorServices struct {
+type Deps struct {
 	Logger    log.Logger
 	Client    eth.Client
 	Callbacks Callbacks
 }
 
-type ExecutorProps struct {
+type Props struct {
 	PrivateKeys []*ecdsa.PrivateKey
 }
 
@@ -32,11 +32,11 @@ type Executor struct {
 	callbacks Callbacks
 }
 
-func NewExecutor(ctx context.Context, services *ExecutorServices, props *ExecutorProps) (*Executor, error) {
+func NewExecutor(ctx context.Context, deps *Deps, props *Props) (*Executor, error) {
 	s := &Executor{
-		client:    services.Client,
-		callbacks: services.Callbacks,
-		logger:    services.Logger.ForClass("tx/wallet", "Executor"),
+		client:    deps.Client,
+		callbacks: deps.Callbacks,
+		logger:    deps.Logger.ForClass("tx/wallet", "Executor"),
 	}
 
 	s.master = concurrent.NewMaster(concurrent.MasterProps{

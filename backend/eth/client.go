@@ -3,17 +3,13 @@ package eth
 import (
 	"context"
 	"crypto/ecdsa"
-	stderr "errors"
 	"fmt"
-	"net/url"
 
 	ethereum "github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 
 	backend "github.com/oasislabs/developer-gateway/backend/core"
-	callback "github.com/oasislabs/developer-gateway/callback/client"
-	"github.com/oasislabs/developer-gateway/concurrent"
 	"github.com/oasislabs/developer-gateway/errors"
 	"github.com/oasislabs/developer-gateway/eth"
 	"github.com/oasislabs/developer-gateway/log"
@@ -260,18 +256,16 @@ func (c *Client) decodeBytes(s string) ([]byte, errors.Err) {
 	return data, nil
 }
 
-type ClientDeps struct {
+// Deps are the client dependencies
+type Deps struct {
 	Logger   log.Logger
 	Client   eth.Client
 	Executor *tx.Executor
 }
 
-type ClientServices struct {
-	Logger    log.Logger
-	Callbacks callback.Calls
-}
-
-func NewClientWithDeps(ctx context.Context, deps *ClientDeps) *Client {
+// NewClient creates an instance of a new client with the provided
+// dependencies
+func NewClient(ctx context.Context, deps *Deps) *Client {
 	return &Client{
 		ctx:      ctx,
 		logger:   deps.Logger.ForClass("eth", "Client"),
@@ -283,40 +277,4 @@ func NewClientWithDeps(ctx context.Context, deps *ClientDeps) *Client {
 			Client:  deps.Client,
 		}),
 	}
-}
-
-func DialContext(ctx context.Context, services *ClientServices, props *ClientProps) (*Client, error) {
-	if len(props.URL) == 0 {
-		return nil, stderr.New("no url provided for eth client")
-	}
-
-	url, err := url.Parse(props.URL)
-	if err != nil {
-		return nil, fmt.Errorf("Failed to parse url %s", err.Error())
-	}
-
-	if url.Scheme != "wss" && url.Scheme != "ws" {
-		return nil, stderr.New("Only schemes supported are ws and wss")
-	}
-
-	dialer := eth.NewUniDialer(ctx, props.URL)
-	client := eth.NewPooledClient(eth.PooledClientProps{
-		Pool:        dialer,
-		RetryConfig: concurrent.RandomConfig,
-	})
-
-	executor, err := tx.NewExecutor(ctx, &tx.ExecutorServices{
-		Logger:    services.Logger,
-		Client:    client,
-		Callbacks: services.Callbacks,
-	}, &tx.ExecutorProps{PrivateKeys: []*ecdsa.PrivateKey{props.PrivateKey}})
-	if err != nil {
-		return nil, err
-	}
-
-	return NewClientWithDeps(ctx, &ClientDeps{
-		Logger:   services.Logger,
-		Client:   client,
-		Executor: executor,
-	}), nil
 }

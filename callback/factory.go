@@ -8,11 +8,12 @@ import (
 
 	"github.com/oasislabs/developer-gateway/callback/client"
 	"github.com/oasislabs/developer-gateway/log"
+	"github.com/oasislabs/developer-gateway/rpc"
 )
 
 type ClientDeps struct {
 	Logger log.Logger
-	Client client.HttpClient
+	Client rpc.HttpClient
 }
 
 type ClientServices struct {

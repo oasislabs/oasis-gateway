@@ -29,6 +29,13 @@ var RootLogger = log.NewLogrus(log.LogrusLoggerProperties{
 // from this
 var RootContext = context.Background()
 
+// InitLogger initializes the static RootLogger with the
+// provided configuration. This should be called before
+// RootLogger is used
+func InitLogger(config *log.Config) {
+	RootLogger = log.New(config)
+}
+
 type Services struct {
 	Callback      *callbackclient.Client
 	Request       *backendcore.RequestManager
@@ -39,7 +46,7 @@ type Services struct {
 type ServiceFactories struct {
 	MailboxFactory        mqueue.MailboxFactory
 	CallbacksFactory      callback.ClientFactory
-	BackendClientFactory  backend.ClientFactory
+	EthClientFactory      backend.EthClientFactory
 	BackendRequestManager backend.RequestManagerFactory
 	AuthFactory           auth.Factory
 }
@@ -54,8 +61,8 @@ func setDefaultFactories(factories *ServiceFactories) *ServiceFactories {
 	if factories.CallbacksFactory == nil {
 		factories.CallbacksFactory = callback.NewClient
 	}
-	if factories.BackendClientFactory == nil {
-		factories.BackendClientFactory = backend.NewBackendClient
+	if factories.EthClientFactory == nil {
+		factories.EthClientFactory = backend.NewEthClient
 	}
 	if factories.BackendRequestManager == nil {
 		factories.BackendRequestManager = backend.NewRequestManagerWithDeps
@@ -65,28 +72,6 @@ func setDefaultFactories(factories *ServiceFactories) *ServiceFactories {
 	}
 
 	return factories
-}
-
-// InitLogger initializes the static RootLogger with the
-// provided configuration. This should be called before
-// RootLogger is used
-func InitLogger(config *LoggingConfig) {
-	props := log.LogrusLoggerProperties{
-		Level: logrus.DebugLevel,
-	}
-
-	switch config.Level {
-	case "debug":
-		props.Level = logrus.DebugLevel
-	case "info":
-		props.Level = logrus.InfoLevel
-	case "warn":
-		props.Level = logrus.WarnLevel
-	default:
-		props.Level = logrus.DebugLevel
-	}
-
-	RootLogger = log.NewLogrus(props)
 }
 
 func NewServicesWithFactories(ctx context.Context, config *Config, factories *ServiceFactories) (*Services, error) {

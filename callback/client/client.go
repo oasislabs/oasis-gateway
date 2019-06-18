@@ -10,6 +10,7 @@ import (
 
 	"github.com/oasislabs/developer-gateway/concurrent"
 	"github.com/oasislabs/developer-gateway/log"
+	"github.com/oasislabs/developer-gateway/rpc"
 )
 
 // CallbackProps are properties that can be passed
@@ -25,12 +26,6 @@ type CallbackProps struct {
 // Calls are all the callbacks that the client implements
 type Calls interface {
 	WalletOutOfFunds(ctx context.Context, body WalletOutOfFundsBody)
-}
-
-// HttpClient is the basic interface for the
-// underlying http client used by the Client
-type HttpClient interface {
-	Do(*http.Request) (*http.Response, error)
 }
 
 // Callbacks defines all the callbacks that the
@@ -56,7 +51,7 @@ type Props struct {
 // that a Client requires
 type Deps struct {
 	Logger log.Logger
-	Client HttpClient
+	Client rpc.HttpClient
 }
 
 // NewClient creates a new callback client
@@ -82,7 +77,7 @@ func NewClientWithDeps(deps *Deps, props *Props) *Client {
 // callbacks when events are triggered
 type Client struct {
 	callbacks   Callbacks
-	client      HttpClient
+	client      rpc.HttpClient
 	retryConfig concurrent.RetryConfig
 	logger      log.Logger
 }

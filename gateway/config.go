@@ -21,7 +21,7 @@ type Config struct {
 	MailboxConfig     mqueue.Config
 	AuthConfig        auth.Config
 	CallbackConfig    callback.Config
-	LoggingConfig     LoggingConfig
+	LoggingConfig     log.Config
 }
 
 func (c *Config) Use() string {
@@ -178,27 +178,4 @@ func (c *BindPrivateConfig) Configure(v *viper.Viper) error {
 
 func (c *BindPrivateConfig) Bind(v *viper.Viper, cmd *cobra.Command) error {
 	return c.BindConfig.Bind("bind_private", v, cmd)
-}
-
-type LoggingConfig struct {
-	Level string
-}
-
-func (c *LoggingConfig) Log(fields log.Fields) {
-	fields.Add("logging.level", c.Level)
-}
-
-func (c *LoggingConfig) Configure(v *viper.Viper) error {
-	c.Level = v.GetString("logging.level")
-	if len(c.Level) == 0 {
-		c.Level = "debug"
-	}
-
-	return nil
-}
-
-func (c *LoggingConfig) Bind(v *viper.Viper, cmd *cobra.Command) error {
-	cmd.PersistentFlags().String("logging.level", "debug",
-		"sets the minimum logging level for the logger")
-	return nil
 }

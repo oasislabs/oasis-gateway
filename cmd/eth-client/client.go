@@ -2,12 +2,15 @@ package main
 
 import (
 	"context"
+	"crypto/ecdsa"
 	"fmt"
 
 	"github.com/ethereum/go-ethereum/crypto"
 
 	"github.com/oasislabs/developer-gateway/backend/eth"
+	ethereum "github.com/oasislabs/developer-gateway/eth"
 	"github.com/oasislabs/developer-gateway/log"
+	"github.com/oasislabs/developer-gateway/tx"
 )
 
 type ClientProps struct {
@@ -23,15 +26,28 @@ func dialClient(props ClientProps) (*eth.Client, error) {
 
 	ctx := context.Background()
 	logger := log.NewLogrus(log.LogrusLoggerProperties{})
-	client, err := eth.DialContext(ctx, &eth.ClientServices{
-		Logger: logger,
-	}, &eth.ClientProps{
-		PrivateKey: privateKey,
-		URL:        props.URL,
+	ethClient, err := ethereum.NewClient(ctx, &ethereum.Config{
+		URL: props.URL,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to endpoint %s", err.Error())
 	}
+
+	executor, err := tx.NewExecutor(ctx, &tx.Deps{
+		Logger: logger,
+		Client: ethClient,
+	}, &tx.Props{
+		PrivateKeys: []*ecdsa.PrivateKey{privateKey},
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to create tx executor %s", err.Error())
+	}
+
+	client := eth.NewClient(ctx, &eth.Deps{
+		Logger:   logger,
+		Executor: executor,
+		Client:   ethClient,
+	})
 
 	return client, nil
 }
