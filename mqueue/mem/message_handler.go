@@ -3,7 +3,7 @@ package mem
 import (
 	"context"
 
-	"github.com/oasislabs/developer-gateway/conc"
+	"github.com/oasislabs/developer-gateway/concurrent"
 	"github.com/oasislabs/developer-gateway/mqueue/core"
 )
 
@@ -43,18 +43,18 @@ func NewMessageHandler(key string) *MessageHandler {
 	return w
 }
 
-func (w *MessageHandler) handle(ctx context.Context, ev conc.WorkerEvent) (interface{}, error) {
+func (w *MessageHandler) handle(ctx context.Context, ev concurrent.WorkerEvent) (interface{}, error) {
 	switch ev := ev.(type) {
-	case conc.RequestWorkerEvent:
+	case concurrent.RequestWorkerEvent:
 		return w.handleRequestEvent(ctx, ev)
-	case conc.ErrorWorkerEvent:
+	case concurrent.ErrorWorkerEvent:
 		return w.handleErrorEvent(ctx, ev)
 	default:
 		panic("receive unexpected event type")
 	}
 }
 
-func (w *MessageHandler) handleRequestEvent(ctx context.Context, ev conc.RequestWorkerEvent) (interface{}, error) {
+func (w *MessageHandler) handleRequestEvent(ctx context.Context, ev concurrent.RequestWorkerEvent) (interface{}, error) {
 	switch req := ev.Value.(type) {
 	case insertRequest:
 		err := w.insert(req)
@@ -71,8 +71,8 @@ func (w *MessageHandler) handleRequestEvent(ctx context.Context, ev conc.Request
 	}
 }
 
-func (w *MessageHandler) handleErrorEvent(ctx context.Context, ev conc.ErrorWorkerEvent) (interface{}, error) {
-	// a worker should not be passing errors to the conc.Worker so
+func (w *MessageHandler) handleErrorEvent(ctx context.Context, ev concurrent.ErrorWorkerEvent) (interface{}, error) {
+	// a worker should not be passing errors to the concurrent.Worker so
 	// in that case the error is returned and the execution of the
 	// worker should halt
 	return nil, ev.Error

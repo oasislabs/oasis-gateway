@@ -1,4 +1,4 @@
-package conc
+package concurrent
 
 import (
 	"context"

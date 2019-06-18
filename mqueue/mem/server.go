@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/oasislabs/developer-gateway/conc"
+	"github.com/oasislabs/developer-gateway/concurrent"
 	"github.com/oasislabs/developer-gateway/log"
 	"github.com/oasislabs/developer-gateway/mqueue/core"
 )
@@ -12,7 +12,7 @@ import (
 const maxInactivityTimeout = time.Duration(10) * time.Minute
 
 type Server struct {
-	master *conc.Master
+	master *concurrent.Master
 	logger log.Logger
 }
 
@@ -25,8 +25,8 @@ func NewServer(ctx context.Context, services Services) *Server {
 		logger: services.Logger.ForClass("mqueue/mem", "Server"),
 	}
 
-	s.master = conc.NewMaster(conc.MasterProps{
-		MasterHandler:         conc.MasterHandlerFunc(s.handle),
+	s.master = concurrent.NewMaster(concurrent.MasterProps{
+		MasterHandler:         concurrent.MasterHandlerFunc(s.handle),
 		CreateWorkerOnRequest: true,
 	})
 
@@ -37,29 +37,29 @@ func NewServer(ctx context.Context, services Services) *Server {
 	return s
 }
 
-func (m *Server) handle(ctx context.Context, ev conc.MasterEvent) error {
+func (m *Server) handle(ctx context.Context, ev concurrent.MasterEvent) error {
 	switch ev := ev.(type) {
-	case conc.CreateWorkerEvent:
+	case concurrent.CreateWorkerEvent:
 		return m.create(ctx, ev)
-	case conc.DestroyWorkerEvent:
+	case concurrent.DestroyWorkerEvent:
 		return m.destroy(ctx, ev)
 	default:
 		panic("received unknown request")
 	}
 }
 
-func (s *Server) create(ctx context.Context, ev conc.CreateWorkerEvent) error {
+func (s *Server) create(ctx context.Context, ev concurrent.CreateWorkerEvent) error {
 	worker := NewMessageHandler(ev.Key)
 
 	ev.Props.ErrC = nil
-	ev.Props.WorkerHandler = conc.WorkerHandlerFunc(worker.handle)
+	ev.Props.WorkerHandler = concurrent.WorkerHandlerFunc(worker.handle)
 	ev.Props.UserData = worker
 	ev.Props.MaxInactivity = maxInactivityTimeout
 
 	return nil
 }
 
-func (s *Server) destroy(ctx context.Context, ev conc.DestroyWorkerEvent) error {
+func (s *Server) destroy(ctx context.Context, ev concurrent.DestroyWorkerEvent) error {
 	// nothing to do on a destroy to cleanup the worker
 	return nil
 }

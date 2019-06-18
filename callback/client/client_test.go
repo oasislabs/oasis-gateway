@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/oasislabs/developer-gateway/conc"
+	"github.com/oasislabs/developer-gateway/concurrent"
 	"github.com/oasislabs/developer-gateway/log"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -16,7 +16,7 @@ import (
 
 var Context = context.TODO()
 
-var TestRetryConfig = conc.RetryConfig{
+var TestRetryConfig = concurrent.RetryConfig{
 	BaseTimeout:     1,
 	BaseExp:         1,
 	MaxRetryTimeout: 10 * time.Millisecond,
@@ -107,7 +107,7 @@ func TestClientCallbackSendNotOK(t *testing.T) {
 		Sync:       true,
 	}, &CallbackProps{})
 
-	_, ok := err.(conc.ErrMaxAttemptsReached)
+	_, ok := err.(concurrent.ErrMaxAttemptsReached)
 	assert.True(t, ok)
 	mockclient.AssertCalled(t, "Do", mock.Anything)
 }

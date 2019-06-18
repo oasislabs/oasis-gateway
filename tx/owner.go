@@ -14,7 +14,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 
 	callback "github.com/oasislabs/developer-gateway/callback/client"
-	"github.com/oasislabs/developer-gateway/conc"
+	"github.com/oasislabs/developer-gateway/concurrent"
 	"github.com/oasislabs/developer-gateway/errors"
 	"github.com/oasislabs/developer-gateway/eth"
 	"github.com/oasislabs/developer-gateway/log"
@@ -33,7 +33,7 @@ const StatusOK = 1
 
 const gasPrice int64 = 1000000000
 
-var retryConfig = conc.RetryConfig{
+var retryConfig = concurrent.RetryConfig{
 	Random:            false,
 	UnlimitedAttempts: false,
 	Attempts:          2,
@@ -93,19 +93,19 @@ func NewWalletOwner(
 	return executor
 }
 
-func (e *WalletOwner) handle(ctx context.Context, ev conc.WorkerEvent) (interface{}, error) {
+func (e *WalletOwner) handle(ctx context.Context, ev concurrent.WorkerEvent) (interface{}, error) {
 	switch ev := ev.(type) {
-	case conc.RequestWorkerEvent:
+	case concurrent.RequestWorkerEvent:
 		v, err := e.handleRequestEvent(ctx, ev)
 		return v, err
-	case conc.ErrorWorkerEvent:
+	case concurrent.ErrorWorkerEvent:
 		return e.handleErrorEvent(ctx, ev)
 	default:
 		panic("received unexpected event type")
 	}
 }
 
-func (e *WalletOwner) handleRequestEvent(ctx context.Context, ev conc.RequestWorkerEvent) (interface{}, error) {
+func (e *WalletOwner) handleRequestEvent(ctx context.Context, ev concurrent.RequestWorkerEvent) (interface{}, error) {
 	switch req := ev.Value.(type) {
 	case signRequest:
 		return e.signTransaction(req.Transaction)
@@ -116,8 +116,8 @@ func (e *WalletOwner) handleRequestEvent(ctx context.Context, ev conc.RequestWor
 	}
 }
 
-func (e *WalletOwner) handleErrorEvent(ctx context.Context, ev conc.ErrorWorkerEvent) (interface{}, error) {
-	// a worker should not be passing errors to the conc.Worker so
+func (e *WalletOwner) handleErrorEvent(ctx context.Context, ev concurrent.ErrorWorkerEvent) (interface{}, error) {
+	// a worker should not be passing errors to the concurrent.Worker so
 	// in that case the error is returned and the execution of the
 	// worker should halt
 	return nil, ev.Error
@@ -238,7 +238,7 @@ func (e *WalletOwner) sendTransaction(
 	ctx context.Context,
 	req sendTransactionRequest,
 ) (eth.SendTransactionResponse, errors.Err) {
-	v, err := conc.RetryWithConfig(ctx, conc.SupplierFunc(func() (interface{}, error) {
+	v, err := concurrent.RetryWithConfig(ctx, concurrent.SupplierFunc(func() (interface{}, error) {
 		tx, err := e.generateAndSignTransaction(ctx, req, req.Gas)
 		if err != nil {
 			return ExecuteResponse{}, errors.New(errors.ErrSignedTx, err)
@@ -253,22 +253,22 @@ func (e *WalletOwner) sendTransaction(
 				})
 
 				return eth.SendTransactionResponse{},
-					conc.ErrCannotRecover{Cause: errors.New(errors.ErrSendTransaction, err)}
+					concurrent.ErrCannotRecover{Cause: errors.New(errors.ErrSendTransaction, err)}
 
 			case err == eth.ErrExceedsBlockLimit:
 				return eth.SendTransactionResponse{},
-					conc.ErrCannotRecover{Cause: errors.New(errors.ErrSendTransaction, err)}
+					concurrent.ErrCannotRecover{Cause: errors.New(errors.ErrSendTransaction, err)}
 			case err == eth.ErrInvalidNonce:
 				if err := e.updateNonce(ctx); err != nil {
 					// if we fail to update the nonce we cannot proceed
 					return eth.SendTransactionResponse{},
-						conc.ErrCannotRecover{Cause: err}
+						concurrent.ErrCannotRecover{Cause: err}
 				}
 
 				return eth.SendTransactionResponse{}, err
 			default:
 				return eth.SendTransactionResponse{},
-					conc.ErrCannotRecover{
+					concurrent.ErrCannotRecover{
 						Cause: errors.New(errors.ErrSendTransaction, err),
 					}
 			}

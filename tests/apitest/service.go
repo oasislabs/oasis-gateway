@@ -11,7 +11,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/oasislabs/developer-gateway/api/v0/service"
-	"github.com/oasislabs/developer-gateway/conc"
+	"github.com/oasislabs/developer-gateway/concurrent"
 	"github.com/oasislabs/developer-gateway/rpc"
 )
 
@@ -109,10 +109,10 @@ func (c ServiceClient) PollServiceUntilNotEmpty(
 	ctx context.Context,
 	req service.PollServiceRequest,
 ) (service.PollServiceResponse, error) {
-	v, err := conc.RetryWithConfig(context.Background(), conc.SupplierFunc(func() (interface{}, error) {
+	v, err := concurrent.RetryWithConfig(context.Background(), concurrent.SupplierFunc(func() (interface{}, error) {
 		v, err := c.PollService(ctx, req)
 		if err != nil {
-			return nil, conc.ErrCannotRecover{Cause: err}
+			return nil, concurrent.ErrCannotRecover{Cause: err}
 		}
 
 		if len(v.Events) == 0 {
@@ -120,7 +120,7 @@ func (c ServiceClient) PollServiceUntilNotEmpty(
 		}
 
 		return v, nil
-	}), conc.RetryConfig{
+	}), concurrent.RetryConfig{
 		Random:            false,
 		UnlimitedAttempts: false,
 		Attempts:          10,

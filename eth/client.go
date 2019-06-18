@@ -15,7 +15,7 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/rlp"
 	rpc "github.com/ethereum/go-ethereum/rpc"
-	"github.com/oasislabs/developer-gateway/conc"
+	"github.com/oasislabs/developer-gateway/concurrent"
 )
 
 var (
@@ -53,7 +53,7 @@ type Pool interface {
 
 type PooledClientProps struct {
 	Pool        Pool
-	RetryConfig conc.RetryConfig
+	RetryConfig concurrent.RetryConfig
 }
 
 func NewPooledClient(props PooledClientProps) *PooledClient {
@@ -65,7 +65,7 @@ func NewPooledClient(props PooledClientProps) *PooledClient {
 
 type PooledClient struct {
 	pool        Pool
-	retryConfig conc.RetryConfig
+	retryConfig concurrent.RetryConfig
 }
 
 func (c *PooledClient) inferError(err error) error {
@@ -74,18 +74,18 @@ func (c *PooledClient) inferError(err error) error {
 
 	switch {
 	case strings.Contains(err.Error(), "Cost of transaction exceeds sender balance"):
-		return conc.ErrCannotRecover{Cause: ErrExceedsBalance}
+		return concurrent.ErrCannotRecover{Cause: ErrExceedsBalance}
 	case strings.Contains(err.Error(), "Requested gas greater than block gas limit"):
-		return conc.ErrCannotRecover{Cause: ErrExceedsBlockLimit}
+		return concurrent.ErrCannotRecover{Cause: ErrExceedsBlockLimit}
 	case strings.Contains(err.Error(), "Invalid transaction nonce"):
-		return conc.ErrCannotRecover{Cause: ErrInvalidNonce}
+		return concurrent.ErrCannotRecover{Cause: ErrInvalidNonce}
 	default:
 		return err
 	}
 }
 
 func (c *PooledClient) request(ctx context.Context, fn func(conn *Conn) (interface{}, error)) (interface{}, error) {
-	v, err := conc.RetryWithConfig(ctx, conc.SupplierFunc(func() (interface{}, error) {
+	v, err := concurrent.RetryWithConfig(ctx, concurrent.SupplierFunc(func() (interface{}, error) {
 		conn, err := c.pool.Conn(ctx)
 		if err != nil {
 			return nil, err
@@ -100,9 +100,9 @@ func (c *PooledClient) request(ctx context.Context, fn func(conn *Conn) (interfa
 	}), c.retryConfig)
 
 	if err != nil {
-		// in case of a conc.ErrMaxAttemptsReached error return
+		// in case of a concurrent.ErrMaxAttemptsReached error return
 		// the last error message to be able to return useful information
-		if errMaxAttemptsReached, ok := err.(conc.ErrMaxAttemptsReached); ok {
+		if errMaxAttemptsReached, ok := err.(concurrent.ErrMaxAttemptsReached); ok {
 			errLast := errMaxAttemptsReached.Causes[len(errMaxAttemptsReached.Causes)-1]
 			return nil, fmt.Errorf("%s with last error %s", errMaxAttemptsReached.Error(), errLast)
 		}
@@ -238,7 +238,7 @@ type returnResponse struct {
 
 type UniDialerProps struct {
 	URL         string
-	RetryConfig conc.RetryConfig
+	RetryConfig concurrent.RetryConfig
 }
 
 // UniDialer implements the Dialer interface and it provides
