@@ -1,17 +1,36 @@
 package tests
 
 import (
+	"context"
 	"net/http"
 	"testing"
 
 	auth "github.com/oasislabs/developer-gateway/auth/core"
 	"github.com/oasislabs/developer-gateway/auth/insecure"
+	"github.com/oasislabs/developer-gateway/gateway"
 	"github.com/oasislabs/developer-gateway/tests/apitest"
+	"github.com/oasislabs/developer-gateway/tests/mock"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/suite"
 )
 
-func TestPathNotAuth(t *testing.T) {
-	res, err := apitest.NewClient(router).Request(apitest.Request{
+type ApiTestSuite struct {
+	suite.Suite
+	client *apitest.Client
+}
+
+func (s *ApiTestSuite) SetupTest() {
+	services, err := mock.NewServices(context.TODO(), Config)
+	if err != nil {
+		panic(err)
+	}
+
+	router := gateway.NewPublicRouter(services)
+	s.client = apitest.NewClient(router)
+}
+
+func (s *ApiTestSuite) TestPathNotAuth() {
+	res, err := s.client.Request(apitest.Request{
 		Route: apitest.Route{
 			Method: "POST",
 			Path:   "/v0/api/service/deploy",
@@ -20,13 +39,13 @@ func TestPathNotAuth(t *testing.T) {
 		Headers: nil,
 	})
 
-	assert.Nil(t, err)
-	assert.Equal(t, http.StatusForbidden, res.Code)
-	assert.Equal(t, "", string(res.Body))
+	assert.Nil(s.T(), err)
+	assert.Equal(s.T(), http.StatusForbidden, res.Code)
+	assert.Equal(s.T(), "", string(res.Body))
 }
 
-func TestPathNoSession(t *testing.T) {
-	res, err := apitest.NewClient(router).Request(apitest.Request{
+func (s *ApiTestSuite) TestPathNoSession() {
+	res, err := s.client.Request(apitest.Request{
 		Route: apitest.Route{
 			Method: "POST",
 			Path:   "/v0/api/service/deploy",
@@ -36,14 +55,14 @@ func TestPathNoSession(t *testing.T) {
 			insecure.HeaderKey: "mykey",
 		},
 	})
-	assert.Nil(t, err)
+	assert.Nil(s.T(), err)
 
-	assert.Equal(t, http.StatusForbidden, res.Code)
-	assert.Equal(t, "", string(res.Body))
+	assert.Equal(s.T(), http.StatusForbidden, res.Code)
+	assert.Equal(s.T(), "", string(res.Body))
 }
 
-func TestPathUnknownPath(t *testing.T) {
-	res, err := apitest.NewClient(router).Request(apitest.Request{
+func (s *ApiTestSuite) TestPathUnknownPath() {
+	res, err := s.client.Request(apitest.Request{
 		Route: apitest.Route{
 			Method: "POST",
 			Path:   "/v0/api/service/unknown",
@@ -54,14 +73,14 @@ func TestPathUnknownPath(t *testing.T) {
 			auth.RequestHeaderSessionKey: "mysession",
 		},
 	})
-	assert.Nil(t, err)
+	assert.Nil(s.T(), err)
 
-	assert.Equal(t, http.StatusNotFound, res.Code)
-	assert.Equal(t, "", string(res.Body))
+	assert.Equal(s.T(), http.StatusNotFound, res.Code)
+	assert.Equal(s.T(), "", string(res.Body))
 }
 
-func TestPathInvalidMethod(t *testing.T) {
-	res, err := apitest.NewClient(router).Request(apitest.Request{
+func (s *ApiTestSuite) TestPathInvalidMethod() {
+	res, err := s.client.Request(apitest.Request{
 		Route: apitest.Route{
 			Method: "GET",
 			Path:   "/v0/api/service/deploy",
@@ -72,14 +91,14 @@ func TestPathInvalidMethod(t *testing.T) {
 			auth.RequestHeaderSessionKey: "mysession",
 		},
 	})
-	assert.Nil(t, err)
+	assert.Nil(s.T(), err)
 
-	assert.Equal(t, http.StatusMethodNotAllowed, res.Code)
-	assert.Equal(t, "", string(res.Body))
+	assert.Equal(s.T(), http.StatusMethodNotAllowed, res.Code)
+	assert.Equal(s.T(), "", string(res.Body))
 }
 
-func TestPathNoContentType(t *testing.T) {
-	res, err := apitest.NewClient(router).Request(apitest.Request{
+func (s *ApiTestSuite) TestPathNoContentType() {
+	res, err := s.client.Request(apitest.Request{
 		Route: apitest.Route{
 			Method: "POST",
 			Path:   "/v0/api/service/deploy",
@@ -91,8 +110,12 @@ func TestPathNoContentType(t *testing.T) {
 			"Content-length":             "2",
 		},
 	})
-	assert.Nil(t, err)
+	assert.Nil(s.T(), err)
 
-	assert.Equal(t, http.StatusBadRequest, res.Code)
-	assert.Equal(t, "{\"errorCode\":2004,\"description\":\"Content-type should be application/json.\"}\n", string(res.Body))
+	assert.Equal(s.T(), http.StatusBadRequest, res.Code)
+	assert.Equal(s.T(), "{\"errorCode\":2004,\"description\":\"Content-type should be application/json.\"}\n", string(res.Body))
+}
+
+func TestApiTestSuite(t *testing.T) {
+	suite.Run(t, new(ApiTestSuite))
 }

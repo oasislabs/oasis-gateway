@@ -23,15 +23,35 @@ type ClientServices struct {
 	Callbacks callback.Calls
 }
 
-func NewRequestManagerWithDeps(ctx context.Context, deps *Deps) (*core.RequestManager, error) {
+type ClientFactory interface {
+	New(context.Context, *ClientServices, *Config) (core.Client, error)
+}
+
+type ClientFactoryFunc func(context.Context, *ClientServices, *Config) (core.Client, error)
+
+func (f ClientFactoryFunc) New(ctx context.Context, services *ClientServices, config *Config) (core.Client, error) {
+	return f(ctx, services, config)
+}
+
+type RequestManagerFactory interface {
+	New(ctx context.Context, deps *Deps) (*core.RequestManager, error)
+}
+
+type RequestManagerFactoryFunc func(ctx context.Context, deps *Deps) (*core.RequestManager, error)
+
+func (f RequestManagerFactoryFunc) New(ctx context.Context, deps *Deps) (*core.RequestManager, error) {
+	return f(ctx, deps)
+}
+
+var NewRequestManagerWithDeps = RequestManagerFactoryFunc(func(ctx context.Context, deps *Deps) (*core.RequestManager, error) {
 	return core.NewRequestManager(core.RequestManagerProperties{
 		MQueue: deps.MQueue,
 		Client: deps.Client,
 		Logger: deps.Logger,
 	}), nil
-}
+})
 
-func NewBackendClient(ctx context.Context, services *ClientServices, config *Config) (core.Client, error) {
+var NewBackendClient = ClientFactoryFunc(func(ctx context.Context, services *ClientServices, config *Config) (core.Client, error) {
 	switch config.Provider {
 	case BackendEthereum:
 		return NewEthClient(ctx, &eth.ClientServices{
@@ -43,7 +63,7 @@ func NewBackendClient(ctx context.Context, services *ClientServices, config *Con
 	default:
 		return nil, ErrUnknownBackend{Backend: config.Provider.String()}
 	}
-}
+})
 
 func NewEthClientWithDeps(ctx context.Context, deps *eth.ClientDeps) (*eth.Client, error) {
 	return eth.NewClientWithDeps(ctx, deps), nil

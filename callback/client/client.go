@@ -16,10 +16,6 @@ import (
 // when executing a callback to modify the behaviour
 // of the call
 type CallbackProps struct {
-	// Sync if true the callback will be delivered
-	// synchronously
-	Sync bool
-
 	// Body is the type that will be used by for the
 	// template to generate the body that will be
 	// sent on the request
@@ -180,17 +176,17 @@ func (c *Client) Callback(
 		"method":    callback.Method,
 		"url":       callback.URL,
 		"callback":  callback.Name,
-		"sync":      props.Sync,
+		"sync":      callback.Sync,
 	})
 
-	if props.Sync {
+	if callback.Sync {
 		if err := c.request(ctx, req); err != nil {
 			c.logger.Warn(ctx, "failed to deliver http callback", log.MapFields{
 				"call_type": "SendCallbackFailure",
 				"method":    callback.Method,
 				"url":       callback.URL,
 				"callback":  callback.Name,
-				"sync":      props.Sync,
+				"sync":      callback.Sync,
 				"err":       err.Error(),
 			})
 			return err
@@ -201,7 +197,7 @@ func (c *Client) Callback(
 			"method":    callback.Method,
 			"url":       callback.URL,
 			"callback":  callback.Name,
-			"sync":      props.Sync,
+			"sync":      callback.Sync,
 		})
 	}
 
@@ -212,7 +208,7 @@ func (c *Client) Callback(
 				"method":    callback.Method,
 				"url":       callback.URL,
 				"callback":  callback.Name,
-				"sync":      props.Sync,
+				"sync":      callback.Sync,
 				"err":       err.Error(),
 			})
 			return
@@ -223,7 +219,7 @@ func (c *Client) Callback(
 			"method":    callback.Method,
 			"url":       callback.URL,
 			"callback":  callback.Name,
-			"sync":      props.Sync,
+			"sync":      callback.Sync,
 		})
 	}()
 
@@ -234,7 +230,6 @@ func (c *Client) Callback(
 // is out of funds
 func (c *Client) WalletOutOfFunds(ctx context.Context, body WalletOutOfFundsBody) {
 	_ = c.Callback(ctx, &c.callbacks.WalletOutOfFunds, &CallbackProps{
-		Sync: false,
 		Body: body,
 	})
 }

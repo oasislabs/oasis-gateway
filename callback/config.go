@@ -32,6 +32,7 @@ func (c *WalletOutOfFunds) Configure(v *viper.Viper) error {
 	c.Body = v.GetString("callback.wallet_out_of_funds.body")
 	c.QueryURL = v.GetString("callback.wallet_out_of_funds.queryurl")
 	c.Headers = v.GetStringSlice("callback.wallet_out_of_funds.headers")
+	c.Sync = v.GetBool("callback.wallet_out_of_funds.sync")
 	return nil
 }
 
@@ -49,6 +50,9 @@ func (c *WalletOutOfFunds) Bind(v *viper.Viper, cmd *cobra.Command) error {
 		"http query url for the callback.")
 	cmd.PersistentFlags().StringSlice("callback.wallet_out_of_funds.headers", nil,
 		"http headers for the callback.")
+	cmd.PersistentFlags().Bool("callback.wallet_out_of_funds.sync", false,
+		"whether to send the callback synchronously.")
+
 	return nil
 }
 
@@ -59,10 +63,12 @@ func (c *WalletOutOfFunds) Log(fields log.Fields) {
 	fields.Add("callback.wallet_out_of_funds.body", c.Body)
 	fields.Add("callback.wallet_out_of_funds.queryurl", c.QueryURL)
 	fields.Add("callback.wallet_out_of_funds.headers", strings.Join(c.Headers, ","))
+	fields.Add("callback.wallet_out_of_funds.sync", c.Sync)
 }
 
 type Callback struct {
 	Enabled  bool
+	Sync     bool
 	Method   string
 	URL      string
 	Body     string
