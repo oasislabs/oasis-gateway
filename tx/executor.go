@@ -7,7 +7,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/oasislabs/developer-gateway/conc"
+	"github.com/oasislabs/developer-gateway/concurrent"
 	"github.com/oasislabs/developer-gateway/errors"
 	"github.com/oasislabs/developer-gateway/eth"
 	"github.com/oasislabs/developer-gateway/log"
@@ -26,7 +26,7 @@ type ExecutorProps struct {
 }
 
 type Executor struct {
-	master    *conc.Master
+	master    *concurrent.Master
 	client    eth.Client
 	logger    log.Logger
 	callbacks Callbacks
@@ -39,8 +39,8 @@ func NewExecutor(ctx context.Context, services *ExecutorServices, props *Executo
 		logger:    services.Logger.ForClass("tx/wallet", "Executor"),
 	}
 
-	s.master = conc.NewMaster(conc.MasterProps{
-		MasterHandler:         conc.MasterHandlerFunc(s.handle),
+	s.master = concurrent.NewMaster(concurrent.MasterProps{
+		MasterHandler:         concurrent.MasterHandlerFunc(s.handle),
 		CreateWorkerOnRequest: true,
 	})
 
@@ -63,18 +63,18 @@ func NewExecutor(ctx context.Context, services *ExecutorServices, props *Executo
 	return s, nil
 }
 
-func (m *Executor) handle(ctx context.Context, ev conc.MasterEvent) error {
+func (m *Executor) handle(ctx context.Context, ev concurrent.MasterEvent) error {
 	switch ev := ev.(type) {
-	case conc.CreateWorkerEvent:
+	case concurrent.CreateWorkerEvent:
 		return m.create(ctx, ev)
-	case conc.DestroyWorkerEvent:
+	case concurrent.DestroyWorkerEvent:
 		return m.destroy(ctx, ev)
 	default:
 		panic("received unknown request")
 	}
 }
 
-func (s *Executor) create(ctx context.Context, ev conc.CreateWorkerEvent) error {
+func (s *Executor) create(ctx context.Context, ev concurrent.CreateWorkerEvent) error {
 	req := ev.Value.(*createOwnerRequest)
 
 	owner := NewWalletOwner(
@@ -90,13 +90,13 @@ func (s *Executor) create(ctx context.Context, ev conc.CreateWorkerEvent) error 
 		})
 
 	ev.Props.ErrC = nil
-	ev.Props.WorkerHandler = conc.WorkerHandlerFunc(owner.handle)
+	ev.Props.WorkerHandler = concurrent.WorkerHandlerFunc(owner.handle)
 	ev.Props.UserData = owner
 	ev.Props.MaxInactivity = maxInactivityTimeout
 	return nil
 }
 
-func (s *Executor) destroy(ctx context.Context, ev conc.DestroyWorkerEvent) error {
+func (s *Executor) destroy(ctx context.Context, ev concurrent.DestroyWorkerEvent) error {
 	// nothing to do on a destroy to cleanup the worker
 	return nil
 }

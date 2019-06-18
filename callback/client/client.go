@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/oasislabs/developer-gateway/conc"
+	"github.com/oasislabs/developer-gateway/concurrent"
 	"github.com/oasislabs/developer-gateway/log"
 )
 
@@ -53,7 +53,7 @@ type Services struct {
 // the behaviour of the client to send callbacks
 type Props struct {
 	Callbacks   Callbacks
-	RetryConfig conc.RetryConfig
+	RetryConfig concurrent.RetryConfig
 }
 
 // Deps are the required instantiated dependencies
@@ -87,13 +87,13 @@ func NewClientWithDeps(deps *Deps, props *Props) *Client {
 type Client struct {
 	callbacks   Callbacks
 	client      HttpClient
-	retryConfig conc.RetryConfig
+	retryConfig concurrent.RetryConfig
 	logger      log.Logger
 }
 
 // request sends an http request
 func (c *Client) request(ctx context.Context, req *http.Request) error {
-	_, err := conc.RetryWithConfig(ctx, conc.SupplierFunc(func() (interface{}, error) {
+	_, err := concurrent.RetryWithConfig(ctx, concurrent.SupplierFunc(func() (interface{}, error) {
 		res, err := c.client.Do(req)
 		if err != nil {
 			return nil, err

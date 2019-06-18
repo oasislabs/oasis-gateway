@@ -7,7 +7,7 @@ import (
 
 	ethereum "github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/oasislabs/developer-gateway/conc"
+	"github.com/oasislabs/developer-gateway/concurrent"
 	"github.com/oasislabs/developer-gateway/log"
 )
 
@@ -199,11 +199,11 @@ func (s *Subscription) Unsubscribe() {
 	s.sub.Unsubscribe()
 }
 
-func (s *Subscription) handle(ctx context.Context, ev conc.WorkerEvent) (interface{}, error) {
+func (s *Subscription) handle(ctx context.Context, ev concurrent.WorkerEvent) (interface{}, error) {
 	switch ev := ev.(type) {
-	case conc.RequestWorkerEvent:
+	case concurrent.RequestWorkerEvent:
 		panic("no requests should be issued to the subscription")
-	case conc.ErrorWorkerEvent:
+	case concurrent.ErrorWorkerEvent:
 		err := s.handleError(ctx, ev)
 		return nil, err
 	default:
@@ -211,7 +211,7 @@ func (s *Subscription) handle(ctx context.Context, ev conc.WorkerEvent) (interfa
 	}
 }
 
-func (s *Subscription) handleError(ctx context.Context, ev conc.ErrorWorkerEvent) error {
+func (s *Subscription) handleError(ctx context.Context, ev concurrent.ErrorWorkerEvent) error {
 	s.logger.Debug(ctx, "subscription failed, recreating", log.MapFields{
 		"call_type": "CurrentSubscriptionFailure",
 		"err":       ev.Error.Error(),
@@ -244,7 +244,7 @@ type SubscriptionManagerProps struct {
 type SubscriptionManager struct {
 	logger log.Logger
 	client Client
-	master *conc.Master
+	master *concurrent.Master
 }
 
 // NewSubscriptionManager creates a new subscription manager
@@ -254,8 +254,8 @@ func NewSubscriptionManager(props SubscriptionManagerProps) *SubscriptionManager
 		client: props.Client,
 	}
 
-	m.master = conc.NewMaster(conc.MasterProps{
-		MasterHandler: conc.MasterHandlerFunc(m.handle),
+	m.master = concurrent.NewMaster(concurrent.MasterProps{
+		MasterHandler: concurrent.MasterHandlerFunc(m.handle),
 	})
 
 	if err := m.master.Start(props.Context); err != nil {
@@ -265,18 +265,18 @@ func NewSubscriptionManager(props SubscriptionManagerProps) *SubscriptionManager
 	return &m
 }
 
-func (m *SubscriptionManager) handle(ctx context.Context, ev conc.MasterEvent) error {
+func (m *SubscriptionManager) handle(ctx context.Context, ev concurrent.MasterEvent) error {
 	switch ev := ev.(type) {
-	case conc.CreateWorkerEvent:
+	case concurrent.CreateWorkerEvent:
 		return m.create(ctx, ev)
-	case conc.DestroyWorkerEvent:
+	case concurrent.DestroyWorkerEvent:
 		return m.destroy(ev)
 	default:
 		panic("received unknown request")
 	}
 }
 
-func (m *SubscriptionManager) create(ctx context.Context, ev conc.CreateWorkerEvent) error {
+func (m *SubscriptionManager) create(ctx context.Context, ev concurrent.CreateWorkerEvent) error {
 	req := ev.Value.(createSubscriptionRequest)
 	sub := NewSubscription(SubscriptionProps{
 		Logger:     m.logger,
@@ -291,13 +291,13 @@ func (m *SubscriptionManager) create(ctx context.Context, ev conc.CreateWorkerEv
 	}
 
 	ev.Props.ErrC = sub.sub.Err()
-	ev.Props.WorkerHandler = conc.WorkerHandlerFunc(sub.handle)
+	ev.Props.WorkerHandler = concurrent.WorkerHandlerFunc(sub.handle)
 	ev.Props.UserData = sub
 
 	return nil
 }
 
-func (m *SubscriptionManager) destroy(ev conc.DestroyWorkerEvent) error {
+func (m *SubscriptionManager) destroy(ev concurrent.DestroyWorkerEvent) error {
 	sub := ev.Worker.UserData.(*Subscription)
 	sub.Unsubscribe()
 	return nil

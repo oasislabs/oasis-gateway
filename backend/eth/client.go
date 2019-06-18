@@ -13,7 +13,7 @@ import (
 
 	backend "github.com/oasislabs/developer-gateway/backend/core"
 	callback "github.com/oasislabs/developer-gateway/callback/client"
-	"github.com/oasislabs/developer-gateway/conc"
+	"github.com/oasislabs/developer-gateway/concurrent"
 	"github.com/oasislabs/developer-gateway/errors"
 	"github.com/oasislabs/developer-gateway/eth"
 	"github.com/oasislabs/developer-gateway/log"
@@ -302,7 +302,7 @@ func DialContext(ctx context.Context, services *ClientServices, props *ClientPro
 	dialer := eth.NewUniDialer(ctx, props.URL)
 	client := eth.NewPooledClient(eth.PooledClientProps{
 		Pool:        dialer,
-		RetryConfig: conc.RandomConfig,
+		RetryConfig: concurrent.RandomConfig,
 	})
 
 	executor, err := tx.NewExecutor(ctx, &tx.ExecutorServices{
