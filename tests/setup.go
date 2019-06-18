@@ -2,67 +2,60 @@ package tests
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 
 	"github.com/oasislabs/developer-gateway/config"
 	"github.com/oasislabs/developer-gateway/gateway"
 	"github.com/oasislabs/developer-gateway/log"
-	"github.com/oasislabs/developer-gateway/rpc"
-	"github.com/oasislabs/developer-gateway/tests/mock"
 )
 
-var router *rpc.HttpRouter
+var Config *gateway.Config
 
 func init() {
-	path := os.Getenv("OASIS_DG_CONFIG_PATH")
-	if len(path) == 0 {
-		path = ".oasis_dev_gateway.toml"
-		fmt.Println("Using default configuration location of '.oasis_dev_gateway.toml'")
+	if len(os.Getenv("OASIS_DG_CONFIG_PATH")) == 0 {
+		// set a reasonable default for this
+		fmt.Println(
+			`OASIS_DG_CONFIG_PATH not set. OASIS_DG_CONFIG_PATH can be used to set the configuration file to use for running the tests. Using config/dev.toml by default`)
+		os.Setenv("OASIS_DG_CONFIG_PATH", "config/dev.toml")
 	}
 
-	r, err := Initialize()
-	if err != nil {
+	if err := Initialize(); err != nil {
 		fmt.Println("Failed to initialize test ", err.Error())
 		os.Exit(1)
 	}
-
-	router = r
 }
 
-func Initialize() (*rpc.HttpRouter, error) {
-	parser, err := config.Generate(&gateway.Config{})
+func Initialize() error {
+	Config = &gateway.Config{}
+	parser, err := config.Generate(Config)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	err = parser.Parse()
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	config := parser.Config.(*gateway.Config)
+	gateway.InitLogger(&Config.LoggingConfig)
 	gateway.RootLogger.Info(gateway.RootContext, "bind public configuration parsed", log.MapFields{
 		"callType": "BindPublicConfigParseSuccess",
-	}, &config.BindPublicConfig)
+	}, &Config.BindPublicConfig)
 	gateway.RootLogger.Info(gateway.RootContext, "bind private configuration parsed", log.MapFields{
 		"callType": "BindPrivateConfigParseSuccess",
-	}, &config.BindPrivateConfig)
+	}, &Config.BindPrivateConfig)
 	gateway.RootLogger.Info(gateway.RootContext, "backend configuration parsed", log.MapFields{
 		"callType": "BackendConfigParseSuccess",
-	}, &config.BackendConfig)
+	}, &Config.BackendConfig)
 	gateway.RootLogger.Info(gateway.RootContext, "mailbox configuration parsed", log.MapFields{
 		"callType": "MailboxConfigParseSuccess",
-	}, &config.MailboxConfig)
+	}, &Config.MailboxConfig)
 	gateway.RootLogger.Info(gateway.RootContext, "auth config configuration parsed", log.MapFields{
 		"callType": "AuthConfigParseSuccess",
-	}, &config.AuthConfig)
+	}, &Config.AuthConfig)
+	gateway.RootLogger.Info(gateway.RootContext, "callback config configuration parsed", log.MapFields{
+		"callType": "CallbackConfigParseSuccess",
+	}, &Config.CallbackConfig)
 
-	services, err := mock.NewServices(gateway.RootContext, config)
-	if err != nil {
-		return nil, err
-	}
-
-	gateway.RootLogger.SetOutput(ioutil.Discard)
-	return gateway.NewPublicRouter(services), nil
+	return nil
 }

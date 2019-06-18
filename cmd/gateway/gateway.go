@@ -129,6 +129,8 @@ func main() {
 	}
 
 	config := parser.Config.(*gateway.Config)
+	gateway.InitLogger(&config.LoggingConfig)
+
 	gateway.RootLogger.Info(gateway.RootContext, "bind public configuration parsed", log.MapFields{
 		"callType": "BindPublicConfigParseSuccess",
 	}, &config.BindPublicConfig)

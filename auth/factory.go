@@ -9,7 +9,17 @@ import (
 	"github.com/oasislabs/developer-gateway/auth/oauth"
 )
 
-func NewAuth(config *Config) (core.Auth, error) {
+type Factory interface {
+	New(*Config) (core.Auth, error)
+}
+
+type FactoryFunc func(*Config) (core.Auth, error)
+
+func (f FactoryFunc) New(config *Config) (core.Auth, error) {
+	return f(config)
+}
+
+var NewAuth = FactoryFunc(func(config *Config) (core.Auth, error) {
 	if len(config.Providers) == 0 {
 		return core.NilAuth{}, nil
 	} else if len(config.Providers) == 1 {
@@ -29,7 +39,7 @@ func NewAuth(config *Config) (core.Auth, error) {
 		multiAuth.Add(auth)
 	}
 	return multiAuth, nil
-}
+})
 
 func newAuthSingle(provider AuthProvider) core.Auth {
 	switch provider {

@@ -13,12 +13,12 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/rlp"
-	"github.com/oasislabs/developer-gateway/conc"
+	"github.com/oasislabs/developer-gateway/concurrent"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
 
-var TestRetryConfig = conc.RetryConfig{
+var TestRetryConfig = concurrent.RetryConfig{
 	BaseTimeout:     1,
 	BaseExp:         1,
 	MaxRetryTimeout: 10 * time.Millisecond,

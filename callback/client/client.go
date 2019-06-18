@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/oasislabs/developer-gateway/conc"
+	"github.com/oasislabs/developer-gateway/concurrent"
 	"github.com/oasislabs/developer-gateway/log"
 )
 
@@ -16,10 +16,6 @@ import (
 // when executing a callback to modify the behaviour
 // of the call
 type CallbackProps struct {
-	// Sync if true the callback will be delivered
-	// synchronously
-	Sync bool
-
 	// Body is the type that will be used by for the
 	// template to generate the body that will be
 	// sent on the request
@@ -53,7 +49,7 @@ type Services struct {
 // the behaviour of the client to send callbacks
 type Props struct {
 	Callbacks   Callbacks
-	RetryConfig conc.RetryConfig
+	RetryConfig concurrent.RetryConfig
 }
 
 // Deps are the required instantiated dependencies
@@ -87,13 +83,13 @@ func NewClientWithDeps(deps *Deps, props *Props) *Client {
 type Client struct {
 	callbacks   Callbacks
 	client      HttpClient
-	retryConfig conc.RetryConfig
+	retryConfig concurrent.RetryConfig
 	logger      log.Logger
 }
 
 // request sends an http request
 func (c *Client) request(ctx context.Context, req *http.Request) error {
-	_, err := conc.RetryWithConfig(ctx, conc.SupplierFunc(func() (interface{}, error) {
+	_, err := concurrent.RetryWithConfig(ctx, concurrent.SupplierFunc(func() (interface{}, error) {
 		res, err := c.client.Do(req)
 		if err != nil {
 			return nil, err
@@ -180,17 +176,17 @@ func (c *Client) Callback(
 		"method":    callback.Method,
 		"url":       callback.URL,
 		"callback":  callback.Name,
-		"sync":      props.Sync,
+		"sync":      callback.Sync,
 	})
 
-	if props.Sync {
+	if callback.Sync {
 		if err := c.request(ctx, req); err != nil {
 			c.logger.Warn(ctx, "failed to deliver http callback", log.MapFields{
 				"call_type": "SendCallbackFailure",
 				"method":    callback.Method,
 				"url":       callback.URL,
 				"callback":  callback.Name,
-				"sync":      props.Sync,
+				"sync":      callback.Sync,
 				"err":       err.Error(),
 			})
 			return err
@@ -201,7 +197,7 @@ func (c *Client) Callback(
 			"method":    callback.Method,
 			"url":       callback.URL,
 			"callback":  callback.Name,
-			"sync":      props.Sync,
+			"sync":      callback.Sync,
 		})
 	}
 
@@ -212,7 +208,7 @@ func (c *Client) Callback(
 				"method":    callback.Method,
 				"url":       callback.URL,
 				"callback":  callback.Name,
-				"sync":      props.Sync,
+				"sync":      callback.Sync,
 				"err":       err.Error(),
 			})
 			return
@@ -223,7 +219,7 @@ func (c *Client) Callback(
 			"method":    callback.Method,
 			"url":       callback.URL,
 			"callback":  callback.Name,
-			"sync":      props.Sync,
+			"sync":      callback.Sync,
 		})
 	}()
 
@@ -234,7 +230,6 @@ func (c *Client) Callback(
 // is out of funds
 func (c *Client) WalletOutOfFunds(ctx context.Context, body WalletOutOfFundsBody) {
 	_ = c.Callback(ctx, &c.callbacks.WalletOutOfFunds, &CallbackProps{
-		Sync: false,
 		Body: body,
 	})
 }
