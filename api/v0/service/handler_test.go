@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	auth "github.com/oasislabs/developer-gateway/auth/core"
+	insecureauth "github.com/oasislabs/developer-gateway/auth/insecure"
 	backend "github.com/oasislabs/developer-gateway/backend/core"
 	"github.com/oasislabs/developer-gateway/errors"
 	"github.com/oasislabs/developer-gateway/log"
@@ -77,7 +78,7 @@ func createServiceHandler() ServiceHandler {
 	return NewServiceHandler(Services{
 		Logger:   Logger,
 		Client:   &MockClient{},
-		Verifier: auth.TrustedPayloadVerifier{},
+		Verifier: insecureauth.InsecureAuth{},
 	})
 }
 
