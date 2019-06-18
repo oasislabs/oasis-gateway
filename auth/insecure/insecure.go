@@ -3,6 +3,8 @@ package insecure
 import (
 	"errors"
 	"net/http"
+
+	"github.com/oasislabs/developer-gateway/stats"
 )
 
 const HeaderKey string = "X-OASIS-INSECURE-AUTH"
@@ -11,6 +13,14 @@ const HeaderKey string = "X-OASIS-INSECURE-AUTH"
 // useful for debugging and testing. It should not be used in
 // setups with real users
 type InsecureAuth struct{}
+
+func (a InsecureAuth) Name() string {
+	return "auth.insecure.InsecureAuth"
+}
+
+func (a InsecureAuth) Stats() stats.Metrics {
+	return nil
+}
 
 func (a InsecureAuth) Authenticate(req *http.Request) (string, error) {
 	value := req.Header.Get(HeaderKey)

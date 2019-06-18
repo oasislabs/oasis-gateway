@@ -29,7 +29,7 @@ var RootLogger = log.NewLogrus(log.LogrusLoggerProperties{
 // from this
 var RootContext = context.Background()
 
-type Services struct {
+type ServiceGroup struct {
 	Callback      *callbackclient.Client
 	Request       *backendcore.RequestManager
 	Backend       backendcore.Client
@@ -89,7 +89,7 @@ func InitLogger(config *LoggingConfig) {
 	RootLogger = log.NewLogrus(props)
 }
 
-func NewServicesWithFactories(ctx context.Context, config *Config, factories *ServiceFactories) (*Services, error) {
+func NewServiceGroupWithFactories(ctx context.Context, config *Config, factories *ServiceFactories) (*ServiceGroup, error) {
 	factories = setDefaultFactories(factories)
 	mqueue, err := factories.MailboxFactory.New(ctx, mqueue.Services{Logger: RootLogger}, &config.MailboxConfig)
 	if err != nil {
@@ -125,7 +125,7 @@ func NewServicesWithFactories(ctx context.Context, config *Config, factories *Se
 		return nil, err
 	}
 
-	return &Services{
+	return &ServiceGroup{
 		Request:       request,
 		Backend:       client,
 		Authenticator: authenticator,
@@ -133,11 +133,17 @@ func NewServicesWithFactories(ctx context.Context, config *Config, factories *Se
 	}, nil
 }
 
-func NewServices(ctx context.Context, config *Config) (*Services, error) {
-	return NewServicesWithFactories(ctx, config, nil)
+func NewServiceGroup(ctx context.Context, config *Config) (*ServiceGroup, error) {
+	return NewServiceGroupWithFactories(ctx, config, nil)
 }
 
-func NewPrivateRouter() *rpc.HttpRouter {
+func NewPrivateRouter(group *ServiceGroup) *rpc.HttpRouter {
+	services := NewServices()
+	services.Add(group.Callback)
+	services.Add(group.Request)
+	services.Add(group.Backend)
+	services.Add(group.Authenticator)
+
 	binder := rpc.NewHttpBinder(rpc.HttpBinderProperties{
 		Encoder: rpc.JsonEncoder{},
 		Logger:  RootLogger,
@@ -153,12 +159,12 @@ func NewPrivateRouter() *rpc.HttpRouter {
 		}),
 	})
 
-	health.BindHandler(health.Services{}, binder)
+	health.BindHandler(&health.Deps{StatsProvider: services}, binder)
 
 	return binder.Build()
 }
 
-func NewPublicRouter(services *Services) *rpc.HttpRouter {
+func NewPublicRouter(group *ServiceGroup) *rpc.HttpRouter {
 	binder := rpc.NewHttpBinder(rpc.HttpBinderProperties{
 		Encoder: rpc.JsonEncoder{},
 		Logger:  RootLogger,
@@ -170,18 +176,18 @@ func NewPublicRouter(services *Services) *rpc.HttpRouter {
 				Factory: factory,
 			})
 
-			return authcore.NewHttpMiddlewareAuth(services.Authenticator, RootLogger, jsonHandler)
+			return authcore.NewHttpMiddlewareAuth(group.Authenticator, RootLogger, jsonHandler)
 		}),
 	})
 
 	service.BindHandler(service.Services{
 		Logger:   RootLogger,
-		Client:   services.Request,
+		Client:   group.Request,
 		Verifier: authcore.TrustedPayloadVerifier{},
 	}, binder)
 	event.BindHandler(event.Services{
 		Logger:  RootLogger,
-		Request: services.Request,
+		Request: group.Request,
 	}, binder)
 
 	return binder.Build()

@@ -12,23 +12,12 @@ import (
 	"github.com/oasislabs/developer-gateway/log"
 )
 
-func publicServer(config *gateway.Config) {
+func publicServer(config *gateway.Config, group *gateway.ServiceGroup) {
 	bindConfig := config.BindPublicConfig
 	httpInterface := bindConfig.HttpInterface
 	httpPort := bindConfig.HttpPort
 
-	services, err := gateway.NewServices(gateway.RootContext, config)
-	if err != nil {
-		gateway.RootLogger.Fatal(gateway.RootContext, "failed to initialize services", log.MapFields{
-			"call_type": "HttpPublicListenFailure",
-			"port":      httpPort,
-			"interface": httpInterface,
-			"err":       err.Error(),
-		})
-		os.Exit(1)
-	}
-
-	router := gateway.NewPublicRouter(services)
+	router := gateway.NewPublicRouter(group)
 
 	s := &http.Server{
 		Addr:           fmt.Sprintf("%s:%d", httpInterface, httpPort),
@@ -68,12 +57,12 @@ func publicServer(config *gateway.Config) {
 	}
 }
 
-func privateServer(config *gateway.Config) {
+func privateServer(config *gateway.Config, group *gateway.ServiceGroup) {
 	bindConfig := config.BindPrivateConfig
 	httpInterface := bindConfig.HttpInterface
 	httpPort := bindConfig.HttpPort
 
-	router := gateway.NewPrivateRouter()
+	router := gateway.NewPrivateRouter(group)
 	s := &http.Server{
 		Addr:           fmt.Sprintf("%s:%d", httpInterface, httpPort),
 		Handler:        router,
@@ -153,13 +142,22 @@ func main() {
 	var wg sync.WaitGroup
 	wg.Add(2)
 
+	group, err := gateway.NewServiceGroup(gateway.RootContext, config)
+	if err != nil {
+		gateway.RootLogger.Fatal(gateway.RootContext, "failed to initialize services", log.MapFields{
+			"call_type": "HttpPublicListenFailure",
+			"err":       err.Error(),
+		})
+		os.Exit(1)
+	}
+
 	go func() {
-		publicServer(config)
+		publicServer(config, group)
 		wg.Done()
 	}()
 
 	go func() {
-		privateServer(config)
+		privateServer(config, group)
 		wg.Done()
 	}()
 
