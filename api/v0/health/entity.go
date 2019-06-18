@@ -8,5 +8,6 @@ type GetHealthRequest struct{}
 
 // GetHealthResponse is the response to the health request
 type GetHealthResponse struct {
-	Health stats.HealthStatus
+	Health  stats.HealthStatus
+	Metrics stats.Group
 }

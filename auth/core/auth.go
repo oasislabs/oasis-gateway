@@ -1,6 +1,10 @@
 package core
 
-import "net/http"
+import (
+	"net/http"
+
+	"github.com/oasislabs/developer-gateway/stats"
+)
 
 type AuthData struct {
 	ExpectedAAD string
@@ -8,6 +12,9 @@ type AuthData struct {
 }
 
 type Auth interface {
+	Name() string
+	Stats() stats.Metrics
+
 	// Authenticate the user from the http request. This should return:
 	// - the expected AAD
 	// - the authentication error

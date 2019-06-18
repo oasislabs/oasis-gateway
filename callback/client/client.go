@@ -10,6 +10,7 @@ import (
 
 	"github.com/oasislabs/developer-gateway/concurrent"
 	"github.com/oasislabs/developer-gateway/log"
+	"github.com/oasislabs/developer-gateway/stats"
 )
 
 // CallbackProps are properties that can be passed
@@ -85,6 +86,14 @@ type Client struct {
 	client      HttpClient
 	retryConfig concurrent.RetryConfig
 	logger      log.Logger
+}
+
+func (c *Client) Name() string {
+	return "callback.client.Client"
+}
+
+func (c *Client) Stats() stats.Metrics {
+	return nil
 }
 
 // request sends an http request

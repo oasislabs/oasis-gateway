@@ -9,11 +9,14 @@ import (
 	"github.com/oasislabs/developer-gateway/log"
 	mqueue "github.com/oasislabs/developer-gateway/mqueue/core"
 	"github.com/oasislabs/developer-gateway/rpc"
+	"github.com/oasislabs/developer-gateway/stats"
 )
 
 // Client is an interface for any type that sends requests and
 // receives responses
 type Client interface {
+	Name() string
+	Stats() stats.Metrics
 	GetPublicKey(context.Context, GetPublicKeyRequest) (GetPublicKeyResponse, errors.Err)
 	ExecuteService(context.Context, uint64, ExecuteServiceRequest) (ExecuteServiceResponse, errors.Err)
 	DeployService(context.Context, uint64, DeployServiceRequest) (DeployServiceResponse, errors.Err)
@@ -30,6 +33,14 @@ type RequestManager struct {
 	client Client
 	logger log.Logger
 	subman *SubscriptionManager
+}
+
+func (r *RequestManager) Name() string {
+	return "backend.core.RequestManager"
+}
+
+func (r *RequestManager) Stats() stats.Metrics {
+	return nil
 }
 
 type RequestManagerProperties struct {
