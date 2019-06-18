@@ -41,6 +41,9 @@ type Callback struct {
 	// LastAttempt is the unix timestamp of the last time
 	// the request type was attempted
 	LastAttempt int64
+
+	// Sync if true the callback will be sent synchronously
+	Sync bool
 }
 
 // WalletOutOfFundsBody is the body sent on a WalletOutOfFunds

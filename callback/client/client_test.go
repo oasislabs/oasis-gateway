@@ -56,8 +56,8 @@ func TestClientCallbackDisabledNoSend(t *testing.T) {
 	mockclient := client.client.(*MockHttpClient)
 
 	err := client.Callback(Context,
-		&Callback{Enabled: false},
-		&CallbackProps{Sync: true})
+		&Callback{Enabled: false, Sync: true},
+		&CallbackProps{})
 
 	assert.Nil(t, err)
 	mockclient.AssertNotCalled(t, "Do", mock.Anything)
@@ -80,7 +80,8 @@ func TestClientCallbackSendOK(t *testing.T) {
 		URL:        "http://localhost:1234/",
 		BodyFormat: nil,
 		Headers:    []string{"Content-type:plain/text"},
-	}, &CallbackProps{Sync: true})
+		Sync:       true,
+	}, &CallbackProps{})
 
 	assert.Nil(t, err)
 	mockclient.AssertCalled(t, "Do", mock.Anything)
@@ -103,7 +104,8 @@ func TestClientCallbackSendNotOK(t *testing.T) {
 		URL:        "http://localhost:1234/",
 		BodyFormat: nil,
 		Headers:    []string{"Content-type:plain/text"},
-	}, &CallbackProps{Sync: true})
+		Sync:       true,
+	}, &CallbackProps{})
 
 	_, ok := err.(concurrent.ErrMaxAttemptsReached)
 	assert.True(t, ok)
@@ -130,7 +132,8 @@ func TestClientWalletOutOfFundsOK(t *testing.T) {
 		BodyFormat:     bodyTmpl,
 		QueryURLFormat: queryURLTmpl,
 		Headers:        []string{"Content-type:plain/text"},
-	}, &CallbackProps{Sync: true, Body: WalletOutOfFundsBody{
+		Sync:           true,
+	}, &CallbackProps{Body: WalletOutOfFundsBody{
 		Address: "myAddress",
 	}})
 

@@ -14,7 +14,17 @@ type Services struct {
 	Logger log.Logger
 }
 
-func NewMailbox(ctx context.Context, services Services, config *Config) (core.MQueue, error) {
+type MailboxFactory interface {
+	New(ctx context.Context, services Services, config *Config) (core.MQueue, error)
+}
+
+type MailboxFactoryFunc func(ctx context.Context, services Services, config *Config) (core.MQueue, error)
+
+func (f MailboxFactoryFunc) New(ctx context.Context, services Services, config *Config) (core.MQueue, error) {
+	return f(ctx, services, config)
+}
+
+var NewMailbox = MailboxFactoryFunc(func(ctx context.Context, services Services, config *Config) (core.MQueue, error) {
 	if config.MailboxConfig.ID() != config.Provider {
 		return nil, ErrBackendConfigConflict
 	}
@@ -31,7 +41,7 @@ func NewMailbox(ctx context.Context, services Services, config *Config) (core.MQ
 	default:
 		return nil, ErrUnknownBackend{Backend: config.MailboxConfig.ID().String()}
 	}
-}
+})
 
 func NewRedisSingleMailbox(
 	ctx context.Context,

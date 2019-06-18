@@ -8,7 +8,17 @@ import (
 	"github.com/oasislabs/developer-gateway/auth/oauth"
 )
 
-func NewAuth(config *Config) (core.Auth, error) {
+type Factory interface {
+	New(*Config) (core.Auth, error)
+}
+
+type FactoryFunc func(*Config) (core.Auth, error)
+
+func (f FactoryFunc) New(config *Config) (core.Auth, error) {
+	return f(config)
+}
+
+var NewAuth = FactoryFunc(func(config *Config) (core.Auth, error) {
 	switch config.Provider {
 	case AuthOauth:
 		return oauth.GoogleOauth{}, nil
@@ -17,4 +27,4 @@ func NewAuth(config *Config) (core.Auth, error) {
 	default:
 		return nil, errors.New("A valid authenticator must be specified")
 	}
-}
+})
