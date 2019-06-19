@@ -12,6 +12,7 @@ echo "--- Installing Dependencies"
 go get -v
 set -x
 make build
+make build-cmd
 echo "--- Linting Backend"
 make lint
 echo "+++ Testing Backend"

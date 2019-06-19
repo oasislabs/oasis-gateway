@@ -11,10 +11,13 @@ steps:
     plugins:
       - *common_tools_plugin
 
+  # This label must be kept in sync with the label used un runtime-ethereum,
+  # which is used to download the artifact produced here.
   - label: Build
     branches: "*"
     command:
       - .buildkite/scripts/docker_build.sh
+      - buildkite-agent artifact upload developer-gateway
     env:
       GOPROXY: https://athens.ops.oasiscloud.io/
     timeout_in_minutes: 20
