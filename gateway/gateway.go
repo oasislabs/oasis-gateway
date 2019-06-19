@@ -149,6 +149,7 @@ func NewRouters(group *ServiceGroup) *Routers {
 	services.Add(group.Request)
 	services.Add(group.Backend)
 	services.Add(group.Authenticator)
+	services.Add(RuntimeService{})
 
 	var routers Routers
 	routers.Public = NewPublicRouter(group)

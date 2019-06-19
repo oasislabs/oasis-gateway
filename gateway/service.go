@@ -71,15 +71,21 @@ func (s Services) Stats() stats.Metrics {
 	return group
 }
 
+// HttpRouterService is a wrapper around *rpc.HttpRouter
+// so that it can act as a Service
 type HttpRouterService struct {
 	name   string
 	router *rpc.HttpRouter
 }
 
+// Name is the implementation of Service.Name
+// for HttpRouterService
 func (s HttpRouterService) Name() string {
 	return s.name
 }
 
+// Stats is the implementation of Service.Stats
+// for HttpRouterService
 func (s HttpRouterService) Stats() stats.Metrics {
 	return s.router.Stats()
 }
