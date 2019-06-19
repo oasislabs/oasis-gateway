@@ -64,18 +64,30 @@ func (e ErrEncoder) Encode(w io.Writer, v interface{}) error {
 }
 
 func setupRouter() *HttpRouter {
-	return &HttpRouter{
-		encoder: &JsonEncoder{},
-		mux: map[string]*HttpRoute{
-			"/path": &HttpRoute{handlers: map[string]HttpMiddleware{
-				"GET": HttpMiddlewareOK{body: map[string]string{"result": "ok"}},
-				"PUT": HttpMiddlewareOK{body: nil},
-			}},
-			"/panic": &HttpRoute{handlers: map[string]HttpMiddleware{
-				"GET": HttpMiddlewarePanic{},
-			}},
+	enc := &JsonEncoder{}
+	handlers := map[string]MethodHandlers{
+		"/path": map[string]HttpMiddleware{
+			"GET": HttpMiddlewareOK{body: map[string]string{"result": "ok"}},
+			"PUT": HttpMiddlewareOK{body: nil},
 		},
-		logger: logger,
+		"/panic": map[string]HttpMiddleware{
+			"GET": HttpMiddlewarePanic{},
+		},
+	}
+
+	mux := make(map[string]*HttpRoute)
+	for path, handler := range handlers {
+		mux[path] = NewHttpRoute(&HttpRouteProps{
+			Logger:   logger,
+			Encoder:  enc,
+			Handlers: handler,
+		})
+	}
+
+	return &HttpRouter{
+		encoder: enc,
+		mux:     mux,
+		logger:  logger,
 	}
 }
 
@@ -181,20 +193,14 @@ func TestHttpBinderBuildRouterNoFactory(t *testing.T) {
 	})
 }
 
-func TestHttpRouterReportSuccessEncoderErr(t *testing.T) {
-	binder := NewHttpBinder(HttpBinderProperties{
-		Encoder:        JsonEncoder{},
-		Logger:         logger,
-		HandlerFactory: HttpHandlerFactoryFunc(simpleHandlerFactory),
-	})
-
-	binder.Bind("GET", "/path", HandlerEcho{}, nil)
-	router := binder.Build()
-	router.encoder = ErrEncoder{}
+func TestHttpRouteReportSuccessEncoderErr(t *testing.T) {
+	router := setupRouter()
+	route := router.mux["/path"]
+	route.encoder = ErrEncoder{}
 
 	recorder := httptest.NewRecorder()
 	req, _ := http.NewRequest("GET", "/path", nil)
-	router.reportSuccess(recorder, req, make(map[string]string))
+	route.reportSuccess(recorder, req, make(map[string]string))
 
 	assert.Equal(t, http.StatusInternalServerError, recorder.Code)
 }
@@ -209,17 +215,8 @@ func TestHttpRouterMapError(t *testing.T) {
 		errors.New(errors.ErrQueueNotFound, nil):         http.StatusNotFound,
 	}
 
-	binder := NewHttpBinder(HttpBinderProperties{
-		Encoder:        JsonEncoder{},
-		Logger:         logger,
-		HandlerFactory: HttpHandlerFactoryFunc(simpleHandlerFactory),
-	})
-
-	binder.Bind("GET", "/path", HandlerEcho{}, nil)
-	router := binder.Build()
-
 	for err, code := range tests {
-		httpErr := router.mapError(err)
+		httpErr := mapHttpError(err)
 		assert.Equal(t, code, httpErr.StatusCode)
 	}
 }

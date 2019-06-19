@@ -3,19 +3,18 @@ package gateway
 import (
 	"fmt"
 
+	"github.com/oasislabs/developer-gateway/rpc"
 	"github.com/oasislabs/developer-gateway/stats"
 )
 
 // Service is the interface that should be implemented
 // by all services used by the gateway
 type Service interface {
+	stats.Collector
+
 	// Name returns a human readable identifier for a service.
 	// Each service should have a unique name
 	Name() string
-
-	// Stats returns the current health stats of the
-	// service
-	Stats() stats.Metrics
 }
 
 // Services contains all the services that are exposed
@@ -62,12 +61,25 @@ func (s Services) Contains(name string) bool {
 }
 
 // Stats returns the stats of all the services
-func (s Services) Stats() stats.Group {
-	group := stats.NewGroup()
+func (s Services) Stats() stats.Metrics {
+	group := make(stats.Metrics)
 
 	for _, service := range s {
-		group.Add(service.Name(), service.Stats())
+		group[service.Name()] = service.Stats()
 	}
 
 	return group
+}
+
+type HttpRouterService struct {
+	name   string
+	router *rpc.HttpRouter
+}
+
+func (s HttpRouterService) Name() string {
+	return s.name
+}
+
+func (s HttpRouterService) Stats() stats.Metrics {
+	return s.router.Stats()
 }

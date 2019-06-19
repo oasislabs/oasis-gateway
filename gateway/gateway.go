@@ -137,13 +137,32 @@ func NewServiceGroup(ctx context.Context, config *Config) (*ServiceGroup, error)
 	return NewServiceGroupWithFactories(ctx, config, nil)
 }
 
-func NewPrivateRouter(group *ServiceGroup) *rpc.HttpRouter {
+// Routers holds the routers available to the application
+type Routers struct {
+	Public  *rpc.HttpRouter
+	Private *rpc.HttpRouter
+}
+
+func NewRouters(group *ServiceGroup) *Routers {
 	services := NewServices()
 	services.Add(group.Callback)
 	services.Add(group.Request)
 	services.Add(group.Backend)
 	services.Add(group.Authenticator)
 
+	var routers Routers
+	routers.Public = NewPublicRouter(group)
+	services.Add(HttpRouterService{
+		name:   "PublicRouter",
+		router: routers.Public,
+	})
+
+	routers.Private = NewPrivateRouter(services, group)
+
+	return &routers
+}
+
+func NewPrivateRouter(services Services, group *ServiceGroup) *rpc.HttpRouter {
 	binder := rpc.NewHttpBinder(rpc.HttpBinderProperties{
 		Encoder: rpc.JsonEncoder{},
 		Logger:  RootLogger,
@@ -159,7 +178,7 @@ func NewPrivateRouter(group *ServiceGroup) *rpc.HttpRouter {
 		}),
 	})
 
-	health.BindHandler(&health.Deps{StatsProvider: services}, binder)
+	health.BindHandler(&health.Deps{Collector: services}, binder)
 
 	return binder.Build()
 }

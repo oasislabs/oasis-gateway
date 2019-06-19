@@ -7,27 +7,23 @@ import (
 	"github.com/oasislabs/developer-gateway/stats"
 )
 
-type StatsProvider interface {
-	Stats() stats.Group
-}
-
 type Deps struct {
-	StatsProvider StatsProvider
+	Collector stats.Collector
 }
 
 type HealthHandler struct {
-	stats StatsProvider
+	collector stats.Collector
 }
 
 func NewHealthHandler(deps *Deps) HealthHandler {
-	return HealthHandler{stats: deps.StatsProvider}
+	return HealthHandler{collector: deps.Collector}
 }
 
 func (h HealthHandler) GetHealth(ctx context.Context, v interface{}) (interface{}, error) {
 	_ = v.(*GetHealthRequest)
 	return &GetHealthResponse{
 		Health:  stats.Healthy,
-		Metrics: h.stats.Stats(),
+		Metrics: h.collector.Stats(),
 	}, nil
 }
 
