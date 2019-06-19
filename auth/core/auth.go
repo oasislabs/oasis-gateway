@@ -19,13 +19,14 @@ type Auth interface {
 	// - the expected AAD
 	// - the authentication error
 	Authenticate(req *http.Request) (string, error)
-	
+
 	// Verify that a specific payload complies with
 	// the expected format and has the authentication data required
 	Verify(data, expected string) error
 }
 
-type NilAuth struct {}
+type NilAuth struct{}
+
 func (NilAuth) Name() string {
 	return "auth.nil"
 }

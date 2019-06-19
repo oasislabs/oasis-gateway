@@ -8,6 +8,7 @@ import (
 )
 
 const HeaderKey string = "X-OASIS-INSECURE-AUTH"
+
 var ErrDataTooShort = errors.New("Payload data is too short")
 
 // InsecureAuth is an insecure authentication mechanism that may be
@@ -31,7 +32,6 @@ func (a InsecureAuth) Authenticate(req *http.Request) (string, error) {
 
 	return value, nil
 }
-
 
 func (InsecureAuth) Verify(data string, expectedAAD string) error {
 	if len(data) == 0 {
