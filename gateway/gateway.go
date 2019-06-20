@@ -14,6 +14,7 @@ import (
 	callbackclient "github.com/oasislabs/developer-gateway/callback/client"
 	"github.com/oasislabs/developer-gateway/log"
 	"github.com/oasislabs/developer-gateway/mqueue"
+	mqueuecore "github.com/oasislabs/developer-gateway/mqueue/core"
 	"github.com/oasislabs/developer-gateway/rpc"
 	"github.com/sirupsen/logrus"
 )
@@ -30,6 +31,7 @@ var RootLogger = log.NewLogrus(log.LogrusLoggerProperties{
 var RootContext = context.Background()
 
 type ServiceGroup struct {
+	Mailbox       mqueuecore.MQueue
 	Callback      *callbackclient.Client
 	Request       *backendcore.RequestManager
 	Backend       backendcore.Client
@@ -126,6 +128,7 @@ func NewServiceGroupWithFactories(ctx context.Context, config *Config, factories
 	}
 
 	return &ServiceGroup{
+		Mailbox:       mqueue,
 		Request:       request,
 		Backend:       client,
 		Authenticator: authenticator,
@@ -145,6 +148,7 @@ type Routers struct {
 
 func NewRouters(group *ServiceGroup) *Routers {
 	services := NewServices()
+	services.Add(group.Mailbox)
 	services.Add(group.Callback)
 	services.Add(group.Request)
 	services.Add(group.Backend)

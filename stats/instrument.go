@@ -82,7 +82,7 @@ func NewMethodTracker(methods ...string) *MethodTracker {
 
 // Methods returns the list of methods tracked
 func (t *MethodTracker) Methods() []string {
-	methods := make([]string, len(t.count))
+	methods := make([]string, 0, len(t.count))
 	for method := range t.count {
 		methods = append(methods, method)
 	}

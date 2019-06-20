@@ -124,7 +124,7 @@ type HttpRouteProps struct {
 
 // NewHttpRoute creates a new route instance
 func NewHttpRoute(props *HttpRouteProps) *HttpRoute {
-	methods := make([]string, len(props.Handlers))
+	methods := make([]string, 0, len(props.Handlers))
 
 	for method := range props.Handlers {
 		methods = append(methods, method)

@@ -46,8 +46,8 @@ func (w *IntWindow) Add(sample int64) {
 }
 
 // Stats is the implementation of Collector for IntWindow
-func (w *IntWindow) Stats() map[string]interface{} {
-	return map[string]interface{}{
+func (w *IntWindow) Stats() Metrics {
+	return Metrics{
 		"avg": IntAverage(w.window[w.offset:w.end]),
 	}
 }

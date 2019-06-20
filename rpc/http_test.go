@@ -17,7 +17,8 @@ import (
 )
 
 var logger = log.NewLogrus(log.LogrusLoggerProperties{
-	Level: logrus.DebugLevel,
+	Level:  logrus.DebugLevel,
+	Output: ioutil.Discard,
 })
 
 func mapEntityFactory() EntityFactory {

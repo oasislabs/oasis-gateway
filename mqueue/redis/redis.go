@@ -7,8 +7,19 @@ import (
 	"github.com/go-redis/redis"
 	"github.com/oasislabs/developer-gateway/log"
 	"github.com/oasislabs/developer-gateway/mqueue/core"
+	"github.com/oasislabs/developer-gateway/stats"
 )
 
+const (
+	insert   string = "Insert"
+	retrieve string = "Retrieve"
+	discard  string = "discard"
+	next     string = "next"
+	remove   string = "remove"
+)
+
+// Client is the interface to the redis client used implementing
+// the methods used by the MQueue implementation
 type Client interface {
 	Eval(script string, keys []string, args ...interface{}) *redis.Cmd
 }
@@ -36,8 +47,9 @@ type SingleInstanceProps struct {
 // MQueue implements the messaging queue functionality required
 // from the mqueue package using Redis as a backend
 type MQueue struct {
-	client Client
-	logger log.Logger
+	client  Client
+	logger  log.Logger
+	tracker *stats.MethodTracker
 }
 
 // NewClusterMQueue creates a new instance of a redis client
@@ -48,7 +60,11 @@ func NewClusterMQueue(props ClusterProps) (*MQueue, error) {
 		Addrs: props.Addrs,
 	})
 
-	return &MQueue{client: c, logger: logger}, nil
+	return &MQueue{
+		client:  c,
+		logger:  logger,
+		tracker: stats.NewMethodTracker(insert, retrieve, discard, next, remove),
+	}, nil
 }
 
 // NewSingleMQueue creates a new instance of a redis client
@@ -59,7 +75,19 @@ func NewSingleMQueue(props SingleInstanceProps) (*MQueue, error) {
 		Addr: props.Addr,
 	})
 
-	return &MQueue{client: c, logger: logger}, nil
+	return &MQueue{
+		client:  c,
+		logger:  logger,
+		tracker: stats.NewMethodTracker(insert, retrieve, discard, next, remove),
+	}, nil
+}
+
+func (m *MQueue) Name() string {
+	return "mqueue.redis.MQueue"
+}
+
+func (m *MQueue) Stats() stats.Metrics {
+	return m.tracker.Stats()
 }
 
 func (m *MQueue) exec(ctx context.Context, cmd command) (interface{}, error) {
@@ -67,6 +95,14 @@ func (m *MQueue) exec(ctx context.Context, cmd command) (interface{}, error) {
 }
 
 func (m *MQueue) Insert(ctx context.Context, req core.InsertRequest) error {
+	_, err := m.tracker.Instrument(insert, func() (interface{}, error) {
+		return nil, m.insert(ctx, req)
+	})
+
+	return err
+}
+
+func (m *MQueue) insert(ctx context.Context, req core.InsertRequest) error {
 	serialized, err := json.Marshal(req.Element.Value)
 	if err != nil {
 		return ErrSerialize{Cause: err}
@@ -91,6 +127,17 @@ func (m *MQueue) Insert(ctx context.Context, req core.InsertRequest) error {
 }
 
 func (m *MQueue) Retrieve(ctx context.Context, req core.RetrieveRequest) (core.Elements, error) {
+	els, err := m.tracker.Instrument(retrieve, func() (interface{}, error) {
+		return m.retrieve(ctx, req)
+	})
+	if err != nil {
+		return core.Elements{}, err
+	}
+
+	return els.(core.Elements), nil
+}
+
+func (m *MQueue) retrieve(ctx context.Context, req core.RetrieveRequest) (core.Elements, error) {
 	els, err := m.exec(ctx, retrieveRequest{
 		Key:    req.Key,
 		Offset: req.Offset,
@@ -144,6 +191,14 @@ func (m *MQueue) Retrieve(ctx context.Context, req core.RetrieveRequest) (core.E
 }
 
 func (m *MQueue) Discard(ctx context.Context, req core.DiscardRequest) error {
+	_, err := m.tracker.Instrument(discard, func() (interface{}, error) {
+		return nil, m.discard(ctx, req)
+	})
+
+	return err
+}
+
+func (m *MQueue) discard(ctx context.Context, req core.DiscardRequest) error {
 	v, err := m.exec(ctx, discardRequest{
 		Key:    req.Key,
 		Offset: req.Offset,
@@ -161,6 +216,17 @@ func (m *MQueue) Discard(ctx context.Context, req core.DiscardRequest) error {
 }
 
 func (m *MQueue) Next(ctx context.Context, req core.NextRequest) (uint64, error) {
+	offset, err := m.tracker.Instrument(next, func() (interface{}, error) {
+		return m.next(ctx, req)
+	})
+	if err != nil {
+		return 0, err
+	}
+
+	return offset.(uint64), nil
+}
+
+func (m *MQueue) next(ctx context.Context, req core.NextRequest) (uint64, error) {
 	v, err := m.exec(ctx, nextRequest{
 		Key: req.Key,
 	})
@@ -172,6 +238,14 @@ func (m *MQueue) Next(ctx context.Context, req core.NextRequest) (uint64, error)
 }
 
 func (m *MQueue) Remove(ctx context.Context, req core.RemoveRequest) error {
+	_, err := m.tracker.Instrument(remove, func() (interface{}, error) {
+		return nil, m.remove(ctx, req)
+	})
+
+	return err
+}
+
+func (m *MQueue) remove(ctx context.Context, req core.RemoveRequest) error {
 	v, err := m.exec(ctx, removeRequest{
 		Key: req.Key,
 	})
