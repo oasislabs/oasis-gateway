@@ -65,7 +65,10 @@ func (s Services) Stats() stats.Metrics {
 	group := make(stats.Metrics)
 
 	for _, service := range s {
-		group[service.Name()] = service.Stats()
+		s := service.Stats()
+		if s != nil {
+			group[service.Name()] = s
+		}
 	}
 
 	return group

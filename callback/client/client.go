@@ -13,6 +13,8 @@ import (
 	"github.com/oasislabs/developer-gateway/stats"
 )
 
+const walletOutOfFunds string = "WalletOutOfFunds"
+
 // CallbackProps are properties that can be passed
 // when executing a callback to modify the behaviour
 // of the call
@@ -76,6 +78,7 @@ func NewClientWithDeps(deps *Deps, props *Props) *Client {
 		retryConfig: props.RetryConfig,
 		client:      deps.Client,
 		logger:      deps.Logger,
+		tracker:     stats.NewMethodTracker(walletOutOfFunds),
 	}
 }
 
@@ -86,6 +89,7 @@ type Client struct {
 	client      HttpClient
 	retryConfig concurrent.RetryConfig
 	logger      log.Logger
+	tracker     *stats.MethodTracker
 }
 
 func (c *Client) Name() string {
@@ -93,7 +97,14 @@ func (c *Client) Name() string {
 }
 
 func (c *Client) Stats() stats.Metrics {
-	return nil
+	return c.tracker.Stats()
+}
+
+func (c *Client) instrumentedRequest(ctx context.Context, method string, req *http.Request) error {
+	_, err := c.tracker.Instrument(method, func() (interface{}, error) {
+		return nil, c.request(ctx, req)
+	})
+	return err
 }
 
 // request sends an http request
@@ -189,7 +200,7 @@ func (c *Client) Callback(
 	})
 
 	if callback.Sync {
-		if err := c.request(ctx, req); err != nil {
+		if err := c.instrumentedRequest(ctx, callback.Method, req); err != nil {
 			c.logger.Warn(ctx, "failed to deliver http callback", log.MapFields{
 				"call_type": "SendCallbackFailure",
 				"method":    callback.Method,
@@ -211,7 +222,7 @@ func (c *Client) Callback(
 	}
 
 	go func() {
-		if err := c.request(ctx, req); err != nil {
+		if err := c.instrumentedRequest(ctx, callback.Method, req); err != nil {
 			c.logger.Warn(ctx, "failed to deliver http callback", log.MapFields{
 				"call_type": "SendCallbackFailure",
 				"method":    callback.Method,
