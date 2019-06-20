@@ -14,6 +14,7 @@ import (
 	callbackclient "github.com/oasislabs/developer-gateway/callback/client"
 	"github.com/oasislabs/developer-gateway/log"
 	"github.com/oasislabs/developer-gateway/mqueue"
+	mqueuecore "github.com/oasislabs/developer-gateway/mqueue/core"
 	"github.com/oasislabs/developer-gateway/rpc"
 	"github.com/sirupsen/logrus"
 )
@@ -30,6 +31,7 @@ var RootLogger = log.NewLogrus(log.LogrusLoggerProperties{
 var RootContext = context.Background()
 
 type ServiceGroup struct {
+	Mailbox       mqueuecore.MQueue
 	Callback      *callbackclient.Client
 	Request       *backendcore.RequestManager
 	Backend       backendcore.Client
@@ -126,6 +128,7 @@ func NewServiceGroupWithFactories(ctx context.Context, config *Config, factories
 	}
 
 	return &ServiceGroup{
+		Mailbox:       mqueue,
 		Request:       request,
 		Backend:       client,
 		Authenticator: authenticator,
@@ -137,13 +140,34 @@ func NewServiceGroup(ctx context.Context, config *Config) (*ServiceGroup, error)
 	return NewServiceGroupWithFactories(ctx, config, nil)
 }
 
-func NewPrivateRouter(group *ServiceGroup) *rpc.HttpRouter {
+// Routers holds the routers available to the application
+type Routers struct {
+	Public  *rpc.HttpRouter
+	Private *rpc.HttpRouter
+}
+
+func NewRouters(group *ServiceGroup) *Routers {
 	services := NewServices()
+	services.Add(group.Mailbox)
 	services.Add(group.Callback)
 	services.Add(group.Request)
 	services.Add(group.Backend)
 	services.Add(group.Authenticator)
+	services.Add(RuntimeService{})
 
+	var routers Routers
+	routers.Public = NewPublicRouter(group)
+	services.Add(HttpRouterService{
+		name:   "PublicRouter",
+		router: routers.Public,
+	})
+
+	routers.Private = NewPrivateRouter(services, group)
+
+	return &routers
+}
+
+func NewPrivateRouter(services Services, group *ServiceGroup) *rpc.HttpRouter {
 	binder := rpc.NewHttpBinder(rpc.HttpBinderProperties{
 		Encoder: rpc.JsonEncoder{},
 		Logger:  RootLogger,
@@ -159,7 +183,7 @@ func NewPrivateRouter(group *ServiceGroup) *rpc.HttpRouter {
 		}),
 	})
 
-	health.BindHandler(&health.Deps{StatsProvider: services}, binder)
+	health.BindHandler(&health.Deps{Collector: services}, binder)
 
 	return binder.Build()
 }

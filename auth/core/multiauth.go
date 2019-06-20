@@ -22,7 +22,7 @@ func (*MultiAuth) Name() string {
 	return "auth.MultiAuth"
 }
 func (m *MultiAuth) Stats() stats.Metrics {
-	metrics := make(map[string]stats.Stats)
+	metrics := make(stats.Metrics)
 	for _, auth := range m.auths {
 		for k, val := range auth.Stats() {
 			metrics[k] = val

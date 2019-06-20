@@ -1,6 +1,8 @@
 package rpc
 
-import "strconv"
+import (
+	"strconv"
+)
 
 // ParseTraceID parses a traceID from a string and in case of failure
 // it returns a default -1

@@ -2,6 +2,8 @@ package core
 
 import (
 	"context"
+
+	"github.com/oasislabs/developer-gateway/stats"
 )
 
 // Element represents an element of the OrderedQueue
@@ -86,6 +88,12 @@ type RemoveRequest struct {
 // subscribe mechanism in which the clients manage the offsets
 // for each queue they have.
 type MQueue interface {
+	// Name is a human readable identifier
+	Name() string
+
+	// Stats returns collected health metrics for the queue
+	Stats() stats.Metrics
+
 	// Insert inserts the element to the provided offset.
 	Insert(context.Context, InsertRequest) error
 

@@ -11,6 +11,7 @@ import (
 	"github.com/oasislabs/developer-gateway/errors"
 	"github.com/oasislabs/developer-gateway/log"
 	"github.com/oasislabs/developer-gateway/rw"
+	"github.com/oasislabs/developer-gateway/stats"
 )
 
 const HttpHeaderTraceID = "X-OASIS-TRACE-ID"
@@ -70,6 +71,11 @@ func HttpNotFound(ctx context.Context, error errors.Error) *HttpError {
 	return MakeHttpError(ctx, error, http.StatusNotFound)
 }
 
+// HttpMethodNotAllowed returns an HTTP not found error
+func HttpMethodNotAllowed(ctx context.Context, error errors.Error) *HttpError {
+	return MakeHttpError(ctx, error, http.StatusMethodNotAllowed)
+}
+
 // HttpTooMayRequests return an HTTP too many requests error
 func HttpTooManyRequests(ctx context.Context, error errors.Error) *HttpError {
 	return MakeHttpError(ctx, error, http.StatusTooManyRequests)
@@ -85,27 +91,176 @@ func HttpInternalServerError(ctx context.Context, error errors.Error) *HttpError
 	return MakeHttpError(ctx, error, http.StatusInternalServerError)
 }
 
+// MethodHandlers keeps the handlers for each of the methods
+type MethodHandlers map[string]HttpMiddleware
+
+// Add a new handler to the set
+func (h MethodHandlers) Add(method string, middleware HttpMiddleware) {
+	h[method] = middleware
+}
+
+// RouteCounters counts number of requests for routes
+// split by status code
+type RouteCounters map[string]*stats.CounterGroup
+
+type RouteLatencies map[string]*stats.IntWindow
+
 // HttpRoute multiplexes the handling of a request to the handler
 // that expects a particular method
 type HttpRoute struct {
+	logger   log.Logger
 	handlers map[string]HttpMiddleware
+	encoder  Encoder
+	tracker  *stats.MethodTracker
+}
+
+// HttpRouteProps are the required properties to create
+// a new HttpRoute instance
+type HttpRouteProps struct {
+	Logger   log.Logger
+	Encoder  Encoder
+	Handlers MethodHandlers
 }
 
 // NewHttpRoute creates a new route instance
-func NewHttpRoute() *HttpRoute {
+func NewHttpRoute(props *HttpRouteProps) *HttpRoute {
+	methods := make([]string, 0, len(props.Handlers))
+
+	for method := range props.Handlers {
+		methods = append(methods, method)
+	}
+
 	return &HttpRoute{
-		handlers: make(map[string]HttpMiddleware),
+		logger:   props.Logger,
+		handlers: props.Handlers,
+		tracker: stats.NewMethodTrackerWithResult(&stats.MethodTrackerProps{
+			Methods:    methods,
+			Results:    []string{"200", "204", "400", "401", "403", "405", "409", "500", "error"},
+			WindowSize: 64,
+		}),
+		encoder: props.Encoder,
 	}
 }
 
-// HttpRoute implementation of HttpMiddleware
-func (h HttpRoute) ServeHTTP(req *http.Request) (interface{}, error) {
-	handler, ok := h.handlers[req.Method]
-	if !ok {
-		return nil, &HttpError{StatusCode: http.StatusMethodNotAllowed}
+func (h *HttpRoute) Stats() stats.Metrics {
+	return h.tracker.Stats()
+}
+
+func (h *HttpRoute) reportSuccess(
+	res http.ResponseWriter,
+	req *http.Request,
+	body interface{},
+) (int, error) {
+	path := req.URL.EscapedPath()
+	method := req.Method
+
+	res.Header().Add(HttpHeaderTraceID, strconv.FormatInt(log.GetTraceID(req.Context()), 10))
+
+	if body == nil {
+		res.WriteHeader(http.StatusNoContent)
+		h.logger.Info(req.Context(), "", log.MapFields{
+			"path":        path,
+			"method":      method,
+			"call_type":   "HttpRequestHandleSuccess",
+			"status_code": http.StatusNoContent,
+		})
+		return http.StatusNoContent, nil
 	}
 
-	return handler.ServeHTTP(req)
+	if err := h.encoder.Encode(res, body); err != nil {
+		res.WriteHeader(http.StatusInternalServerError)
+		h.logger.Warn(req.Context(), "failed to encode response to response writer", log.MapFields{
+			"path":        path,
+			"method":      method,
+			"call_type":   "HttpRequestHandleFailure",
+			"status_code": http.StatusInternalServerError,
+		})
+		return 0, err
+	}
+
+	h.logger.Info(req.Context(), "", log.MapFields{
+		"path":        path,
+		"method":      method,
+		"call_type":   "HttpRequestHandleSuccess",
+		"status_code": http.StatusOK,
+	})
+
+	return http.StatusOK, nil
+}
+
+// HttpRoute implementation of HttpMiddleware
+func (h *HttpRoute) ServeHTTP(res http.ResponseWriter, req *http.Request) {
+	_, _ = h.tracker.InstrumentResult(req.Method, func() *stats.TrackResult {
+		status, err := h.serveHTTP(res, req)
+		t := fmt.Sprintf("%d", status)
+		if err != nil {
+			t = "error"
+		}
+
+		return &stats.TrackResult{
+			Value: nil,
+			Error: nil,
+			Type:  t,
+		}
+	})
+}
+
+func (h *HttpRoute) serveHTTP(res http.ResponseWriter, req *http.Request) (int, error) {
+	handler, ok := h.handlers[req.Method]
+	if !ok {
+		return h.reportError(res, req, &HttpError{StatusCode: http.StatusMethodNotAllowed})
+	}
+
+	v, err := handler.ServeHTTP(req)
+	if err != nil {
+		return h.reportAnyError(res, req, err)
+	}
+
+	return h.reportSuccess(res, req, v)
+}
+
+func (h *HttpRoute) reportAnyError(res http.ResponseWriter, req *http.Request, err error) (int, error) {
+	switch err := err.(type) {
+	case HttpError:
+		return h.reportError(res, req, &err)
+	case *HttpError:
+		return h.reportError(res, req, err)
+	case errors.Error:
+		return h.reportError(res, req, mapHttpError(err))
+	default:
+		return h.reportError(res, req, HttpInternalServerError(
+			req.Context(), errors.New(errors.ErrInternalError, err)))
+	}
+}
+
+func (h *HttpRoute) reportError(res http.ResponseWriter, req *http.Request, err *HttpError) (int, error) {
+	path := req.URL.EscapedPath()
+	method := req.Method
+
+	res.Header().Add(HttpHeaderTraceID, strconv.FormatInt(log.GetTraceID(req.Context()), 10))
+	res.WriteHeader(err.StatusCode)
+
+	if err.Cause != nil {
+		if eerr := h.encoder.Encode(res, Error{
+			ErrorCode:   err.Cause.ErrorCode().Code(),
+			Description: err.Cause.ErrorCode().Desc(),
+		}); eerr != nil {
+
+			h.logger.Debug(req.Context(), "failed to encode error response to response writer", log.MapFields{
+				"path":      path,
+				"method":    method,
+				"call_type": "HttpRequestHandleFailure",
+			}, err)
+			return 0, err
+		}
+	}
+
+	h.logger.Info(req.Context(), "", log.MapFields{
+		"path":      path,
+		"method":    method,
+		"call_type": "HttpRequestHandleFailure",
+	}, err)
+	return err.StatusCode, nil
 }
 
 // HttpRouter multiplexes the handling of server request amongst the different
@@ -114,6 +269,16 @@ type HttpRouter struct {
 	encoder Encoder
 	mux     map[string]*HttpRoute
 	logger  log.Logger
+}
+
+// Stats reports the stats of the handlers called by the http router
+func (h *HttpRouter) Stats() stats.Metrics {
+	stats := make(stats.Metrics)
+	for key, route := range h.mux {
+		stats[key] = route.Stats()
+	}
+
+	return stats
 }
 
 // HttpRouter implementation of http.Handler
@@ -164,52 +329,10 @@ func (h *HttpRouter) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	v, err := route.ServeHTTP(req)
-	if err != nil {
-		h.reportAnyError(res, req, err)
-		return
-	}
-
-	h.reportSuccess(res, req, v)
+	route.ServeHTTP(res, req)
 }
 
-func (h *HttpRouter) reportSuccess(res http.ResponseWriter, req *http.Request, body interface{}) {
-	path := req.URL.EscapedPath()
-	method := req.Method
-
-	res.Header().Add(HttpHeaderTraceID, strconv.FormatInt(log.GetTraceID(req.Context()), 10))
-
-	if body == nil {
-		res.WriteHeader(http.StatusNoContent)
-		h.logger.Info(req.Context(), "", log.MapFields{
-			"path":        path,
-			"method":      method,
-			"call_type":   "HttpRequestHandleSuccess",
-			"status_code": http.StatusNoContent,
-		})
-		return
-	}
-
-	if err := h.encoder.Encode(res, body); err != nil {
-		res.WriteHeader(http.StatusInternalServerError)
-		h.logger.Warn(req.Context(), "failed to encode response to response writer", log.MapFields{
-			"path":        path,
-			"method":      method,
-			"call_type":   "HttpRequestHandleFailure",
-			"status_code": http.StatusInternalServerError,
-		})
-		return
-	}
-
-	h.logger.Info(req.Context(), "", log.MapFields{
-		"path":        path,
-		"method":      method,
-		"call_type":   "HttpRequestHandleSuccess",
-		"status_code": http.StatusOK,
-	})
-}
-
-func (h *HttpRouter) mapError(err errors.Error) *HttpError {
+func mapHttpError(err errors.Error) *HttpError {
 	switch err.ErrorCode().Category() {
 	case errors.InternalError:
 		return &HttpError{
@@ -261,7 +384,7 @@ func (h *HttpRouter) reportAnyError(res http.ResponseWriter, req *http.Request, 
 	case *HttpError:
 		h.reportError(res, req, err)
 	case errors.Error:
-		h.reportError(res, req, h.mapError(err))
+		h.reportError(res, req, mapHttpError(err))
 	default:
 		h.reportError(res, req, HttpInternalServerError(
 			req.Context(), errors.New(errors.ErrInternalError, err)))
@@ -438,7 +561,7 @@ func (f HttpHandlerFactoryFunc) Make(factory EntityFactory, handler Handler) Htt
 // HttpRouter's. This is done so that an HttpRouter cannot be modified
 // after it has been created
 type HttpBinder struct {
-	handlers map[string]*HttpRoute
+	handlers map[string]MethodHandlers
 	encoder  Encoder
 	logger   log.Logger
 	factory  HttpHandlerFactory
@@ -448,27 +571,37 @@ type HttpBinder struct {
 func (b *HttpBinder) Bind(method string, uri string, handler Handler, factory EntityFactory) {
 	route, ok := b.handlers[uri]
 	if !ok {
-		route = NewHttpRoute()
+		route = make(MethodHandlers)
 		b.handlers[uri] = route
 	}
 
-	route.handlers[method] = b.factory.Make(factory, handler)
+	route.Add(method, b.factory.Make(factory, handler))
 }
 
 // Build creates a new HttpRouter and clears the handler map of the
 // HttpBinder, so if new instances of HttpRouters need to be build
 // Bind needs to be used again
 func (b *HttpBinder) Build() *HttpRouter {
-	handlers := b.handlers
+	mux := make(map[string]*HttpRoute)
+
+	for path, handlers := range b.handlers {
+		route := NewHttpRoute(&HttpRouteProps{
+			Logger:   b.logger,
+			Encoder:  b.encoder,
+			Handlers: handlers,
+		})
+
+		mux[path] = route
+	}
 
 	// avoid modification of the router handlers after the router
 	// handler has been created
-	b.handlers = make(map[string]*HttpRoute)
+	b.handlers = make(map[string]MethodHandlers)
 
 	return &HttpRouter{
 		encoder: b.encoder,
 		logger:  b.logger.ForClass("http", "router"),
-		mux:     handlers,
+		mux:     mux,
 	}
 }
 
@@ -496,7 +629,7 @@ func NewHttpBinder(properties HttpBinderProperties) *HttpBinder {
 	}
 
 	return &HttpBinder{
-		handlers: make(map[string]*HttpRoute),
+		handlers: make(map[string]MethodHandlers),
 		encoder:  properties.Encoder,
 		logger:   properties.Logger,
 		factory:  properties.HandlerFactory,
