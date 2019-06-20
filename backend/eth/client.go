@@ -6,7 +6,6 @@ import (
 	stderr "errors"
 	"fmt"
 	"net/url"
-	"time"
 
 	ethereum "github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
@@ -22,14 +21,12 @@ import (
 	"github.com/oasislabs/developer-gateway/tx"
 )
 
-type methodName string
-
 const (
-	getPublicKey       methodName = "GetPublicKey"
-	deployService      methodName = "DeployService"
-	executeService     methodName = "ExecuteService"
-	subscribeRequest   methodName = "SubscribeRequest"
-	unsubscribeRequest methodName = "UnsubscribeRequest"
+	getPublicKey       string = "GetPublicKey"
+	deployService      string = "DeployService"
+	executeService     string = "ExecuteService"
+	subscribeRequest   string = "SubscribeRequest"
+	unsubscribeRequest string = "UnsubscribeRequest"
 )
 
 const StatusOK = 1
@@ -52,12 +49,12 @@ type ClientProps struct {
 }
 
 type Client struct {
-	ctx       context.Context
-	logger    log.Logger
-	client    eth.Client
-	executor  *tx.Executor
-	subman    *eth.SubscriptionManager
-	latencies map[string]*stats.IntWindow
+	ctx      context.Context
+	logger   log.Logger
+	client   eth.Client
+	executor *tx.Executor
+	subman   *eth.SubscriptionManager
+	tracker  *stats.MethodTracker
 }
 
 func (c *Client) Name() string {
@@ -65,23 +62,13 @@ func (c *Client) Name() string {
 }
 
 func (c *Client) Stats() stats.Metrics {
-	s := make(stats.Metrics)
-
-	for method, window := range c.latencies {
-		latencyStats := window.Stats()
-		methodStats := make(stats.Metrics)
-		methodStats["latency"] = latencyStats
-		s[method] = methodStats
-	}
-
-	return s
+	return c.tracker.Stats()
 }
 
-func (c *Client) GetPublicKey(
+func (c *Client) getPublicKey(
 	ctx context.Context,
 	req backend.GetPublicKeyRequest,
 ) (backend.GetPublicKeyResponse, errors.Err) {
-	start := time.Now().UnixNano()
 	c.logger.Debug(ctx, "", log.MapFields{
 		"call_type": "GetPublicKeyAttempt",
 		"address":   req.Address,
@@ -101,20 +88,32 @@ func (c *Client) GetPublicKey(
 		return backend.GetPublicKeyResponse{}, err
 	}
 
-	latency := time.Now().UnixNano() - start
 	c.logger.Debug(ctx, "", log.MapFields{
 		"call_type": "GetPublicKeySuccess",
 		"address":   req.Address,
-		"latency":   latency,
 	})
 
-	c.latencies[string(getPublicKey)].Add(latency)
 	return backend.GetPublicKeyResponse{
 		Address:   req.Address,
 		Timestamp: pk.Timestamp,
 		PublicKey: pk.PublicKey,
 		Signature: pk.Signature,
 	}, nil
+}
+
+func (c *Client) GetPublicKey(
+	ctx context.Context,
+	req backend.GetPublicKeyRequest,
+) (backend.GetPublicKeyResponse, errors.Err) {
+	v, err := c.tracker.Instrument(getPublicKey, func() (interface{}, error) {
+		return c.getPublicKey(ctx, req)
+	})
+
+	if err != nil {
+		return backend.GetPublicKeyResponse{}, err.(errors.Err)
+	}
+
+	return v.(backend.GetPublicKeyResponse), nil
 }
 
 func (c *Client) verifyAddress(addr string) errors.Err {
@@ -134,7 +133,21 @@ func (c *Client) DeployService(
 	id uint64,
 	req backend.DeployServiceRequest,
 ) (backend.DeployServiceResponse, errors.Err) {
-	start := time.Now().UnixNano()
+	v, err := c.tracker.Instrument(deployService, func() (interface{}, error) {
+		return c.deployService(ctx, id, req)
+	})
+	if err != nil {
+		return backend.DeployServiceResponse{}, err.(errors.Err)
+	}
+
+	return v.(backend.DeployServiceResponse), nil
+}
+
+func (c *Client) deployService(
+	ctx context.Context,
+	id uint64,
+	req backend.DeployServiceRequest,
+) (backend.DeployServiceResponse, errors.Err) {
 	data, err := c.decodeBytes(req.Data)
 	if err != nil {
 		return backend.DeployServiceResponse{}, err
@@ -149,8 +162,6 @@ func (c *Client) DeployService(
 		return backend.DeployServiceResponse{}, err
 	}
 
-	latency := time.Now().UnixNano() - start
-	c.latencies[string(deployService)].Add(latency)
 	return backend.DeployServiceResponse{
 		ID:      res.ID,
 		Address: res.Address,
@@ -162,7 +173,21 @@ func (c *Client) ExecuteService(
 	id uint64,
 	req backend.ExecuteServiceRequest,
 ) (backend.ExecuteServiceResponse, errors.Err) {
-	start := time.Now().UnixNano()
+	v, err := c.tracker.Instrument(executeService, func() (interface{}, error) {
+		return c.executeService(ctx, id, req)
+	})
+	if err != nil {
+		return backend.ExecuteServiceResponse{}, err.(errors.Err)
+	}
+
+	return v.(backend.ExecuteServiceResponse), nil
+}
+
+func (c *Client) executeService(
+	ctx context.Context,
+	id uint64,
+	req backend.ExecuteServiceRequest,
+) (backend.ExecuteServiceResponse, errors.Err) {
 	if err := c.verifyAddress(req.Address); err != nil {
 		return backend.ExecuteServiceResponse{}, err
 	}
@@ -181,9 +206,6 @@ func (c *Client) ExecuteService(
 		return backend.ExecuteServiceResponse{}, err
 	}
 
-	latency := time.Now().UnixNano() - start
-	c.latencies[string(executeService)].Add(latency)
-
 	return backend.ExecuteServiceResponse{
 		ID:      res.ID,
 		Address: res.Address,
@@ -196,8 +218,21 @@ func (c *Client) SubscribeRequest(
 	req backend.CreateSubscriptionRequest,
 	ch chan<- interface{},
 ) errors.Err {
-	start := time.Now().UnixNano()
+	_, err := c.tracker.Instrument(subscribeRequest, func() (interface{}, error) {
+		return nil, c.subscribeRequest(ctx, req, ch)
+	})
+	if err != nil {
+		return err.(errors.Err)
+	}
 
+	return nil
+}
+
+func (c *Client) subscribeRequest(
+	ctx context.Context,
+	req backend.CreateSubscriptionRequest,
+	ch chan<- interface{},
+) errors.Err {
 	if req.Topic != "logs" {
 		return errors.New(errors.ErrTopicLogsSupported, nil)
 	}
@@ -220,9 +255,6 @@ func (c *Client) SubscribeRequest(
 		return err
 	}
 
-	latency := time.Now().UnixNano() - start
-	c.latencies[string(subscribeRequest)].Add(latency)
-
 	return nil
 }
 
@@ -230,8 +262,20 @@ func (c *Client) UnsubscribeRequest(
 	ctx context.Context,
 	req backend.DestroySubscriptionRequest,
 ) errors.Err {
-	start := time.Now().UnixNano()
+	_, err := c.tracker.Instrument(unsubscribeRequest, func() (interface{}, error) {
+		return nil, c.unsubscribeRequest(ctx, req)
+	})
+	if err != nil {
+		return err.(errors.Err)
+	}
 
+	return nil
+}
+
+func (c *Client) unsubscribeRequest(
+	ctx context.Context,
+	req backend.DestroySubscriptionRequest,
+) errors.Err {
 	if err := c.subman.Destroy(ctx, req.SubID); err != nil {
 		err := errors.New(errors.ErrInternalError, err)
 		c.logger.Debug(ctx, "failed to destroy subscription", log.MapFields{
@@ -239,9 +283,6 @@ func (c *Client) UnsubscribeRequest(
 		}, err)
 		return err
 	}
-
-	latency := time.Now().UnixNano() - start
-	c.latencies[string(unsubscribeRequest)].Add(latency)
 
 	return nil
 }
@@ -306,20 +347,17 @@ type ClientServices struct {
 }
 
 func NewClientWithDeps(ctx context.Context, deps *ClientDeps) *Client {
-	latencies := make(map[string]*stats.IntWindow)
-
-	latencies[string(getPublicKey)] = stats.NewIntWindow(64)
-	latencies[string(deployService)] = stats.NewIntWindow(64)
-	latencies[string(executeService)] = stats.NewIntWindow(64)
-	latencies[string(subscribeRequest)] = stats.NewIntWindow(64)
-	latencies[string(unsubscribeRequest)] = stats.NewIntWindow(64)
 
 	return &Client{
-		ctx:       ctx,
-		logger:    deps.Logger.ForClass("eth", "Client"),
-		client:    deps.Client,
-		executor:  deps.Executor,
-		latencies: latencies,
+		ctx:      ctx,
+		logger:   deps.Logger.ForClass("eth", "Client"),
+		client:   deps.Client,
+		executor: deps.Executor,
+		tracker: stats.NewMethodTracker(getPublicKey,
+			deployService,
+			executeService,
+			subscribeRequest,
+			unsubscribeRequest),
 		subman: eth.NewSubscriptionManager(eth.SubscriptionManagerProps{
 			Context: ctx,
 			Logger:  deps.Logger,

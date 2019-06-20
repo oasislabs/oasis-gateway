@@ -108,11 +108,10 @@ type RouteLatencies map[string]*stats.IntWindow
 // HttpRoute multiplexes the handling of a request to the handler
 // that expects a particular method
 type HttpRoute struct {
-	logger    log.Logger
-	handlers  map[string]HttpMiddleware
-	encoder   Encoder
-	counters  RouteCounters
-	latencies RouteLatencies
+	logger   log.Logger
+	handlers map[string]HttpMiddleware
+	encoder  Encoder
+	tracker  *stats.MethodTracker
 }
 
 // HttpRouteProps are the required properties to create
@@ -125,61 +124,33 @@ type HttpRouteProps struct {
 
 // NewHttpRoute creates a new route instance
 func NewHttpRoute(props *HttpRouteProps) *HttpRoute {
-	statuses := []string{"200", "204", "400", "401", "403", "405", "409", "500"}
-	counters := make(RouteCounters)
-	latencies := make(RouteLatencies)
+	methods := make([]string, len(props.Handlers))
 
-	for key := range props.Handlers {
-		counters[key] = stats.NewCounterGroup(statuses...)
-		latencies[key] = stats.NewIntWindow(64)
+	for method := range props.Handlers {
+		methods = append(methods, method)
 	}
 
-	counters["undefined"] = stats.NewCounterGroup()
-
 	return &HttpRoute{
-		logger:    props.Logger,
-		handlers:  props.Handlers,
-		counters:  counters,
-		latencies: latencies,
-		encoder:   props.Encoder,
+		logger:   props.Logger,
+		handlers: props.Handlers,
+		tracker: stats.NewMethodTrackerWithResult(&stats.MethodTrackerProps{
+			Methods:    methods,
+			Results:    []string{"200", "204", "400", "401", "403", "405", "409", "500", "error"},
+			WindowSize: 64,
+		}),
+		encoder: props.Encoder,
 	}
 }
 
 func (h *HttpRoute) Stats() stats.Metrics {
-	s := make(stats.Metrics)
-
-	for method, counter := range h.counters {
-		methodStats := make(stats.Metrics)
-		methodStats["count"] = counter.Stats()
-		if latency, ok := h.latencies[method]; ok {
-			methodStats["latency"] = latency.Stats()
-		}
-
-		s[method] = methodStats
-	}
-
-	return s
-}
-
-func (h *HttpRoute) trackLatency(req *http.Request) {
-	timeTrack := MustFinishTimeTrack(req)
-	h.latencies[req.Method].Add(timeTrack.Stop - timeTrack.Start)
-}
-
-func (h *HttpRoute) incrCounter(status int, req *http.Request) {
-	counter, ok := h.counters[req.Method]
-	if !ok {
-		counter = h.counters["undefined"]
-	}
-
-	counter.Incr(strconv.Itoa(status))
+	return h.tracker.Stats()
 }
 
 func (h *HttpRoute) reportSuccess(
 	res http.ResponseWriter,
 	req *http.Request,
 	body interface{},
-) {
+) (int, error) {
 	path := req.URL.EscapedPath()
 	method := req.Method
 
@@ -193,8 +164,7 @@ func (h *HttpRoute) reportSuccess(
 			"call_type":   "HttpRequestHandleSuccess",
 			"status_code": http.StatusNoContent,
 		})
-		h.incrCounter(http.StatusNoContent, req)
-		return
+		return http.StatusNoContent, nil
 	}
 
 	if err := h.encoder.Encode(res, body); err != nil {
@@ -205,53 +175,65 @@ func (h *HttpRoute) reportSuccess(
 			"call_type":   "HttpRequestHandleFailure",
 			"status_code": http.StatusInternalServerError,
 		})
-		h.incrCounter(http.StatusInternalServerError, req)
-		return
+		return 0, err
 	}
 
-	h.incrCounter(http.StatusOK, req)
 	h.logger.Info(req.Context(), "", log.MapFields{
 		"path":        path,
 		"method":      method,
 		"call_type":   "HttpRequestHandleSuccess",
 		"status_code": http.StatusOK,
 	})
+
+	return http.StatusOK, nil
 }
 
 // HttpRoute implementation of HttpMiddleware
 func (h *HttpRoute) ServeHTTP(res http.ResponseWriter, req *http.Request) {
-	req = WithTimeTrack(req)
+	_, _ = h.tracker.InstrumentResult(req.Method, func() *stats.TrackResult {
+		status, err := h.serveHTTP(res, req)
+		t := fmt.Sprintf("%d", status)
+		if err != nil {
+			t = "error"
+		}
+
+		return &stats.TrackResult{
+			Value: nil,
+			Error: nil,
+			Type:  t,
+		}
+	})
+}
+
+func (h *HttpRoute) serveHTTP(res http.ResponseWriter, req *http.Request) (int, error) {
 	handler, ok := h.handlers[req.Method]
 	if !ok {
-		h.reportError(res, req, &HttpError{StatusCode: http.StatusMethodNotAllowed})
-		return
+		return h.reportError(res, req, &HttpError{StatusCode: http.StatusMethodNotAllowed})
 	}
 
 	v, err := handler.ServeHTTP(req)
 	if err != nil {
-		h.reportAnyError(res, req, err)
-		return
+		return h.reportAnyError(res, req, err)
 	}
 
-	h.trackLatency(req)
-	h.reportSuccess(res, req, v)
+	return h.reportSuccess(res, req, v)
 }
 
-func (h *HttpRoute) reportAnyError(res http.ResponseWriter, req *http.Request, err error) {
+func (h *HttpRoute) reportAnyError(res http.ResponseWriter, req *http.Request, err error) (int, error) {
 	switch err := err.(type) {
 	case HttpError:
-		h.reportError(res, req, &err)
+		return h.reportError(res, req, &err)
 	case *HttpError:
-		h.reportError(res, req, err)
+		return h.reportError(res, req, err)
 	case errors.Error:
-		h.reportError(res, req, mapHttpError(err))
+		return h.reportError(res, req, mapHttpError(err))
 	default:
-		h.reportError(res, req, HttpInternalServerError(
+		return h.reportError(res, req, HttpInternalServerError(
 			req.Context(), errors.New(errors.ErrInternalError, err)))
 	}
 }
 
-func (h *HttpRoute) reportError(res http.ResponseWriter, req *http.Request, err *HttpError) {
+func (h *HttpRoute) reportError(res http.ResponseWriter, req *http.Request, err *HttpError) (int, error) {
 	path := req.URL.EscapedPath()
 	method := req.Method
 
@@ -264,22 +246,21 @@ func (h *HttpRoute) reportError(res http.ResponseWriter, req *http.Request, err 
 			Description: err.Cause.ErrorCode().Desc(),
 		}); eerr != nil {
 
-			h.incrCounter(http.StatusInternalServerError, req)
 			h.logger.Debug(req.Context(), "failed to encode error response to response writer", log.MapFields{
 				"path":      path,
 				"method":    method,
 				"call_type": "HttpRequestHandleFailure",
 			}, err)
-			return
+			return 0, err
 		}
 	}
 
-	h.incrCounter(err.StatusCode, req)
 	h.logger.Info(req.Context(), "", log.MapFields{
 		"path":      path,
 		"method":    method,
 		"call_type": "HttpRequestHandleFailure",
 	}, err)
+	return err.StatusCode, nil
 }
 
 // HttpRouter multiplexes the handling of server request amongst the different

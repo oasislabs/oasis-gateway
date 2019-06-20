@@ -17,8 +17,7 @@ import (
 )
 
 var logger = log.NewLogrus(log.LogrusLoggerProperties{
-	Level:  logrus.DebugLevel,
-	Output: ioutil.Discard,
+	Level: logrus.DebugLevel,
 })
 
 func mapEntityFactory() EntityFactory {
@@ -200,8 +199,10 @@ func TestHttpRouteReportSuccessEncoderErr(t *testing.T) {
 
 	recorder := httptest.NewRecorder()
 	req, _ := http.NewRequest("GET", "/path", nil)
-	route.reportSuccess(recorder, req, make(map[string]string))
+	status, err := route.reportSuccess(recorder, req, make(map[string]string))
 
+	assert.Error(t, err)
+	assert.Equal(t, 0, status)
 	assert.Equal(t, http.StatusInternalServerError, recorder.Code)
 }
 
