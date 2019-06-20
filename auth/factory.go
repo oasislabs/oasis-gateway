@@ -24,11 +24,7 @@ var NewAuth = FactoryFunc(func(config *Config) (core.Auth, error) {
 		return core.NilAuth{}, nil
 	} else if len(config.Providers) == 1 {
 		a := newAuthSingle(config.Providers[0])
-		if a == nil {
-			return nil, errors.New("A valid authenticator must be specified")
-		} else {
-			return a, nil
-		}
+		return a, nil
 	}
 	multiAuth := new(core.MultiAuth)
 	for _, p := range config.Providers {
@@ -48,6 +44,6 @@ func newAuthSingle(provider AuthProvider) core.Auth {
 	case AuthInsecure:
 		return insecure.InsecureAuth{}
 	default:
-		return nil
+		return core.NilAuth{}
 	}
 }

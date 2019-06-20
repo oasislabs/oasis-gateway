@@ -28,6 +28,3 @@ url = "wss://web3.beta.oasiscloud-staging.net/ws"
 
 [mailbox]
 provider = "mem"
-
-[auth]
-provider = "insecure"
