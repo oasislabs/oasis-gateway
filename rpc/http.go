@@ -146,21 +146,19 @@ func NewHttpRoute(props *HttpRouteProps) *HttpRoute {
 }
 
 func (h *HttpRoute) Stats() stats.Metrics {
-	stats := make(stats.Metrics)
+	s := make(stats.Metrics)
 
 	for method, counter := range h.counters {
-		counterStats := counter.Stats()
+		methodStats := make(stats.Metrics)
+		methodStats["count"] = counter.Stats()
 		if latency, ok := h.latencies[method]; ok {
-			latencyStats := latency.Stats()
-			for key, value := range latencyStats {
-				counterStats[fmt.Sprintf("latency-%s", key)] = value
-			}
+			methodStats["latency"] = latency.Stats()
 		}
 
-		stats[method] = counterStats
+		s[method] = methodStats
 	}
 
-	return stats
+	return s
 }
 
 func (h *HttpRoute) trackLatency(req *http.Request) {
