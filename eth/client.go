@@ -159,8 +159,23 @@ func (c *PooledClient) SendTransaction(ctx context.Context, tx *types.Transactio
 
 	v, err := c.request(ctx, func(conn *Conn) (interface{}, error) {
 		var res sendTransactionResponseDeserialize
-		if err := conn.rclient.CallContext(ctx, &res, "oasis_invoke", hexutil.Encode(data)); err != nil {
-			return nil, err
+		if tx.To() == nil {
+			if err := conn.rclient.CallContext(ctx, nil, "eth_sendRawTransaction", hexutil.Encode(data)); err != nil {
+				return nil, err
+			}
+
+			receipt, err := conn.eclient.TransactionReceipt(ctx, tx.Hash())
+			if err != nil {
+				return nil, err
+			}
+
+			res.Hash = tx.Hash().Hex()
+			res.Status = strconv.FormatUint(receipt.Status, 16)
+
+		} else {
+			if err := conn.rclient.CallContext(ctx, &res, "oasis_invoke", hexutil.Encode(data)); err != nil {
+				return nil, err
+			}
 		}
 
 		return res, nil
