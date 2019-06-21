@@ -11,13 +11,14 @@ import (
 
 	callback "github.com/oasislabs/developer-gateway/callback/client"
 	"github.com/oasislabs/developer-gateway/eth"
+	"github.com/oasislabs/developer-gateway/eth/ethtest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
 
 const address string = "0x6f6704e5a10332af6672e50b3d9754dc460dfa4d"
 
-func mockClientForNonce(client *MockClient) {
+func mockClientForNonce(client *ethtest.MockClient) {
 	client.On("EstimateGas",
 		mock.AnythingOfType("*context.emptyCtx"),
 		mock.AnythingOfType("ethereum.CallMsg")).
@@ -55,7 +56,7 @@ func mockClientForNonce(client *MockClient) {
 		}, nil)
 }
 
-func mockClientForWalletOutOfFundsBodyCallback(client *MockClient) {
+func mockClientForWalletOutOfFundsBodyCallback(client *ethtest.MockClient) {
 	client.On("EstimateGas",
 		mock.AnythingOfType("*context.emptyCtx"),
 		mock.AnythingOfType("ethereum.CallMsg")).
@@ -92,7 +93,7 @@ func (m *MockCallbacks) WalletOutOfFunds(
 	_ = m.Called(ctx, body)
 }
 
-func newOwner(client *MockClient) *WalletOwner {
+func newOwner(client *ethtest.MockClient) *WalletOwner {
 	return NewWalletOwner(
 		&WalletOwnerServices{
 			Client:    client,
@@ -107,7 +108,7 @@ func newOwner(client *MockClient) *WalletOwner {
 }
 
 func TestTransactionNonce(t *testing.T) {
-	mockclient := &MockClient{}
+	mockclient := &ethtest.MockClient{}
 	mockClientForNonce(mockclient)
 	owner := newOwner(mockclient)
 
@@ -119,7 +120,7 @@ func TestTransactionNonce(t *testing.T) {
 }
 
 func TestExecutorSignTransaction(t *testing.T) {
-	mockclient := &MockClient{}
+	mockclient := &ethtest.MockClient{}
 	mockClientForNonce(mockclient)
 	owner := newOwner(mockclient)
 
@@ -145,7 +146,7 @@ func TestExecutorSignTransaction(t *testing.T) {
 }
 
 func TestExecuteTransactionNoAddressBadNonce(t *testing.T) {
-	mockclient := &MockClient{}
+	mockclient := &ethtest.MockClient{}
 	mockClientForNonce(mockclient)
 	owner := newOwner(mockclient)
 
@@ -160,7 +161,7 @@ func TestExecuteTransactionNoAddressBadNonce(t *testing.T) {
 }
 
 func TestExecuteTransactionAddressBadNonce(t *testing.T) {
-	mockclient := &MockClient{}
+	mockclient := &ethtest.MockClient{}
 	mockClientForNonce(mockclient)
 	owner := newOwner(mockclient)
 
@@ -175,7 +176,7 @@ func TestExecuteTransactionAddressBadNonce(t *testing.T) {
 }
 
 func TestExecuteTransactionExceedsBalance(t *testing.T) {
-	mockclient := &MockClient{}
+	mockclient := &ethtest.MockClient{}
 	mockClientForWalletOutOfFundsBodyCallback(mockclient)
 	owner := newOwner(mockclient)
 	mockcallback := owner.callbacks.(*MockCallbacks)
