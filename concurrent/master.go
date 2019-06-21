@@ -435,6 +435,11 @@ func (m *Master) handleWorkerRequest(req workerRequest) {
 }
 
 func (m *Master) handleBroadcastRequest(req broadcastRequest) {
+	if len(m.workers) == 0 {
+		req.Out <- Response{Value: nil, Error: errors.New("no workers available to handle the execute request")}
+		close(req.Out)
+	}
+
 	count := int32(len(m.workers))
 	for _, w := range m.workers {
 		w.C <- workerRequest{
@@ -450,6 +455,7 @@ func (m *Master) handleBroadcastRequest(req broadcastRequest) {
 func (m *Master) handleExecuteRequest(req executeRequest) {
 	if len(m.workers) == 0 {
 		req.Out <- Response{Value: nil, Error: errors.New("no workers available to handle the execute request")}
+		close(req.Out)
 		return
 	}
 
@@ -497,6 +503,7 @@ func (m *Master) createWorker(ctx context.Context, key string, value interface{}
 
 func (m *Master) handleCreateRequest(req createRequest) {
 	req.Out <- m.createWorker(req.Context, req.Key, req.Value)
+	close(req.Out)
 }
 
 func (m *Master) handleDestroyRequest(req destroyRequest) {
@@ -522,6 +529,7 @@ func (m *Master) handleDestroyRequest(req destroyRequest) {
 func (m *Master) handleExistsRequest(req existsRequest) {
 	_, ok := m.workers[req.Key]
 	req.Out <- ok
+	close(req.Out)
 }
 
 func (m *Master) removeWorker(ev workerDestroyed) {

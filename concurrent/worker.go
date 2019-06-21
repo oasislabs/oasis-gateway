@@ -334,15 +334,6 @@ func (w *Worker) handleExecute(req executeRequest) {
 }
 
 func (w *Worker) processRequest(req workerRequest) Response {
-	defer func() {
-		var err error
-		if r := recover(); r != nil {
-			err = errorFromPanic(r)
-			req.Out <- Response{Value: nil, Key: w.key, Error: err}
-			close(req.Out)
-		}
-	}()
-
 	if req.Key != w.key {
 		panic("received request intended for another worker")
 	}
@@ -356,6 +347,17 @@ func (w *Worker) processRequest(req workerRequest) Response {
 }
 
 func (w *Worker) handleRequest(req workerRequest) {
+	defer func() {
+		var err error
+		if r := recover(); r != nil {
+			err = errorFromPanic(r)
+			req.Out <- Response{Value: nil, Key: w.key, Error: err}
+			if value := atomic.AddInt32(req.Count, -1); value == 0 {
+				close(req.Out)
+			}
+		}
+	}()
+
 	req.Out <- w.processRequest(req)
 	if value := atomic.AddInt32(req.Count, -1); value == 0 {
 		close(req.Out)
