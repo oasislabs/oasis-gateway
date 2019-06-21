@@ -26,6 +26,11 @@ func mockClientForNonce(client *MockClient) {
 		mock.AnythingOfType("*context.emptyCtx"),
 		mock.AnythingOfType("common.Address")).
 		Return(uint64(1), nil)
+	client.On("BalanceAt",
+		mock.AnythingOfType("*context.emptyCtx"),
+		mock.AnythingOfType("common.Address"),
+		mock.AnythingOfType("*big.Int")).
+		Return(big.NewInt(1), nil)
 	client.On("TransactionReceipt",
 		mock.AnythingOfType("*context.emptyCtx"),
 		mock.AnythingOfType("common.Hash")).
@@ -59,6 +64,11 @@ func mockClientForWalletOutOfFundsBodyCallback(client *MockClient) {
 		mock.AnythingOfType("*context.emptyCtx"),
 		mock.AnythingOfType("common.Address")).
 		Return(uint64(1), nil)
+	client.On("BalanceAt",
+		mock.AnythingOfType("*context.emptyCtx"),
+		mock.AnythingOfType("common.Address"),
+		mock.AnythingOfType("*big.Int")).
+		Return(big.NewInt(1), nil)
 	client.On("TransactionReceipt",
 		mock.AnythingOfType("*context.emptyCtx"),
 		mock.AnythingOfType("common.Hash")).
@@ -82,10 +92,10 @@ func (m *MockCallbacks) WalletOutOfFunds(
 	_ = m.Called(ctx, body)
 }
 
-func newOwner() *WalletOwner {
+func newOwner(client *MockClient) *WalletOwner {
 	return NewWalletOwner(
 		&WalletOwnerServices{
-			Client:    &MockClient{},
+			Client:    client,
 			Callbacks: &MockCallbacks{},
 			Logger:    Logger,
 		},
@@ -97,7 +107,9 @@ func newOwner() *WalletOwner {
 }
 
 func TestTransactionNonce(t *testing.T) {
-	owner := newOwner()
+	mockclient := &MockClient{}
+	mockClientForNonce(mockclient)
+	owner := newOwner(mockclient)
 
 	var nonce uint64
 	for i := 0; i < 10; i++ {
@@ -107,7 +119,9 @@ func TestTransactionNonce(t *testing.T) {
 }
 
 func TestExecutorSignTransaction(t *testing.T) {
-	owner := newOwner()
+	mockclient := &MockClient{}
+	mockClientForNonce(mockclient)
+	owner := newOwner(mockclient)
 
 	// Build a mock transaction
 	gas := uint64(1000000)
@@ -131,9 +145,9 @@ func TestExecutorSignTransaction(t *testing.T) {
 }
 
 func TestExecuteTransactionNoAddressBadNonce(t *testing.T) {
-	owner := newOwner()
-	mockclient := owner.client.(*MockClient)
+	mockclient := &MockClient{}
 	mockClientForNonce(mockclient)
+	owner := newOwner(mockclient)
 
 	_, err := owner.executeTransaction(context.TODO(), ExecuteRequest{
 		ID:      0,
@@ -146,9 +160,9 @@ func TestExecuteTransactionNoAddressBadNonce(t *testing.T) {
 }
 
 func TestExecuteTransactionAddressBadNonce(t *testing.T) {
-	owner := newOwner()
-	mockclient := owner.client.(*MockClient)
+	mockclient := &MockClient{}
 	mockClientForNonce(mockclient)
+	owner := newOwner(mockclient)
 
 	_, err := owner.executeTransaction(context.TODO(), ExecuteRequest{
 		ID:      0,
@@ -161,10 +175,10 @@ func TestExecuteTransactionAddressBadNonce(t *testing.T) {
 }
 
 func TestExecuteTransactionExceedsBalance(t *testing.T) {
-	owner := newOwner()
-	mockclient := owner.client.(*MockClient)
-	mockcallback := owner.callbacks.(*MockCallbacks)
+	mockclient := &MockClient{}
 	mockClientForWalletOutOfFundsBodyCallback(mockclient)
+	owner := newOwner(mockclient)
+	mockcallback := owner.callbacks.(*MockCallbacks)
 
 	mockcallback.On("WalletOutOfFunds",
 		mock.AnythingOfType("*context.emptyCtx"),

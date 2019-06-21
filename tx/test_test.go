@@ -5,6 +5,7 @@ import (
 	"crypto/ecdsa"
 	"fmt"
 	"io/ioutil"
+	"math/big"
 
 	ethereum "github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
@@ -38,6 +39,19 @@ func GetPrivateKey() *ecdsa.PrivateKey {
 
 type MockClient struct {
 	mock.Mock
+}
+
+func (c *MockClient) BalanceAt(
+	ctx context.Context,
+	address common.Address,
+	block *big.Int,
+) (*big.Int, error) {
+	args := c.Called(ctx, address, block)
+	if args.Get(1) != nil {
+		return nil, args.Error(1)
+	}
+
+	return args.Get(0).(*big.Int), nil
 }
 
 func (m *MockClient) EstimateGas(

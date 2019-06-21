@@ -11,6 +11,7 @@ import (
 	"github.com/oasislabs/developer-gateway/errors"
 	"github.com/oasislabs/developer-gateway/eth"
 	"github.com/oasislabs/developer-gateway/log"
+	"github.com/oasislabs/developer-gateway/stats"
 )
 
 const maxInactivityTimeout = time.Duration(10) * time.Minute
@@ -61,6 +62,36 @@ func NewExecutor(ctx context.Context, services *ExecutorServices, props *Executo
 	}
 
 	return s, nil
+}
+
+func (m *Executor) Name() string {
+	return "tx.Executor"
+}
+
+func (m *Executor) Stats() stats.Metrics {
+	metrics := make(stats.Metrics)
+
+	ctx := context.Background()
+	responses, err := m.master.Broadcast(ctx, statsRequest{})
+	if err != nil {
+		m.logger.Warn(ctx, "failed to fetch stats from wallet owners", log.MapFields{
+			"call_type": "StatsCollectionFailure",
+			"err":       err.Error(),
+		})
+		return metrics
+	}
+
+	for _, res := range responses {
+		if res.Error != nil {
+			metrics[res.Key] = map[string]interface{}{
+				"error": res.Error.Error(),
+			}
+		} else {
+			metrics[res.Key] = res.Value
+		}
+	}
+
+	return metrics
 }
 
 func (m *Executor) handle(ctx context.Context, ev concurrent.MasterEvent) error {

@@ -2,6 +2,7 @@ package concurrent
 
 import (
 	"context"
+	"sync/atomic"
 	"time"
 )
 
@@ -186,8 +187,9 @@ type workerDestroyed struct {
 	Cause error
 }
 
-type response struct {
+type Response struct {
 	Value interface{}
+	Key   string
 	Error error
 }
 
@@ -195,16 +197,27 @@ type workerRequest struct {
 	Context context.Context
 	Key     string
 	Value   interface{}
-	Out     chan response
+	Out     chan Response
+	Count   *int32
+}
+
+type broadcastRequest struct {
+	Context context.Context
+	Value   interface{}
+	Out     chan Response
 }
 
 type executeRequest struct {
 	Context context.Context
 	Value   interface{}
-	Out     chan response
+	Out     chan Response
 }
 
 func (r workerRequest) GetContext() context.Context {
+	return r.Context
+}
+
+func (r broadcastRequest) GetContext() context.Context {
 	return r.Context
 }
 
@@ -310,20 +323,23 @@ func (w *Worker) handleError(req error) (err error) {
 }
 
 func (w *Worker) handleExecute(req executeRequest) {
+	count := int32(1)
 	w.handleRequest(workerRequest{
 		Context: req.Context,
 		Key:     w.key,
 		Value:   req.Value,
 		Out:     req.Out,
+		Count:   &count,
 	})
 }
 
-func (w *Worker) handleRequest(req workerRequest) {
+func (w *Worker) processRequest(req workerRequest) Response {
 	defer func() {
 		var err error
 		if r := recover(); r != nil {
 			err = errorFromPanic(r)
-			req.Out <- response{Value: nil, Error: err}
+			req.Out <- Response{Value: nil, Key: w.key, Error: err}
+			close(req.Out)
 		}
 	}()
 
@@ -336,5 +352,12 @@ func (w *Worker) handleRequest(req workerRequest) {
 		Value:  req.Value,
 	})
 
-	req.Out <- response{Value: v, Error: err}
+	return Response{Value: v, Key: w.key, Error: err}
+}
+
+func (w *Worker) handleRequest(req workerRequest) {
+	req.Out <- w.processRequest(req)
+	if value := atomic.AddInt32(req.Count, -1); value == 0 {
+		close(req.Out)
+	}
 }
