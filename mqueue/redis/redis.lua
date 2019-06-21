@@ -1,3 +1,5 @@
+local expire_time = 600 -- in seconds
+
 local mqbasenlen = function(key)
   local len = redis.call('llen', key)
   if len > 0 then
@@ -21,6 +23,7 @@ local mqnext = function(key)
 
   local payload = cjson.encode({offset = offset, set = false})
   assert(redis.call('rpush', key, payload) == len + 1)
+  assert(redis.call('expire', key, expire_time) == 1)
   return offset
 end
 
@@ -37,6 +40,7 @@ local mqinsert = function(key, offset, value_type, value)
   assert(index >= 0 and index < len)
 
   local payload = cjson.encode({offset = tonumber(offset), value = value, value_type = value_type, set = true})
+  assert(redis.call('expire', key, expire_time) == 1)
   return redis.call('lset', key, index, payload)
 end
 
@@ -71,6 +75,7 @@ local mqretrieve = function(key, offset, count)
     stop = start
   end
 
+  assert(redis.call('expire', key, expire_time) == 1)
   return redis.call('lrange', key, start, stop)
 end
 
@@ -93,11 +98,13 @@ local mqdiscard = function(key, offset)
 
   assert(start >= 0)
 
+  assert(redis.call('expire', key, expire_time) == 1)
   return redis.call('ltrim', key, start, stop)
 end
 
 -- remove the key and all associated resources
 local mqremove = function(key)
+  assert(redis.call('expire', key, expire_time) == 1)
   return redis.call('del', key)
 end
 
@@ -134,6 +141,9 @@ local test = function()
   local t = mqretrieve('example', 0, 10)
   assert(cjson.decode(t[1])['offset'] == 2)
   assert(cjson.decode(t[2])['offset'] == 3)
+
+  local ttl = redis.call('ttl', 'example')
+  assert(ttl <= 600 and ttl > 100)
 
   mqremove('example')
   assert(redis.call('exists', 'example') == 0)
