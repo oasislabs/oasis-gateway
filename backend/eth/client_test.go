@@ -7,8 +7,11 @@ import (
 	"fmt"
 	"io/ioutil"
 	"math/big"
+	"strings"
 	"testing"
 
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/oasislabs/developer-gateway/backend/core"
 	backend "github.com/oasislabs/developer-gateway/backend/core"
@@ -117,4 +120,159 @@ func TestGetPublicKeyOK(t *testing.T) {
 		PublicKey: "0x6f6704e5a10332af6672e50b3d9754dc460dfa4d",
 		Signature: "0x6f6704e5a10332af6672e50b3d9754dc460dfa4d",
 	}, pk)
+}
+
+func TestDeployServiceOK(t *testing.T) {
+	client, err := NewClientWithMock()
+	assert.Nil(t, err)
+
+	client.client.(*ethtest.MockClient).On("EstimateGas",
+		mock.AnythingOfType("*context.emptyCtx"),
+		mock.AnythingOfType("ethereum.CallMsg")).
+		Return(uint64(0), nil)
+	client.client.(*ethtest.MockClient).On("NonceAt",
+		mock.AnythingOfType("*context.emptyCtx"),
+		mock.AnythingOfType("common.Address")).
+		Return(uint64(1), nil)
+	client.client.(*ethtest.MockClient).On("BalanceAt",
+		mock.AnythingOfType("*context.emptyCtx"),
+		mock.AnythingOfType("common.Address"),
+		mock.AnythingOfType("*big.Int")).
+		Return(big.NewInt(1), nil)
+	client.client.(*ethtest.MockClient).On("TransactionReceipt",
+		mock.AnythingOfType("*context.emptyCtx"),
+		mock.AnythingOfType("common.Hash")).
+		Return(&types.Receipt{
+			ContractAddress: common.HexToAddress(strings.Repeat("0", 20)),
+		}, nil)
+	client.client.(*ethtest.MockClient).On("SendTransaction",
+		mock.AnythingOfType("*context.emptyCtx"),
+		mock.Anything).
+		Return(eth.SendTransactionResponse{
+			Status: StatusOK,
+			Output: "Success",
+			Hash:   "Some hash",
+		}, nil)
+
+	res, err := client.DeployService(Context, 1, backend.DeployServiceRequest{
+		Data: "0x0000000000000000000000000000000000000000",
+	})
+
+	assert.Nil(t, err)
+	assert.Equal(t, backend.DeployServiceResponse{
+		ID:      uint64(1),
+		Address: "0x0000000000000000000000000000000000000000",
+	}, res)
+}
+
+func TestDeployServiceEstimateGasErr(t *testing.T) {
+	client, err := NewClientWithMock()
+	assert.Nil(t, err)
+
+	client.client.(*ethtest.MockClient).On("EstimateGas",
+		mock.AnythingOfType("*context.emptyCtx"),
+		mock.AnythingOfType("ethereum.CallMsg")).
+		Return(uint64(0), errors.New("error"))
+
+	_, err = client.DeployService(Context, 1, backend.DeployServiceRequest{
+		Data: "0x0000000000000000000000000000000000000000",
+	})
+
+	assert.Equal(t, "[1002] error code InternalError with desc Internal Error. Please check the status of the service. with cause error", err.Error())
+}
+
+func TestExecuteServiceOK(t *testing.T) {
+	client, err := NewClientWithMock()
+	assert.Nil(t, err)
+
+	client.client.(*ethtest.MockClient).On("EstimateGas",
+		mock.AnythingOfType("*context.emptyCtx"),
+		mock.AnythingOfType("ethereum.CallMsg")).
+		Return(uint64(0), nil)
+	client.client.(*ethtest.MockClient).On("NonceAt",
+		mock.AnythingOfType("*context.emptyCtx"),
+		mock.AnythingOfType("common.Address")).
+		Return(uint64(1), nil)
+	client.client.(*ethtest.MockClient).On("BalanceAt",
+		mock.AnythingOfType("*context.emptyCtx"),
+		mock.AnythingOfType("common.Address"),
+		mock.AnythingOfType("*big.Int")).
+		Return(big.NewInt(1), nil)
+	client.client.(*ethtest.MockClient).On("TransactionReceipt",
+		mock.AnythingOfType("*context.emptyCtx"),
+		mock.AnythingOfType("common.Hash")).
+		Return(&types.Receipt{
+			ContractAddress: common.HexToAddress(strings.Repeat("0", 20)),
+		}, nil)
+	client.client.(*ethtest.MockClient).On("SendTransaction",
+		mock.AnythingOfType("*context.emptyCtx"),
+		mock.Anything).
+		Return(eth.SendTransactionResponse{
+			Status: StatusOK,
+			Output: "Success",
+			Hash:   "Some hash",
+		}, nil)
+
+	res, err := client.ExecuteService(Context, 1, backend.ExecuteServiceRequest{
+		Address: "0x5d352cf2160f79CBF3554534cF25A4b42C43D502",
+		Data:    "0x0000000000000000000000000000000000000000",
+	})
+
+	assert.Nil(t, err)
+	assert.Equal(t, backend.ExecuteServiceResponse{
+		ID:      uint64(1),
+		Address: "0x5d352cf2160f79CBF3554534cF25A4b42C43D502",
+		Output:  "Success",
+	}, res)
+}
+
+func TestExecuteServiceEstimateGasErr(t *testing.T) {
+	client, err := NewClientWithMock()
+	assert.Nil(t, err)
+
+	client.client.(*ethtest.MockClient).On("EstimateGas",
+		mock.AnythingOfType("*context.emptyCtx"),
+		mock.AnythingOfType("ethereum.CallMsg")).
+		Return(uint64(0), errors.New("error"))
+
+	_, err = client.ExecuteService(Context, 1, backend.ExecuteServiceRequest{
+		Address: "0x5d352cf2160f79CBF3554534cF25A4b42C43D502",
+		Data:    "0x0000000000000000000000000000000000000000",
+	})
+
+	assert.Equal(t, "[1002] error code InternalError with desc Internal Error. Please check the status of the service. with cause error", err.Error())
+}
+
+func TestExecuteServiceEmptyAddressErr(t *testing.T) {
+	client, err := NewClientWithMock()
+	assert.Nil(t, err)
+
+	client.client.(*ethtest.MockClient).On("EstimateGas",
+		mock.AnythingOfType("*context.emptyCtx"),
+		mock.AnythingOfType("ethereum.CallMsg")).
+		Return(uint64(0), errors.New("error"))
+
+	_, err = client.ExecuteService(Context, 1, backend.ExecuteServiceRequest{
+		Data:    "0x0000000000000000000000000000000000000000",
+		Address: "",
+	})
+
+	assert.Equal(t, "[2006] error code InputError with desc Provided invalid address.", err.Error())
+}
+
+func TestExecuteServiceNoHexAddressErr(t *testing.T) {
+	client, err := NewClientWithMock()
+	assert.Nil(t, err)
+
+	client.client.(*ethtest.MockClient).On("EstimateGas",
+		mock.AnythingOfType("*context.emptyCtx"),
+		mock.AnythingOfType("ethereum.CallMsg")).
+		Return(uint64(0), errors.New("error"))
+
+	_, err = client.ExecuteService(Context, 1, backend.ExecuteServiceRequest{
+		Data:    "0x0000000000000000000000000000000000000000",
+		Address: "addressaddressaddressaddressaddressad",
+	})
+
+	assert.Equal(t, "[2006] error code InputError with desc Provided invalid address.", err.Error())
 }
