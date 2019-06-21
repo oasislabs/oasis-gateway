@@ -66,7 +66,7 @@ func (m *MockClient) SubscribeFilterLogs(
 	c chan<- types.Log,
 ) (ethereum.Subscription, error) {
 	args := m.Called(ctx, q, c)
-	return args.Get(0).(ethereum.Subscription), args.Error(1)
+	return args.Get(0).(*MockSubscription), args.Error(1)
 }
 
 func (m *MockClient) TransactionReceipt(ctx context.Context, txHash common.Hash) (*types.Receipt, error) {

@@ -316,7 +316,7 @@ func (w *Worker) handleError(req error) (err error) {
 	// that error will be reported when the worker is destroyed
 	_, err = w.handler.Handle(context.Background(), ErrorWorkerEvent{
 		Worker: w,
-		Error:  err,
+		Error:  req,
 	})
 
 	return err

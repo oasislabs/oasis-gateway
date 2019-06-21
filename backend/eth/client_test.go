@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"math/big"
 	"strings"
+	"sync/atomic"
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -275,4 +276,111 @@ func TestExecuteServiceNoHexAddressErr(t *testing.T) {
 	})
 
 	assert.Equal(t, "[2006] error code InputError with desc Provided invalid address.", err.Error())
+}
+
+func TestSubscribeInvalidTopicErr(t *testing.T) {
+	client, err := NewClientWithMock()
+	assert.Nil(t, err)
+
+	client.client.(*ethtest.MockClient).On("SubscribeFilterLogs",
+		mock.Anything,
+		mock.Anything,
+		mock.Anything).
+		Return(nil, errors.New("error"))
+
+	c := make(chan interface{})
+	err = client.SubscribeRequest(Context, backend.CreateSubscriptionRequest{
+		Topic:   "topic",
+		Address: "address",
+		SubID:   "subID",
+	}, c)
+
+	assert.Equal(t, "[2012] error code InputError with desc Only logs topic supported for subscriptions.", err.Error())
+}
+
+func TestSubscribeErr(t *testing.T) {
+	client, err := NewClientWithMock()
+	assert.Nil(t, err)
+
+	client.client.(*ethtest.MockClient).On("SubscribeFilterLogs",
+		mock.Anything,
+		mock.Anything,
+		mock.Anything).
+		Return(&ethtest.MockSubscription{}, errors.New("error"))
+
+	c := make(chan interface{})
+	err = client.SubscribeRequest(Context, backend.CreateSubscriptionRequest{
+		Topic:   "logs",
+		Address: "address",
+		SubID:   "subID",
+	}, c)
+
+	assert.Equal(t, "[1000] error code InternalError with desc Internal Error. Please check the status of the service. with cause error", err.Error())
+}
+
+func TestSubscribeOK(t *testing.T) {
+	client, err := NewClientWithMock()
+	assert.Nil(t, err)
+
+	sub := &ethtest.MockSubscription{}
+	errC := make(<-chan error)
+	sub.On("Err").
+		Return(errC)
+
+	client.client.(*ethtest.MockClient).On("SubscribeFilterLogs",
+		mock.Anything, mock.Anything, mock.Anything).
+		Run(func(args mock.Arguments) {
+			c := args.Get(2).(chan<- types.Log)
+			c <- types.Log{}
+			close(c)
+		}).
+		Return(sub, nil)
+
+	c := make(chan interface{})
+	err = client.SubscribeRequest(Context, backend.CreateSubscriptionRequest{
+		Topic:   "logs",
+		Address: "address",
+		SubID:   "subID",
+	}, c)
+	assert.Nil(t, err)
+
+	assert.Equal(t, types.Log{}, <-c)
+	close(c)
+}
+
+func TestSubscribeSubscriptionErr(t *testing.T) {
+	client, err := NewClientWithMock()
+	assert.Nil(t, err)
+
+	sub := &ethtest.MockSubscription{}
+	errC := make(chan error, 1)
+	outErrC := func() <-chan error { return errC }()
+	sub.On("Err").
+		Return(outErrC)
+	errC <- errors.New("error")
+
+	count := int32(0)
+	client.client.(*ethtest.MockClient).On("SubscribeFilterLogs",
+		mock.Anything, mock.Anything, mock.Anything).
+		Run(func(args mock.Arguments) {
+			value := atomic.AddInt32(&count, 1)
+			if value == 2 {
+				c := args.Get(2).(chan<- types.Log)
+				c <- types.Log{}
+				close(c)
+			}
+		}).
+		Return(sub, nil)
+
+	c := make(chan interface{})
+	err = client.SubscribeRequest(Context, backend.CreateSubscriptionRequest{
+		Topic:   "logs",
+		Address: "address",
+		SubID:   "subID",
+	}, c)
+	assert.Nil(t, err)
+
+	assert.Equal(t, types.Log{}, <-c)
+	close(c)
+	client.client.(*ethtest.MockClient).AssertNumberOfCalls(t, "SubscribeFilterLogs", 2)
 }
