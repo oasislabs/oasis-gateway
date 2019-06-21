@@ -1,4 +1,9 @@
 FROM golang:1.11-alpine AS builder
+
+# Set GOPROXY to accept go proxy as a build arg and set as an environment
+# variable. By default this value is empty and not use a go proxy.
+ARG GOPROXY=
+
 RUN apk add make git libc-dev gcc
 
 WORKDIR /app
