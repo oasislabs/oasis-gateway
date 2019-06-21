@@ -21,6 +21,14 @@ import (
 	"github.com/oasislabs/developer-gateway/tx"
 )
 
+const (
+	getPublicKey       string = "GetPublicKey"
+	deployService      string = "DeployService"
+	executeService     string = "ExecuteService"
+	subscribeRequest   string = "SubscribeRequest"
+	unsubscribeRequest string = "UnsubscribeRequest"
+)
+
 const StatusOK = 1
 
 type executeTransactionRequest struct {
@@ -46,6 +54,7 @@ type Client struct {
 	client   eth.Client
 	executor *tx.Executor
 	subman   *eth.SubscriptionManager
+	tracker  *stats.MethodTracker
 }
 
 func (c *Client) Name() string {
@@ -53,10 +62,10 @@ func (c *Client) Name() string {
 }
 
 func (c *Client) Stats() stats.Metrics {
-	return nil
+	return c.tracker.Stats()
 }
 
-func (c *Client) GetPublicKey(
+func (c *Client) getPublicKey(
 	ctx context.Context,
 	req backend.GetPublicKeyRequest,
 ) (backend.GetPublicKeyResponse, errors.Err) {
@@ -92,6 +101,21 @@ func (c *Client) GetPublicKey(
 	}, nil
 }
 
+func (c *Client) GetPublicKey(
+	ctx context.Context,
+	req backend.GetPublicKeyRequest,
+) (backend.GetPublicKeyResponse, errors.Err) {
+	v, err := c.tracker.Instrument(getPublicKey, func() (interface{}, error) {
+		return c.getPublicKey(ctx, req)
+	})
+
+	if err != nil {
+		return backend.GetPublicKeyResponse{}, err.(errors.Err)
+	}
+
+	return v.(backend.GetPublicKeyResponse), nil
+}
+
 func (c *Client) verifyAddress(addr string) errors.Err {
 	if len(addr) != 42 {
 		return errors.New(errors.ErrInvalidAddress, nil)
@@ -105,6 +129,21 @@ func (c *Client) verifyAddress(addr string) errors.Err {
 }
 
 func (c *Client) DeployService(
+	ctx context.Context,
+	id uint64,
+	req backend.DeployServiceRequest,
+) (backend.DeployServiceResponse, errors.Err) {
+	v, err := c.tracker.Instrument(deployService, func() (interface{}, error) {
+		return c.deployService(ctx, id, req)
+	})
+	if err != nil {
+		return backend.DeployServiceResponse{}, err.(errors.Err)
+	}
+
+	return v.(backend.DeployServiceResponse), nil
+}
+
+func (c *Client) deployService(
 	ctx context.Context,
 	id uint64,
 	req backend.DeployServiceRequest,
@@ -130,6 +169,21 @@ func (c *Client) DeployService(
 }
 
 func (c *Client) ExecuteService(
+	ctx context.Context,
+	id uint64,
+	req backend.ExecuteServiceRequest,
+) (backend.ExecuteServiceResponse, errors.Err) {
+	v, err := c.tracker.Instrument(executeService, func() (interface{}, error) {
+		return c.executeService(ctx, id, req)
+	})
+	if err != nil {
+		return backend.ExecuteServiceResponse{}, err.(errors.Err)
+	}
+
+	return v.(backend.ExecuteServiceResponse), nil
+}
+
+func (c *Client) executeService(
 	ctx context.Context,
 	id uint64,
 	req backend.ExecuteServiceRequest,
@@ -164,6 +218,21 @@ func (c *Client) SubscribeRequest(
 	req backend.CreateSubscriptionRequest,
 	ch chan<- interface{},
 ) errors.Err {
+	_, err := c.tracker.Instrument(subscribeRequest, func() (interface{}, error) {
+		return nil, c.subscribeRequest(ctx, req, ch)
+	})
+	if err != nil {
+		return err.(errors.Err)
+	}
+
+	return nil
+}
+
+func (c *Client) subscribeRequest(
+	ctx context.Context,
+	req backend.CreateSubscriptionRequest,
+	ch chan<- interface{},
+) errors.Err {
 	if req.Topic != "logs" {
 		return errors.New(errors.ErrTopicLogsSupported, nil)
 	}
@@ -193,6 +262,20 @@ func (c *Client) UnsubscribeRequest(
 	ctx context.Context,
 	req backend.DestroySubscriptionRequest,
 ) errors.Err {
+	_, err := c.tracker.Instrument(unsubscribeRequest, func() (interface{}, error) {
+		return nil, c.unsubscribeRequest(ctx, req)
+	})
+	if err != nil {
+		return err.(errors.Err)
+	}
+
+	return nil
+}
+
+func (c *Client) unsubscribeRequest(
+	ctx context.Context,
+	req backend.DestroySubscriptionRequest,
+) errors.Err {
 	if err := c.subman.Destroy(ctx, req.SubID); err != nil {
 		err := errors.New(errors.ErrInternalError, err)
 		c.logger.Debug(ctx, "failed to destroy subscription", log.MapFields{
@@ -208,12 +291,10 @@ func (c *Client) executeTransaction(
 	ctx context.Context,
 	req executeTransactionRequest,
 ) (*executeTransactionResponse, errors.Err) {
-	contractAddress := req.Address
-
 	c.logger.Debug(ctx, "", log.MapFields{
-		"call_type": "ExecuteTransactionAttempt",
-		"id":        req.ID,
-		"address":   req.Address,
+		"call_type":      "ExecuteTransactionAttempt",
+		"id":             req.ID,
+		"executeAddress": req.Address,
 	})
 
 	res, err := c.executor.Execute(ctx, tx.ExecuteRequest{
@@ -223,39 +304,24 @@ func (c *Client) executeTransaction(
 	})
 	if err != nil {
 		c.logger.Debug(ctx, "failure to retrieve transaction receipt", log.MapFields{
-			"call_type": "ExecuteTransactionFailure",
-			"id":        req.ID,
-			"address":   req.Address,
+			"call_type":      "ExecuteTransactionFailure",
+			"id":             req.ID,
+			"executeAddress": req.Address,
 		}, err)
 
 		return nil, err
 	}
 
-	if len(contractAddress) == 0 {
-		receipt, err := c.client.TransactionReceipt(ctx, common.HexToHash(res.Hash))
-		if err != nil {
-			err := errors.New(errors.ErrTransactionReceipt, err)
-			c.logger.Debug(ctx, "failure to retrieve transaction receipt", log.MapFields{
-				"call_type": "ExecuteTransactionFailure",
-				"id":        req.ID,
-				"address":   req.Address,
-			}, err)
-
-			return nil, err
-		}
-
-		contractAddress = receipt.ContractAddress.Hex()
-	}
-
 	c.logger.Debug(ctx, "transaction sent successfully", log.MapFields{
-		"call_type": "ExecuteTransactionSuccess",
-		"id":        req.ID,
-		"address":   req.Address,
+		"call_type":       "ExecuteTransactionSuccess",
+		"id":              req.ID,
+		"executeAddress":  req.Address,
+		"contractAddress": res.Address,
 	})
 
 	return &executeTransactionResponse{
 		ID:      req.ID,
-		Address: contractAddress,
+		Address: res.Address,
 		Output:  res.Output,
 	}, nil
 }
@@ -281,11 +347,17 @@ type ClientServices struct {
 }
 
 func NewClientWithDeps(ctx context.Context, deps *ClientDeps) *Client {
+
 	return &Client{
 		ctx:      ctx,
 		logger:   deps.Logger.ForClass("eth", "Client"),
 		client:   deps.Client,
 		executor: deps.Executor,
+		tracker: stats.NewMethodTracker(getPublicKey,
+			deployService,
+			executeService,
+			subscribeRequest,
+			unsubscribeRequest),
 		subman: eth.NewSubscriptionManager(eth.SubscriptionManagerProps{
 			Context: ctx,
 			Logger:  deps.Logger,

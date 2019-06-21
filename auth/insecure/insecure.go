@@ -27,7 +27,7 @@ func (a InsecureAuth) Stats() stats.Metrics {
 func (a InsecureAuth) Authenticate(req *http.Request) (string, error) {
 	value := req.Header.Get(HeaderKey)
 	if len(value) == 0 {
-		return "", errors.New("Verification failed")
+		return "", ErrDataTooShort
 	}
 
 	return value, nil
@@ -37,5 +37,6 @@ func (InsecureAuth) Verify(data string, expectedAAD string) error {
 	if len(data) == 0 {
 		return ErrDataTooShort
 	}
+
 	return nil
 }

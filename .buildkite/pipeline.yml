@@ -11,10 +11,13 @@ steps:
     plugins:
       - *common_tools_plugin
 
+  # This label must be kept in sync with the label used un runtime-ethereum,
+  # which is used to download the artifact produced here.
   - label: Build
     branches: "*"
     command:
       - .buildkite/scripts/docker_build.sh
+      - buildkite-agent artifact upload developer-gateway
     env:
       GOPROXY: https://athens.ops.oasiscloud.io/
     timeout_in_minutes: 20
@@ -61,9 +64,12 @@ steps:
 
   - label: Generate steps for generic docker pipeline
     branches: master
+    env:
+      GOPROXY: https://athens.ops.oasiscloud.io/
     command: >
       .buildkite/common/pipelines/generic_docker_build_publish_and_deploy.sh
       --docker-build-arg BUILDKITE_ACCESS_TOKEN=$BUILDKITE_ACCESS_TOKEN
+      --docker-build-arg GOPROXY=$GOPROXY
       --staging-environment staging
       --staging-chart-name developer-gateway
       --production-environment production

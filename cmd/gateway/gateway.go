@@ -10,21 +10,19 @@ import (
 	"github.com/oasislabs/developer-gateway/config"
 	"github.com/oasislabs/developer-gateway/gateway"
 	"github.com/oasislabs/developer-gateway/log"
+	"github.com/oasislabs/developer-gateway/rpc"
 )
 
-func publicServer(config *gateway.Config, group *gateway.ServiceGroup) {
-	bindConfig := config.BindPublicConfig
-	httpInterface := bindConfig.HttpInterface
-	httpPort := bindConfig.HttpPort
-
-	router := gateway.NewPublicRouter(group)
+func publicServer(config *gateway.BindPublicConfig, router *rpc.HttpRouter) {
+	httpInterface := config.HttpInterface
+	httpPort := config.HttpPort
 
 	s := &http.Server{
 		Addr:           fmt.Sprintf("%s:%d", httpInterface, httpPort),
 		Handler:        router,
-		ReadTimeout:    time.Duration(bindConfig.HttpReadTimeoutMs) * time.Millisecond,
-		WriteTimeout:   time.Duration(bindConfig.HttpWriteTimeoutMs) * time.Millisecond,
-		MaxHeaderBytes: int(bindConfig.HttpMaxHeaderBytes),
+		ReadTimeout:    time.Duration(config.HttpReadTimeoutMs) * time.Millisecond,
+		WriteTimeout:   time.Duration(config.HttpWriteTimeoutMs) * time.Millisecond,
+		MaxHeaderBytes: int(config.HttpMaxHeaderBytes),
 	}
 
 	gateway.RootLogger.Info(gateway.RootContext, "listening to port", log.MapFields{
@@ -33,8 +31,8 @@ func publicServer(config *gateway.Config, group *gateway.ServiceGroup) {
 		"interface": httpInterface,
 	})
 
-	if bindConfig.HttpsEnabled {
-		if err := s.ListenAndServeTLS(bindConfig.TlsCertificatePath, bindConfig.TlsPrivateKeyPath); err != nil {
+	if config.HttpsEnabled {
+		if err := s.ListenAndServeTLS(config.TlsCertificatePath, config.TlsPrivateKeyPath); err != nil {
 			gateway.RootLogger.Fatal(gateway.RootContext, "http server failed to listen", log.MapFields{
 				"call_type": "HttpPublicListenFailure",
 				"port":      httpPort,
@@ -57,18 +55,16 @@ func publicServer(config *gateway.Config, group *gateway.ServiceGroup) {
 	}
 }
 
-func privateServer(config *gateway.Config, group *gateway.ServiceGroup) {
-	bindConfig := config.BindPrivateConfig
-	httpInterface := bindConfig.HttpInterface
-	httpPort := bindConfig.HttpPort
+func privateServer(config *gateway.BindPrivateConfig, router *rpc.HttpRouter) {
+	httpInterface := config.HttpInterface
+	httpPort := config.HttpPort
 
-	router := gateway.NewPrivateRouter(group)
 	s := &http.Server{
 		Addr:           fmt.Sprintf("%s:%d", httpInterface, httpPort),
 		Handler:        router,
-		ReadTimeout:    time.Duration(bindConfig.HttpReadTimeoutMs) * time.Millisecond,
-		WriteTimeout:   time.Duration(bindConfig.HttpWriteTimeoutMs) * time.Millisecond,
-		MaxHeaderBytes: int(bindConfig.HttpMaxHeaderBytes),
+		ReadTimeout:    time.Duration(config.HttpReadTimeoutMs) * time.Millisecond,
+		WriteTimeout:   time.Duration(config.HttpWriteTimeoutMs) * time.Millisecond,
+		MaxHeaderBytes: int(config.HttpMaxHeaderBytes),
 	}
 
 	gateway.RootLogger.Info(gateway.RootContext, "listening to port", log.MapFields{
@@ -77,8 +73,8 @@ func privateServer(config *gateway.Config, group *gateway.ServiceGroup) {
 		"interface": httpInterface,
 	})
 
-	if bindConfig.HttpsEnabled {
-		if err := s.ListenAndServeTLS(bindConfig.TlsCertificatePath, bindConfig.TlsPrivateKeyPath); err != nil {
+	if config.HttpsEnabled {
+		if err := s.ListenAndServeTLS(config.TlsCertificatePath, config.TlsPrivateKeyPath); err != nil {
 			gateway.RootLogger.Fatal(gateway.RootContext, "http server failed to listen", log.MapFields{
 				"call_type": "HttpPrivateListenFailure",
 				"port":      httpPort,
@@ -151,13 +147,15 @@ func main() {
 		os.Exit(1)
 	}
 
+	routers := gateway.NewRouters(group)
+
 	go func() {
-		publicServer(config, group)
+		publicServer(&config.BindPublicConfig, routers.Public)
 		wg.Done()
 	}()
 
 	go func() {
-		privateServer(config, group)
+		privateServer(&config.BindPrivateConfig, routers.Private)
 		wg.Done()
 	}()
 

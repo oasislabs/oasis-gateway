@@ -7,6 +7,7 @@ import (
 	"github.com/oasislabs/developer-gateway/concurrent"
 	"github.com/oasislabs/developer-gateway/log"
 	"github.com/oasislabs/developer-gateway/mqueue/core"
+	"github.com/oasislabs/developer-gateway/stats"
 )
 
 const maxInactivityTimeout = time.Duration(10) * time.Minute
@@ -101,4 +102,12 @@ func (s *Server) Next(ctx context.Context, req core.NextRequest) (uint64, error)
 // Remove the key's queue and it's associated resources
 func (s *Server) Remove(ctx context.Context, req core.RemoveRequest) error {
 	return s.master.Destroy(ctx, req.Key)
+}
+
+func (s *Server) Name() string {
+	return "mqueue.mem.Server"
+}
+
+func (s *Server) Stats() stats.Metrics {
+	return nil
 }
