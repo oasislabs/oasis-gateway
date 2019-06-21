@@ -1,4 +1,4 @@
-package mock
+package callbacktest
 
 import (
 	"context"
@@ -7,10 +7,13 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
-type MockCallbackClient struct {
+type MockClient struct {
 	mock.Mock
 }
 
-func (c *MockCallbackClient) WalletOutOfFunds(ctx context.Context, body callback.WalletOutOfFundsBody) {
+func (c *MockClient) WalletOutOfFunds(
+	ctx context.Context,
+	body callback.WalletOutOfFundsBody,
+) {
 	_ = c.Called(ctx, body)
 }
