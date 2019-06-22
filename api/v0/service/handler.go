@@ -50,7 +50,11 @@ func (h ServiceHandler) DeployService(ctx context.Context, v interface{}) (inter
 	authData := ctx.Value(auth.ContextAuthDataKey).(auth.AuthData)
 	req := v.(*DeployServiceRequest)
 
-	if err := h.verifier.Verify(req.Data, authData.ExpectedAAD); err != nil {
+	authReq := auth.AuthRequest{
+		API:  "Deploy",
+		Data: req.Data,
+	}
+	if err := h.verifier.Verify(authReq, authData.ExpectedAAD); err != nil {
 		e := errors.New(errors.ErrFailedAADVerification, err)
 		h.logger.Debug(ctx, "failed to verify AAD", log.MapFields{
 			"expectedAAD": authData.ExpectedAAD,
@@ -88,7 +92,13 @@ func (h ServiceHandler) ExecuteService(ctx context.Context, v interface{}) (inte
 		return nil, e
 	}
 
-	if err := h.verifier.Verify(req.Data, authData.ExpectedAAD); err != nil {
+	authReq := auth.AuthRequest{
+		API:     "Execute",
+		Address: req.Address,
+		Data:    req.Data,
+		// TODO: AAD
+	}
+	if err := h.verifier.Verify(authReq, authData.ExpectedAAD); err != nil {
 		e := errors.New(errors.ErrFailedAADVerification, err)
 		h.logger.Debug(ctx, "failed to verify AAD", log.MapFields{
 			"call_type":   "ExecuteServiceFailure",

@@ -7,6 +7,7 @@ import (
 	"net/http"
 
 	oidc "github.com/coreos/go-oidc"
+	auth "github.com/oasislabs/developer-gateway/auth/core"
 	"github.com/oasislabs/developer-gateway/stats"
 )
 
@@ -92,20 +93,20 @@ const (
 //   - pk is expected to be 16 bytes
 //   - cipher length and aad length are uint64 encoded in big endian
 //   - nonce is expected to be 5 bytes
-func (GoogleOauth) Verify(data string, expectedAAD string) error {
-	if len(data) < cipherOffset {
+func (GoogleOauth) Verify(data auth.AuthRequest, expectedAAD string) error {
+	if len(data.Data) < cipherOffset {
 		return errors.New("Payload data is too short")
 	}
 
-	cipherLength := binary.BigEndian.Uint64([]byte(data[cipherLengthOffset:aadLengthOffset]))
-	aadLength := binary.BigEndian.Uint64([]byte(data[aadLengthOffset:cipherOffset]))
+	cipherLength := binary.BigEndian.Uint64([]byte(data.Data[cipherLengthOffset:aadLengthOffset]))
+	aadLength := binary.BigEndian.Uint64([]byte(data.Data[aadLengthOffset:cipherOffset]))
 
-	if len(data) < int(cipherOffset+cipherLength+aadLength+nonceLength) {
+	if len(data.Data) < int(cipherOffset+cipherLength+aadLength+nonceLength) {
 		return errors.New("Missing data")
 	}
 
 	aadOffset := cipherOffset + cipherLength
-	aad := data[aadOffset : aadOffset+aadLength]
+	aad := data.Data[aadOffset : aadOffset+aadLength]
 
 	if aad != expectedAAD {
 		return errors.New("AAD does not match")
