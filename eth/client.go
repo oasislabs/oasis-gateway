@@ -31,6 +31,7 @@ type Client interface {
 	SendTransaction(context.Context, *types.Transaction) (SendTransactionResponse, error)
 	SubscribeFilterLogs(context.Context, ethereum.FilterQuery, chan<- types.Log) (ethereum.Subscription, error)
 	TransactionReceipt(ctx context.Context, txHash common.Hash) (*types.Receipt, error)
+	BalanceAt(ctx context.Context, account common.Address, blockNumber *big.Int) (*big.Int, error)
 }
 
 type ethClient interface {
@@ -38,6 +39,7 @@ type ethClient interface {
 	NonceAt(ctx context.Context, account common.Address, n *big.Int) (uint64, error)
 	TransactionReceipt(ctx context.Context, txHash common.Hash) (*types.Receipt, error)
 	SubscribeFilterLogs(ctx context.Context, q ethereum.FilterQuery, c chan<- types.Log) (ethereum.Subscription, error)
+	BalanceAt(ctx context.Context, account common.Address, blockNumber *big.Int) (*big.Int, error)
 	Close()
 }
 
@@ -123,6 +125,18 @@ func (c *PooledClient) EstimateGas(ctx context.Context, msg ethereum.CallMsg) (u
 	}
 
 	return v.(uint64), nil
+}
+
+func (c *PooledClient) BalanceAt(ctx context.Context, account common.Address, blockNumber *big.Int) (*big.Int, error) {
+	v, err := c.request(ctx, func(conn *Conn) (interface{}, error) {
+		return conn.eclient.BalanceAt(ctx, account, blockNumber)
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	return v.(*big.Int), nil
 }
 
 func (c *PooledClient) GetPublicKey(ctx context.Context, address common.Address) (PublicKey, error) {

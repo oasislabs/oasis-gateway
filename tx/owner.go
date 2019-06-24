@@ -18,6 +18,7 @@ import (
 	"github.com/oasislabs/developer-gateway/errors"
 	"github.com/oasislabs/developer-gateway/eth"
 	"github.com/oasislabs/developer-gateway/log"
+	"github.com/oasislabs/developer-gateway/stats"
 )
 
 // Callbacks implemented by the WalletOwner
@@ -50,16 +51,21 @@ type createOwnerRequest struct {
 	PrivateKey *ecdsa.PrivateKey
 }
 
+type statsRequest struct{}
+
 // WalletOwner is the only instance that should interact
 // with a wallet. Its main goal is to send transactions
 // and keep the funding and nonce of the wallet up to
 // date
 type WalletOwner struct {
-	wallet    Wallet
-	nonce     uint64
-	client    eth.Client
-	callbacks Callbacks
-	logger    log.Logger
+	wallet          Wallet
+	nonce           uint64
+	currentBalance  *big.Int
+	startBalance    *big.Int
+	consumedBalance *big.Int
+	client          eth.Client
+	callbacks       Callbacks
+	logger          log.Logger
 }
 
 type WalletOwnerServices struct {
@@ -82,7 +88,7 @@ func NewWalletOwner(
 	props *WalletOwnerProps,
 ) *WalletOwner {
 	wallet := NewWallet(props.PrivateKey, props.Signer)
-	executor := &WalletOwner{
+	owner := &WalletOwner{
 		wallet:    wallet,
 		nonce:     props.Nonce,
 		client:    services.Client,
@@ -90,7 +96,25 @@ func NewWalletOwner(
 		logger:    services.Logger.ForClass("tx", "WalletOwner"),
 	}
 
-	return executor
+	owner.updateBalance(context.Background())
+	owner.startBalance = owner.currentBalance
+	owner.consumedBalance = big.NewInt(0)
+
+	return owner
+}
+
+func (e *WalletOwner) updateBalance(ctx context.Context) {
+	balance, err := e.client.BalanceAt(ctx, e.wallet.Address(), nil)
+	if err != nil {
+		err := errors.New(errors.ErrGetBalance, err)
+		e.logger.Debug(ctx, "BalanceAt request failed", log.MapFields{
+			"call_type": "BalanceFailure",
+			"address":   e.wallet.Address(),
+		}, err)
+		return
+	}
+
+	e.currentBalance = balance
 }
 
 func (e *WalletOwner) handle(ctx context.Context, ev concurrent.WorkerEvent) (interface{}, error) {
@@ -109,11 +133,21 @@ func (e *WalletOwner) handleRequestEvent(ctx context.Context, ev concurrent.Requ
 	switch req := ev.Value.(type) {
 	case signRequest:
 		return e.signTransaction(req.Transaction)
+	case statsRequest:
+		return e.getStats(ctx), nil
 	case ExecuteRequest:
 		return e.executeTransaction(ctx, req)
 	default:
 		panic("invalid request received for worker")
 	}
+}
+
+func (e *WalletOwner) getStats(ctx context.Context) stats.Metrics {
+	metrics := make(stats.Metrics)
+	metrics["startingBalance"] = fmt.Sprintf("0x%x", e.startBalance)
+	metrics["consumedBalance"] = fmt.Sprintf("0x%x", e.consumedBalance)
+	metrics["currentBalance"] = fmt.Sprintf("0x%x", e.currentBalance)
+	return metrics
 }
 
 func (e *WalletOwner) handleErrorEvent(ctx context.Context, ev concurrent.ErrorWorkerEvent) (interface{}, error) {
@@ -311,6 +345,8 @@ func (e *WalletOwner) executeTransaction(ctx context.Context, req ExecuteRequest
 		return ExecuteResponse{}, err
 	}
 
+	e.updateBalance(ctx)
+
 	if res.Status != StatusOK {
 		p, derr := hexutil.Decode(res.Output)
 		if derr != nil {
@@ -334,25 +370,38 @@ func (e *WalletOwner) executeTransaction(ctx context.Context, req ExecuteRequest
 		return ExecuteResponse{}, err
 	}
 
+	receipt, err := e.transactionReceipt(ctx, res.Hash)
+	if err != nil {
+		e.logger.Debug(ctx, "failure to retrieve transaction receipt", log.MapFields{
+			"call_type": "ExecuteTransactionFailure",
+			"id":        req.ID,
+			"address":   req.Address,
+		}, err)
+
+		return ExecuteResponse{}, err
+	}
+
 	if len(contractAddress) == 0 {
-		receipt, err := e.client.TransactionReceipt(ctx, common.HexToHash(res.Hash))
-		if err != nil {
-			err := errors.New(errors.ErrTransactionReceipt, err)
-			e.logger.Debug(ctx, "failure to retrieve transaction receipt", log.MapFields{
-				"call_type": "ExecuteTransactionFailure",
-				"id":        req.ID,
-				"address":   req.Address,
-			}, err)
-
-			return ExecuteResponse{}, err
-		}
-
 		contractAddress = receipt.ContractAddress.Hex()
 	}
+
+	// update the consumed gas
+	var gasUsed big.Int
+	gasUsed.SetUint64(receipt.GasUsed)
+	e.consumedBalance = e.consumedBalance.Add(e.consumedBalance, &gasUsed)
 
 	return ExecuteResponse{
 		Address: contractAddress,
 		Output:  res.Output,
 		Hash:    res.Hash,
 	}, nil
+}
+
+func (e *WalletOwner) transactionReceipt(ctx context.Context, hash string) (*types.Receipt, errors.Err) {
+	receipt, err := e.client.TransactionReceipt(ctx, common.HexToHash(hash))
+	if err != nil {
+		return nil, errors.New(errors.ErrTransactionReceipt, err)
+	}
+
+	return receipt, nil
 }

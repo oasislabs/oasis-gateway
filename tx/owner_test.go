@@ -11,13 +11,14 @@ import (
 
 	callback "github.com/oasislabs/developer-gateway/callback/client"
 	"github.com/oasislabs/developer-gateway/eth"
+	"github.com/oasislabs/developer-gateway/eth/ethtest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
 
 const address string = "0x6f6704e5a10332af6672e50b3d9754dc460dfa4d"
 
-func mockClientForNonce(client *MockClient) {
+func mockClientForNonce(client *ethtest.MockClient) {
 	client.On("EstimateGas",
 		mock.AnythingOfType("*context.emptyCtx"),
 		mock.AnythingOfType("ethereum.CallMsg")).
@@ -26,6 +27,11 @@ func mockClientForNonce(client *MockClient) {
 		mock.AnythingOfType("*context.emptyCtx"),
 		mock.AnythingOfType("common.Address")).
 		Return(uint64(1), nil)
+	client.On("BalanceAt",
+		mock.AnythingOfType("*context.emptyCtx"),
+		mock.AnythingOfType("common.Address"),
+		mock.AnythingOfType("*big.Int")).
+		Return(big.NewInt(1), nil)
 	client.On("TransactionReceipt",
 		mock.AnythingOfType("*context.emptyCtx"),
 		mock.AnythingOfType("common.Hash")).
@@ -50,7 +56,7 @@ func mockClientForNonce(client *MockClient) {
 		}, nil)
 }
 
-func mockClientForWalletOutOfFundsBodyCallback(client *MockClient) {
+func mockClientForWalletOutOfFundsBodyCallback(client *ethtest.MockClient) {
 	client.On("EstimateGas",
 		mock.AnythingOfType("*context.emptyCtx"),
 		mock.AnythingOfType("ethereum.CallMsg")).
@@ -59,6 +65,11 @@ func mockClientForWalletOutOfFundsBodyCallback(client *MockClient) {
 		mock.AnythingOfType("*context.emptyCtx"),
 		mock.AnythingOfType("common.Address")).
 		Return(uint64(1), nil)
+	client.On("BalanceAt",
+		mock.AnythingOfType("*context.emptyCtx"),
+		mock.AnythingOfType("common.Address"),
+		mock.AnythingOfType("*big.Int")).
+		Return(big.NewInt(1), nil)
 	client.On("TransactionReceipt",
 		mock.AnythingOfType("*context.emptyCtx"),
 		mock.AnythingOfType("common.Hash")).
@@ -82,10 +93,10 @@ func (m *MockCallbacks) WalletOutOfFunds(
 	_ = m.Called(ctx, body)
 }
 
-func newOwner() *WalletOwner {
+func newOwner(client *ethtest.MockClient) *WalletOwner {
 	return NewWalletOwner(
 		&WalletOwnerServices{
-			Client:    &MockClient{},
+			Client:    client,
 			Callbacks: &MockCallbacks{},
 			Logger:    Logger,
 		},
@@ -97,7 +108,9 @@ func newOwner() *WalletOwner {
 }
 
 func TestTransactionNonce(t *testing.T) {
-	owner := newOwner()
+	mockclient := &ethtest.MockClient{}
+	mockClientForNonce(mockclient)
+	owner := newOwner(mockclient)
 
 	var nonce uint64
 	for i := 0; i < 10; i++ {
@@ -107,7 +120,9 @@ func TestTransactionNonce(t *testing.T) {
 }
 
 func TestExecutorSignTransaction(t *testing.T) {
-	owner := newOwner()
+	mockclient := &ethtest.MockClient{}
+	mockClientForNonce(mockclient)
+	owner := newOwner(mockclient)
 
 	// Build a mock transaction
 	gas := uint64(1000000)
@@ -131,9 +146,9 @@ func TestExecutorSignTransaction(t *testing.T) {
 }
 
 func TestExecuteTransactionNoAddressBadNonce(t *testing.T) {
-	owner := newOwner()
-	mockclient := owner.client.(*MockClient)
+	mockclient := &ethtest.MockClient{}
 	mockClientForNonce(mockclient)
+	owner := newOwner(mockclient)
 
 	_, err := owner.executeTransaction(context.TODO(), ExecuteRequest{
 		ID:      0,
@@ -146,9 +161,9 @@ func TestExecuteTransactionNoAddressBadNonce(t *testing.T) {
 }
 
 func TestExecuteTransactionAddressBadNonce(t *testing.T) {
-	owner := newOwner()
-	mockclient := owner.client.(*MockClient)
+	mockclient := &ethtest.MockClient{}
 	mockClientForNonce(mockclient)
+	owner := newOwner(mockclient)
 
 	_, err := owner.executeTransaction(context.TODO(), ExecuteRequest{
 		ID:      0,
@@ -161,10 +176,10 @@ func TestExecuteTransactionAddressBadNonce(t *testing.T) {
 }
 
 func TestExecuteTransactionExceedsBalance(t *testing.T) {
-	owner := newOwner()
-	mockclient := owner.client.(*MockClient)
-	mockcallback := owner.callbacks.(*MockCallbacks)
+	mockclient := &ethtest.MockClient{}
 	mockClientForWalletOutOfFundsBodyCallback(mockclient)
+	owner := newOwner(mockclient)
+	mockcallback := owner.callbacks.(*MockCallbacks)
 
 	mockcallback.On("WalletOutOfFunds",
 		mock.AnythingOfType("*context.emptyCtx"),

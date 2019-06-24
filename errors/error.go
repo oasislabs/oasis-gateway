@@ -248,6 +248,12 @@ var (
 		desc:     "Internal Error. Please check the status of the service.",
 	}
 
+	ErrGetBalance = ErrorCode{
+		category: InternalError,
+		code:     1039,
+		desc:     "Internal Error. Please check the status of the service.",
+	}
+
 	ErrOutOfRange = ErrorCode{
 		category: InputError,
 		code:     2001,

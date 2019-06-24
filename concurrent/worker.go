@@ -2,6 +2,7 @@ package concurrent
 
 import (
 	"context"
+	"sync/atomic"
 	"time"
 )
 
@@ -186,8 +187,9 @@ type workerDestroyed struct {
 	Cause error
 }
 
-type response struct {
+type Response struct {
 	Value interface{}
+	Key   string
 	Error error
 }
 
@@ -195,16 +197,27 @@ type workerRequest struct {
 	Context context.Context
 	Key     string
 	Value   interface{}
-	Out     chan response
+	Out     chan Response
+	Count   *int32
+}
+
+type broadcastRequest struct {
+	Context context.Context
+	Value   interface{}
+	Out     chan Response
 }
 
 type executeRequest struct {
 	Context context.Context
 	Value   interface{}
-	Out     chan response
+	Out     chan Response
 }
 
 func (r workerRequest) GetContext() context.Context {
+	return r.Context
+}
+
+func (r broadcastRequest) GetContext() context.Context {
 	return r.Context
 }
 
@@ -303,30 +316,24 @@ func (w *Worker) handleError(req error) (err error) {
 	// that error will be reported when the worker is destroyed
 	_, err = w.handler.Handle(context.Background(), ErrorWorkerEvent{
 		Worker: w,
-		Error:  err,
+		Error:  req,
 	})
 
 	return err
 }
 
 func (w *Worker) handleExecute(req executeRequest) {
+	count := int32(1)
 	w.handleRequest(workerRequest{
 		Context: req.Context,
 		Key:     w.key,
 		Value:   req.Value,
 		Out:     req.Out,
+		Count:   &count,
 	})
 }
 
-func (w *Worker) handleRequest(req workerRequest) {
-	defer func() {
-		var err error
-		if r := recover(); r != nil {
-			err = errorFromPanic(r)
-			req.Out <- response{Value: nil, Error: err}
-		}
-	}()
-
+func (w *Worker) processRequest(req workerRequest) Response {
 	if req.Key != w.key {
 		panic("received request intended for another worker")
 	}
@@ -336,5 +343,23 @@ func (w *Worker) handleRequest(req workerRequest) {
 		Value:  req.Value,
 	})
 
-	req.Out <- response{Value: v, Error: err}
+	return Response{Value: v, Key: w.key, Error: err}
+}
+
+func (w *Worker) handleRequest(req workerRequest) {
+	defer func() {
+		var err error
+		if r := recover(); r != nil {
+			err = errorFromPanic(r)
+			req.Out <- Response{Value: nil, Key: w.key, Error: err}
+			if value := atomic.AddInt32(req.Count, -1); value == 0 {
+				close(req.Out)
+			}
+		}
+	}()
+
+	req.Out <- w.processRequest(req)
+	if value := atomic.AddInt32(req.Count, -1); value == 0 {
+		close(req.Out)
+	}
 }

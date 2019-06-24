@@ -52,7 +52,7 @@ func (r createRequest) WorkerKey() string {
 type destroyRequest struct {
 	Context context.Context
 	Key     string
-	Out     chan response
+	Out     chan Response
 }
 
 func (r destroyRequest) GetContext() context.Context {
@@ -245,7 +245,7 @@ func (m *Master) Destroy(ctx context.Context, key string) error {
 		return errors.New("master is not started")
 	}
 
-	out := make(chan response)
+	out := make(chan Response)
 	m.inCh <- destroyRequest{Context: ctx, Key: key, Out: out}
 	res := <-out
 	if res.Error != nil {
@@ -282,10 +282,35 @@ func (m *Master) Request(ctx context.Context, key string, req interface{}) (inte
 		return nil, errors.New("master is not started")
 	}
 
-	out := make(chan response)
-	m.inCh <- workerRequest{Context: ctx, Key: key, Value: req, Out: out}
+	out := make(chan Response)
+	count := int32(1)
+	m.inCh <- workerRequest{
+		Context: ctx,
+		Key:     key,
+		Value:   req,
+		Out:     out,
+		Count:   &count,
+	}
 	res := <-out
 	return res.Value, res.Error
+}
+
+// Broadcast sends the same request to all workers and waits until
+// a response from each is received
+func (m *Master) Broadcast(ctx context.Context, req interface{}) ([]Response, error) {
+	ok := atomic.CompareAndSwapUint32(&m.state, started, started)
+	if !ok {
+		return nil, errors.New("master is not started")
+	}
+
+	out := make(chan Response)
+	m.inCh <- broadcastRequest{Context: ctx, Value: req, Out: out}
+	var responses []Response
+	for res := range out {
+		responses = append(responses, res)
+	}
+
+	return responses, nil
 }
 
 // Execute sends a request that will be caught by any worker which
@@ -296,7 +321,7 @@ func (m *Master) Execute(ctx context.Context, req interface{}) (interface{}, err
 		return nil, errors.New("master is not started")
 	}
 
-	out := make(chan response)
+	out := make(chan Response)
 	m.inCh <- executeRequest{Context: ctx, Value: req, Out: out}
 	res := <-out
 	return res.Value, res.Error
@@ -379,6 +404,8 @@ func (m *Master) handleRequest(req request) {
 		m.handleExistsRequest(req)
 	case executeRequest:
 		m.handleExecuteRequest(req)
+	case broadcastRequest:
+		m.handleBroadcastRequest(req)
 	default:
 		panic("received unexpected request")
 	}
@@ -387,12 +414,14 @@ func (m *Master) handleRequest(req request) {
 func (m *Master) handleWorkerRequest(req workerRequest) {
 	w, ok := m.workers[req.Key]
 	if !ok && !m.createWorkerOnRequest {
-		req.Out <- response{Value: nil, Error: errors.New("worker does not exist")}
+		req.Out <- Response{Value: nil, Error: errors.New("worker does not exist")}
+		close(req.Out)
 		return
 
 	} else if !ok && m.createWorkerOnRequest {
 		if err := m.createWorker(req.Context, req.Key, nil); err != nil {
-			req.Out <- response{Value: nil, Error: err}
+			req.Out <- Response{Value: nil, Error: err}
+			close(req.Out)
 			return
 		}
 
@@ -405,9 +434,28 @@ func (m *Master) handleWorkerRequest(req workerRequest) {
 	w.C <- req
 }
 
+func (m *Master) handleBroadcastRequest(req broadcastRequest) {
+	if len(m.workers) == 0 {
+		req.Out <- Response{Value: nil, Error: errors.New("no workers available to handle the execute request")}
+		close(req.Out)
+	}
+
+	count := int32(len(m.workers))
+	for _, w := range m.workers {
+		w.C <- workerRequest{
+			Context: req.Context,
+			Key:     w.key,
+			Value:   req.Value,
+			Out:     req.Out,
+			Count:   &count,
+		}
+	}
+}
+
 func (m *Master) handleExecuteRequest(req executeRequest) {
 	if len(m.workers) == 0 {
-		req.Out <- response{Value: nil, Error: errors.New("no workers available to handle the execute request")}
+		req.Out <- Response{Value: nil, Error: errors.New("no workers available to handle the execute request")}
+		close(req.Out)
 		return
 	}
 
@@ -455,28 +503,33 @@ func (m *Master) createWorker(ctx context.Context, key string, value interface{}
 
 func (m *Master) handleCreateRequest(req createRequest) {
 	req.Out <- m.createWorker(req.Context, req.Key, req.Value)
+	close(req.Out)
 }
 
 func (m *Master) handleDestroyRequest(req destroyRequest) {
 	defer func() {
 		if r := recover(); r != nil {
 			err := errorFromPanic(r)
-			req.Out <- response{Error: err, Value: nil}
+			req.Out <- Response{Error: err, Value: nil}
+			close(req.Out)
 		}
 	}()
 
 	c, ok := m.shutdownWorker(req.Key)
 	if !ok {
-		req.Out <- response{Error: errors.New("worker does not exist"), Value: nil}
+		req.Out <- Response{Error: errors.New("worker does not exist"), Value: nil}
+		close(req.Out)
 		return
 	}
 
-	req.Out <- response{Error: nil, Value: c}
+	req.Out <- Response{Error: nil, Value: c}
+	close(req.Out)
 }
 
 func (m *Master) handleExistsRequest(req existsRequest) {
 	_, ok := m.workers[req.Key]
 	req.Out <- ok
+	close(req.Out)
 }
 
 func (m *Master) removeWorker(ev workerDestroyed) {

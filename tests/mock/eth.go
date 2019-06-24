@@ -3,6 +3,7 @@ package mock
 import (
 	"context"
 	"errors"
+	"math/big"
 
 	ethereum "github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
@@ -19,6 +20,10 @@ func (c EthMockClient) EstimateGas(ctx context.Context, msg ethereum.CallMsg) (u
 	}
 
 	return 1234, nil
+}
+
+func (c EthMockClient) BalanceAt(context.Context, common.Address, *big.Int) (*big.Int, error) {
+	return big.NewInt(0), nil
 }
 
 func (c EthMockClient) GetPublicKey(context.Context, common.Address) (ethimpl.PublicKey, error) {

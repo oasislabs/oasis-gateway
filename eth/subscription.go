@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"math/big"
+	"sync"
 
 	ethereum "github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -36,9 +37,21 @@ func (s *EthSubscription) Err() <-chan error {
 // LogSubscriber creates log based subscriptions
 // using the underlying clients
 type LogSubscriber struct {
+	lock        sync.Mutex
 	FilterQuery ethereum.FilterQuery
 	BlockNumber uint64
 	Index       uint
+}
+
+func (s *LogSubscriber) createSubscription(
+	ctx context.Context,
+	client Client,
+	clog chan<- types.Log,
+) (ethereum.Subscription, error) {
+
+	s.lock.Lock()
+	defer s.lock.Unlock()
+	return client.SubscribeFilterLogs(ctx, s.FilterQuery, clog)
 }
 
 // Subscribe implementation of Subscriber for LogSubscriber
@@ -47,10 +60,10 @@ func (s *LogSubscriber) Subscribe(
 	client Client,
 	c chan<- interface{},
 ) (ethereum.Subscription, error) {
-	clog := make(chan types.Log, 64)
 	cerr := make(chan error)
+	clog := make(chan types.Log, 64)
 
-	sub, err := client.SubscribeFilterLogs(ctx, s.FilterQuery, clog)
+	sub, err := s.createSubscription(ctx, client, clog)
 	if err != nil {
 		return nil, err
 	}
@@ -59,6 +72,8 @@ func (s *LogSubscriber) Subscribe(
 		defer func() {
 			// ensure that if the subscriber is started again it will start
 			// from the block from which it stopped
+			s.lock.Lock()
+			defer s.lock.Unlock()
 			s.FilterQuery.FromBlock = big.NewInt(0).SetUint64(s.BlockNumber)
 			close(cerr)
 		}()
@@ -75,7 +90,7 @@ func (s *LogSubscriber) Subscribe(
 				// in case events are received that are previous to the offsets
 				// tracked by the subscriber, the events are discarded
 				if ev.BlockNumber < s.BlockNumber ||
-					(ev.BlockNumber == s.BlockNumber && ev.Index <= s.Index) {
+					(ev.BlockNumber == s.BlockNumber && ev.Index < s.Index) {
 					continue
 				}
 

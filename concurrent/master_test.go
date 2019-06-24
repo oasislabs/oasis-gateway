@@ -381,6 +381,50 @@ func TestMasterExecuteSingleWorker(t *testing.T) {
 	})
 }
 
+func TestMasterBroadcastNoWorkers(t *testing.T) {
+	ScopedMaster(t, func(ctx context.Context, master *Master) {
+		res, err := master.Broadcast(ctx, 0)
+		assert.Nil(t, err)
+		assert.Error(t, res[0].Error)
+	})
+}
+
+func TestMasterBroadcastSingleWorker(t *testing.T) {
+	ScopedMaster(t, func(ctx context.Context, master *Master) {
+		err := master.Create(ctx, "1", nil)
+		assert.Nil(t, err)
+
+		res, err := master.Broadcast(ctx, 0)
+		assert.Nil(t, err)
+		assert.Nil(t, res[0].Error)
+		assert.Equal(t, 1, res[0].Value)
+
+		err = master.Destroy(ctx, "1")
+		assert.Nil(t, err)
+	})
+}
+
+func TestMasterBroadcastMultipleWorkers(t *testing.T) {
+	ScopedMaster(t, func(ctx context.Context, master *Master) {
+		for i := 0; i < 10; i++ {
+			err := master.Create(ctx, fmt.Sprintf("%d", i), nil)
+			assert.Nil(t, err)
+		}
+
+		res, err := master.Broadcast(ctx, 0)
+		assert.Nil(t, err)
+		for i := 0; i < 10; i++ {
+			assert.Nil(t, res[i].Error)
+			assert.Equal(t, 1, res[i].Value)
+		}
+
+		for i := 0; i < 10; i++ {
+			err = master.Destroy(ctx, fmt.Sprintf("%d", i))
+			assert.Nil(t, err)
+		}
+	})
+}
+
 func BenchmarkMasterExecuteMultipleWorkers(b *testing.B) {
 	ScopedMaster(b, func(ctx context.Context, master *Master) {
 		for i := 0; i < 16; i++ {

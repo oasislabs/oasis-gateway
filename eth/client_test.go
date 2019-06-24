@@ -46,6 +46,15 @@ type mockEthClient struct {
 	mock.Mock
 }
 
+func (c *mockEthClient) BalanceAt(ctx context.Context, address common.Address, block *big.Int) (*big.Int, error) {
+	args := c.Called(ctx, address, block)
+	if args.Get(1) != nil {
+		return nil, args.Error(1)
+	}
+
+	return args.Get(0).(*big.Int), nil
+}
+
 func (c *mockEthClient) EstimateGas(ctx context.Context, msg ethereum.CallMsg) (uint64, error) {
 	args := c.Called(ctx, msg)
 	if args.Get(1) != nil {

@@ -10,6 +10,7 @@ import (
 	"github.com/oasislabs/developer-gateway/backend"
 	"github.com/oasislabs/developer-gateway/backend/core"
 	"github.com/oasislabs/developer-gateway/backend/eth"
+	"github.com/oasislabs/developer-gateway/callback/callbacktest"
 	"github.com/oasislabs/developer-gateway/gateway"
 	"github.com/oasislabs/developer-gateway/mqueue"
 	"github.com/oasislabs/developer-gateway/tx"
@@ -73,7 +74,7 @@ func NewServices(ctx context.Context, config *gateway.Config) (*gateway.ServiceG
 
 	backendClient, err := NewBackendClient(ctx, &backend.ClientServices{
 		Logger:    gateway.RootLogger,
-		Callbacks: &MockCallbackClient{},
+		Callbacks: &callbacktest.MockClient{},
 	}, &config.BackendConfig)
 	if err != nil {
 		return nil, err

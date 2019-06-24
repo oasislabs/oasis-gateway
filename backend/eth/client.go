@@ -62,7 +62,12 @@ func (c *Client) Name() string {
 }
 
 func (c *Client) Stats() stats.Metrics {
-	return c.tracker.Stats()
+	methodStats := c.tracker.Stats()
+	walletStats := c.executor.Stats()
+	return stats.Metrics{
+		"methods": methodStats,
+		"wallets": walletStats,
+	}
 }
 
 func (c *Client) getPublicKey(
