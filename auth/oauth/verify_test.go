@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"testing"
 
+	auth "github.com/oasislabs/developer-gateway/auth/core"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -41,7 +42,7 @@ func TestVerifyOK(t *testing.T) {
 	data, err := generateData(pk, cipertext, expectedAAD, nonce)
 	assert.Nil(t, err)
 
-	err = GoogleOauth{}.Verify(data, expectedAAD)
+	err = GoogleOauth{}.Verify(auth.AuthRequest{Data: data}, expectedAAD)
 	assert.Nil(t, err)
 }
 
@@ -49,7 +50,7 @@ func TestVerifyMissingLengths(t *testing.T) {
 	data, err := generateData(pk, cipertext, expectedAAD, nonce)
 	assert.Nil(t, err)
 
-	err = GoogleOauth{}.Verify(data[0:28], expectedAAD)
+	err = GoogleOauth{}.Verify(auth.AuthRequest{Data: data[0:28]}, expectedAAD)
 	assert.Error(t, err)
 	assert.Equal(t, "Payload data is too short", err.Error())
 }
@@ -58,7 +59,7 @@ func TestVerifyMissingNonce(t *testing.T) {
 	data, err := generateData(pk, cipertext, expectedAAD, nonce)
 	assert.Nil(t, err)
 
-	err = GoogleOauth{}.Verify(data[:len(data)-5], expectedAAD)
+	err = GoogleOauth{}.Verify(auth.AuthRequest{Data: data[:len(data)-5]}, expectedAAD)
 	assert.Error(t, err)
 	assert.Equal(t, "Missing data", err.Error())
 }
@@ -67,7 +68,7 @@ func TestVerifyMismatchedAAD(t *testing.T) {
 	data, err := generateData(pk, cipertext, expectedAAD, nonce)
 	assert.Nil(t, err)
 
-	err = GoogleOauth{}.Verify(data, "wrongAAD")
+	err = GoogleOauth{}.Verify(auth.AuthRequest{Data: data}, "wrongAAD")
 	assert.Error(t, err)
 	assert.Equal(t, "AAD does not match", err.Error())
 }

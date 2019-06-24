@@ -11,6 +11,13 @@ type AuthData struct {
 	SessionKey  string
 }
 
+type AuthRequest struct {
+	API     string
+	Address string
+	AAD     string
+	Data    string
+}
+
 type Auth interface {
 	Name() string
 	Stats() stats.Metrics
@@ -19,13 +26,14 @@ type Auth interface {
 	// - the expected AAD
 	// - the authentication error
 	Authenticate(req *http.Request) (string, error)
-	
+
 	// Verify that a specific payload complies with
 	// the expected format and has the authentication data required
-	Verify(data, expected string) error
+	Verify(req AuthRequest, expected string) error
 }
 
-type NilAuth struct {}
+type NilAuth struct{}
+
 func (NilAuth) Name() string {
 	return "auth.nil"
 }
@@ -35,6 +43,6 @@ func (NilAuth) Stats() stats.Metrics {
 func (NilAuth) Authenticate(req *http.Request) (string, error) {
 	return "", nil
 }
-func (NilAuth) Verify(data, expected string) error {
+func (NilAuth) Verify(req AuthRequest, expected string) error {
 	return nil
 }

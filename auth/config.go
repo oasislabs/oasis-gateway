@@ -1,6 +1,9 @@
 package auth
 
 import (
+	"plugin"
+
+	"github.com/oasislabs/developer-gateway/auth/core"
 	"github.com/oasislabs/developer-gateway/config"
 	"github.com/oasislabs/developer-gateway/log"
 	"github.com/spf13/cobra"
@@ -17,7 +20,7 @@ const (
 // Config sets the configuration for the authentication
 // mechanism to use
 type Config struct {
-	Providers []AuthProvider
+	Providers []core.Auth
 }
 
 func (c *Config) Log(fields log.Fields) {
@@ -27,7 +30,24 @@ func (c *Config) Log(fields log.Fields) {
 func (c *Config) Configure(v *viper.Viper) error {
 	providers := v.GetStringSlice("auth.provider")
 	for _, provider := range providers {
-		c.Providers = append(c.Providers, AuthProvider(provider))
+		auth := newAuthSingle(AuthProvider(provider))
+		if auth == nil {
+			// try loading as plugin
+			plug, err := plugin.Open(provider)
+			if err != nil {
+				return config.ErrInvalidValue{Key: "auth.provider", InvalidValue: provider}
+			}
+			symbol, err := plug.Lookup("Auth")
+			if err != nil {
+				return config.ErrInvalidValue{Key: "auth.provider", InvalidValue: provider}
+			}
+			var ok bool
+			auth, ok = symbol.(core.Auth)
+			if !ok {
+				return config.ErrInvalidValue{Key: "auth.provider", InvalidValue: provider}
+			}
+		}
+		c.Providers = append(c.Providers, auth)
 	}
 	if len(c.Providers) < len(providers) {
 		return config.ErrKeyNotSet{Key: "auth.provider"}
@@ -37,6 +57,6 @@ func (c *Config) Configure(v *viper.Viper) error {
 }
 
 func (c *Config) Bind(v *viper.Viper, cmd *cobra.Command) error {
-	cmd.PersistentFlags().StringSlice("auth.provider", []string{"insecure"}, "provider for request authentication")
+	cmd.PersistentFlags().StringSlice("auth.provider", []string{"insecure"}, "providers for request authentication")
 	return nil
 }

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net/http"
 
+	"github.com/oasislabs/developer-gateway/auth/core"
 	"github.com/oasislabs/developer-gateway/stats"
 )
 
@@ -33,8 +34,8 @@ func (a InsecureAuth) Authenticate(req *http.Request) (string, error) {
 	return value, nil
 }
 
-func (InsecureAuth) Verify(data string, expectedAAD string) error {
-	if len(data) == 0 {
+func (InsecureAuth) Verify(req core.AuthRequest, expectedAAD string) error {
+	if len(req.Data) == 0 {
 		return ErrDataTooShort
 	}
 

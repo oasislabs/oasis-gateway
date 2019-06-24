@@ -47,9 +47,9 @@ func (m *MultiAuth) Authenticate(req *http.Request) (string, error) {
 	return string(bytes), nil
 }
 
-func (m *MultiAuth) Verify(data, expected string) error {
+func (m *MultiAuth) Verify(data AuthRequest, expected string) error {
 	var strs []string
-	err := json.Unmarshal([]byte(data), &strs)
+	err := json.Unmarshal([]byte(data.Data), &strs)
 	if err != nil {
 		return err
 	}
