@@ -52,6 +52,14 @@ func (m *MockClient) NonceAt(
 	return args.Get(0).(uint64), args.Error(1)
 }
 
+func (m *MockClient) GetCode(
+	ctx context.Context,
+	addr common.Address,
+) ([]byte, error) {
+	args := m.Called(ctx, addr)
+	return args.Get(0).([]byte), args.Error(1)
+}
+
 func (m *MockClient) SendTransaction(
 	ctx context.Context,
 	tx *types.Transaction,

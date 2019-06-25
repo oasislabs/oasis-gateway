@@ -254,6 +254,18 @@ var (
 		desc:     "Internal Error. Please check the status of the service.",
 	}
 
+	ErrGetContractCode = ErrorCode{
+		category: InternalError,
+		code:     1040,
+		desc:     "Internal Error. Please check the status of the service.",
+	}
+
+	ErrContractCodeNotDeployed = ErrorCode{
+		category: InternalError,
+		code:     1041,
+		desc:     "Internal Error. Please check the status of the service.",
+	}
+
 	ErrOutOfRange = ErrorCode{
 		category: InputError,
 		code:     2001,

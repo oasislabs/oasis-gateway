@@ -54,6 +54,11 @@ func NewClientWithMock() (*Client, error) {
 		mock.AnythingOfType("*big.Int")).
 		Return(big.NewInt(1), nil)
 
+	mockclient.On("NonceAt",
+		mock.AnythingOfType("*context.emptyCtx"),
+		mock.AnythingOfType("common.Address")).
+		Return(uint64(0), nil)
+
 	executor, err := tx.NewExecutor(Context, &tx.ExecutorServices{
 		Logger:    Logger,
 		Client:    mockclient,
@@ -123,6 +128,49 @@ func TestGetPublicKeyOK(t *testing.T) {
 	}, pk)
 }
 
+func TestDeployServiceErrNoCode(t *testing.T) {
+	client, err := NewClientWithMock()
+	assert.Nil(t, err)
+
+	client.client.(*ethtest.MockClient).On("EstimateGas",
+		mock.AnythingOfType("*context.emptyCtx"),
+		mock.AnythingOfType("ethereum.CallMsg")).
+		Return(uint64(0), nil)
+	client.client.(*ethtest.MockClient).On("NonceAt",
+		mock.AnythingOfType("*context.emptyCtx"),
+		mock.AnythingOfType("common.Address")).
+		Return(uint64(1), nil)
+	client.client.(*ethtest.MockClient).On("GetCode",
+		mock.AnythingOfType("*context.emptyCtx"),
+		mock.AnythingOfType("common.Address")).
+		Return([]byte("0x"), nil)
+	client.client.(*ethtest.MockClient).On("BalanceAt",
+		mock.AnythingOfType("*context.emptyCtx"),
+		mock.AnythingOfType("common.Address"),
+		mock.AnythingOfType("*big.Int")).
+		Return(big.NewInt(1), nil)
+	client.client.(*ethtest.MockClient).On("TransactionReceipt",
+		mock.AnythingOfType("*context.emptyCtx"),
+		mock.AnythingOfType("common.Hash")).
+		Return(&types.Receipt{
+			ContractAddress: common.HexToAddress(strings.Repeat("0", 20)),
+		}, nil)
+	client.client.(*ethtest.MockClient).On("SendTransaction",
+		mock.AnythingOfType("*context.emptyCtx"),
+		mock.Anything).
+		Return(eth.SendTransactionResponse{
+			Status: StatusOK,
+			Output: "Success",
+			Hash:   "Some hash",
+		}, nil)
+
+	_, err = client.DeployService(Context, 1, backend.DeployServiceRequest{
+		Data: "0x0000000000000000000000000000000000000000",
+	})
+
+	assert.Equal(t, "[1041] error code InternalError with desc Internal Error. Please check the status of the service.", err.Error())
+}
+
 func TestDeployServiceOK(t *testing.T) {
 	client, err := NewClientWithMock()
 	assert.Nil(t, err)
@@ -135,6 +183,10 @@ func TestDeployServiceOK(t *testing.T) {
 		mock.AnythingOfType("*context.emptyCtx"),
 		mock.AnythingOfType("common.Address")).
 		Return(uint64(1), nil)
+	client.client.(*ethtest.MockClient).On("GetCode",
+		mock.AnythingOfType("*context.emptyCtx"),
+		mock.AnythingOfType("common.Address")).
+		Return([]byte("0x0000000000000000000000000000000000000000"), nil)
 	client.client.(*ethtest.MockClient).On("BalanceAt",
 		mock.AnythingOfType("*context.emptyCtx"),
 		mock.AnythingOfType("common.Address"),

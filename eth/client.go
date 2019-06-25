@@ -32,6 +32,7 @@ type Client interface {
 	SubscribeFilterLogs(context.Context, ethereum.FilterQuery, chan<- types.Log) (ethereum.Subscription, error)
 	TransactionReceipt(ctx context.Context, txHash common.Hash) (*types.Receipt, error)
 	BalanceAt(ctx context.Context, account common.Address, blockNumber *big.Int) (*big.Int, error)
+	GetCode(ctx context.Context, addr common.Address) ([]byte, error)
 }
 
 type ethClient interface {
@@ -40,6 +41,7 @@ type ethClient interface {
 	TransactionReceipt(ctx context.Context, txHash common.Hash) (*types.Receipt, error)
 	SubscribeFilterLogs(ctx context.Context, q ethereum.FilterQuery, c chan<- types.Log) (ethereum.Subscription, error)
 	BalanceAt(ctx context.Context, account common.Address, blockNumber *big.Int) (*big.Int, error)
+	CodeAt(ctx context.Context, addr common.Address, blockNumber *big.Int) ([]byte, error)
 	Close()
 }
 
@@ -165,6 +167,10 @@ func (c *PooledClient) NonceAt(ctx context.Context, account common.Address) (uin
 	return v.(uint64), nil
 }
 
+type ParseAddress struct {
+	ContractAddress string `json:"contractAddress"`
+}
+
 func (c *PooledClient) SendTransaction(ctx context.Context, tx *types.Transaction) (SendTransactionResponse, error) {
 	data, err := rlp.EncodeToBytes(tx)
 	if err != nil {
@@ -196,6 +202,18 @@ func (c *PooledClient) SendTransaction(ctx context.Context, tx *types.Transactio
 		Status: status,
 		Hash:   res.Hash,
 	}, err
+}
+
+func (c *PooledClient) GetCode(ctx context.Context, addr common.Address) ([]byte, error) {
+	v, err := c.request(ctx, func(conn *Conn) (interface{}, error) {
+		return conn.eclient.CodeAt(ctx, addr, nil)
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	return v.([]byte), nil
 }
 
 func (c *PooledClient) TransactionReceipt(ctx context.Context, txHash common.Hash) (*types.Receipt, error) {

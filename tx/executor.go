@@ -108,7 +108,8 @@ func (m *Executor) handle(ctx context.Context, ev concurrent.MasterEvent) error 
 func (s *Executor) create(ctx context.Context, ev concurrent.CreateWorkerEvent) error {
 	req := ev.Value.(*createOwnerRequest)
 
-	owner := NewWalletOwner(
+	owner, err := NewWalletOwner(
+		ctx,
 		&WalletOwnerServices{
 			Client:    s.client,
 			Callbacks: s.callbacks,
@@ -119,6 +120,9 @@ func (s *Executor) create(ctx context.Context, ev concurrent.CreateWorkerEvent) 
 			Signer:     types.FrontierSigner{},
 			Nonce:      0,
 		})
+	if err != nil {
+		return err
+	}
 
 	ev.Props.ErrC = nil
 	ev.Props.WorkerHandler = concurrent.WorkerHandlerFunc(owner.handle)
