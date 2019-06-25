@@ -26,6 +26,13 @@ func (c EthMockClient) BalanceAt(context.Context, common.Address, *big.Int) (*bi
 	return big.NewInt(0), nil
 }
 
+func (m EthMockClient) GetCode(
+	ctx context.Context,
+	addr common.Address,
+) ([]byte, error) {
+	return []byte("0x0000000000000000000000000000000000000000"), nil
+}
+
 func (c EthMockClient) GetPublicKey(context.Context, common.Address) (ethimpl.PublicKey, error) {
 	return ethimpl.PublicKey{
 		Timestamp: 123456789097654321,

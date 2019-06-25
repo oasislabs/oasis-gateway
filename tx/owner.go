@@ -84,9 +84,10 @@ type WalletOwnerProps struct {
 // owner. The wallet is derived from the private key
 // provided
 func NewWalletOwner(
+	ctx context.Context,
 	services *WalletOwnerServices,
 	props *WalletOwnerProps,
-) *WalletOwner {
+) (*WalletOwner, error) {
 	wallet := NewWallet(props.PrivateKey, props.Signer)
 	owner := &WalletOwner{
 		wallet:    wallet,
@@ -96,14 +97,21 @@ func NewWalletOwner(
 		logger:    services.Logger.ForClass("tx", "WalletOwner"),
 	}
 
-	owner.updateBalance(context.Background())
+	if err := owner.updateBalance(ctx); err != nil {
+		return nil, err
+	}
+
+	if err := owner.updateNonce(ctx); err != nil {
+		return nil, err
+	}
+
 	owner.startBalance = owner.currentBalance
 	owner.consumedBalance = big.NewInt(0)
 
-	return owner
+	return owner, nil
 }
 
-func (e *WalletOwner) updateBalance(ctx context.Context) {
+func (e *WalletOwner) updateBalance(ctx context.Context) errors.Err {
 	balance, err := e.client.BalanceAt(ctx, e.wallet.Address(), nil)
 	if err != nil {
 		err := errors.New(errors.ErrGetBalance, err)
@@ -111,10 +119,11 @@ func (e *WalletOwner) updateBalance(ctx context.Context) {
 			"call_type": "BalanceFailure",
 			"address":   e.wallet.Address(),
 		}, err)
-		return
+		return err
 	}
 
 	e.currentBalance = balance
+	return nil
 }
 
 func (e *WalletOwner) handle(ctx context.Context, ev concurrent.WorkerEvent) (interface{}, error) {
@@ -345,7 +354,9 @@ func (e *WalletOwner) executeTransaction(ctx context.Context, req ExecuteRequest
 		return ExecuteResponse{}, err
 	}
 
-	e.updateBalance(ctx)
+	// failing to update the balance should not fail the execution of
+	// the transaction
+	_ = e.updateBalance(ctx)
 
 	if res.Status != StatusOK {
 		p, derr := hexutil.Decode(res.Output)
@@ -382,6 +393,31 @@ func (e *WalletOwner) executeTransaction(ctx context.Context, req ExecuteRequest
 	}
 
 	if len(contractAddress) == 0 {
+		// retrieve the code for the contract to make sure that it has been deployed
+		// successfully
+		code, err := e.getCode(ctx, receipt.ContractAddress)
+		if err != nil {
+			e.logger.Debug(ctx, "failure to retrieve contract code", log.MapFields{
+				"call_type": "ExecuteTransactionFailure",
+				"id":        req.ID,
+				"address":   req.Address,
+			}, err)
+
+			return ExecuteResponse{}, err
+		}
+
+		// if the contract's code is "0x" it means that the contract failed to
+		// deploy which should be returned as an error
+		if len(code) <= 2 {
+			err := errors.New(errors.ErrContractCodeNotDeployed, nil)
+			e.logger.Debug(ctx, "failure to deploy contract code", log.MapFields{
+				"call_type": "ExecuteTransactionFailure",
+				"id":        req.ID,
+				"address":   req.Address,
+			}, err)
+			return ExecuteResponse{}, err
+		}
+
 		contractAddress = receipt.ContractAddress.Hex()
 	}
 
@@ -395,6 +431,15 @@ func (e *WalletOwner) executeTransaction(ctx context.Context, req ExecuteRequest
 		Output:  res.Output,
 		Hash:    res.Hash,
 	}, nil
+}
+
+func (e *WalletOwner) getCode(ctx context.Context, addr common.Address) ([]byte, errors.Err) {
+	receipt, err := e.client.GetCode(ctx, addr)
+	if err != nil {
+		return nil, errors.New(errors.ErrGetContractCode, err)
+	}
+
+	return receipt, nil
 }
 
 func (e *WalletOwner) transactionReceipt(ctx context.Context, hash string) (*types.Receipt, errors.Err) {

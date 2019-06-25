@@ -27,6 +27,10 @@ func mockClientForNonce(client *ethtest.MockClient) {
 		mock.AnythingOfType("*context.emptyCtx"),
 		mock.AnythingOfType("common.Address")).
 		Return(uint64(1), nil)
+	client.On("GetCode",
+		mock.AnythingOfType("*context.emptyCtx"),
+		mock.AnythingOfType("common.Address")).
+		Return([]byte("0x0000000000000000000000000000000000000000"), nil)
 	client.On("BalanceAt",
 		mock.AnythingOfType("*context.emptyCtx"),
 		mock.AnythingOfType("common.Address"),
@@ -93,8 +97,9 @@ func (m *MockCallbacks) WalletOutOfFunds(
 	_ = m.Called(ctx, body)
 }
 
-func newOwner(client *ethtest.MockClient) *WalletOwner {
+func newOwner(client *ethtest.MockClient) (*WalletOwner, error) {
 	return NewWalletOwner(
+		context.TODO(),
 		&WalletOwnerServices{
 			Client:    client,
 			Callbacks: &MockCallbacks{},
@@ -110,19 +115,21 @@ func newOwner(client *ethtest.MockClient) *WalletOwner {
 func TestTransactionNonce(t *testing.T) {
 	mockclient := &ethtest.MockClient{}
 	mockClientForNonce(mockclient)
-	owner := newOwner(mockclient)
+	owner, err := newOwner(mockclient)
+	assert.Nil(t, err)
 
 	var nonce uint64
 	for i := 0; i < 10; i++ {
 		nonce = owner.transactionNonce()
-		assert.Equal(t, uint64(i), nonce)
+		assert.Equal(t, uint64(i+1), nonce)
 	}
 }
 
 func TestExecutorSignTransaction(t *testing.T) {
 	mockclient := &ethtest.MockClient{}
 	mockClientForNonce(mockclient)
-	owner := newOwner(mockclient)
+	owner, err := newOwner(mockclient)
+	assert.Nil(t, err)
 
 	// Build a mock transaction
 	gas := uint64(1000000)
@@ -136,7 +143,7 @@ func TestExecutorSignTransaction(t *testing.T) {
 		[]byte("data"),
 	)
 
-	tx, err := owner.signTransaction(tx)
+	tx, err = owner.signTransaction(tx)
 	assert.Nil(t, err)
 
 	V, R, S := tx.RawSignatureValues()
@@ -148,9 +155,11 @@ func TestExecutorSignTransaction(t *testing.T) {
 func TestExecuteTransactionNoAddressBadNonce(t *testing.T) {
 	mockclient := &ethtest.MockClient{}
 	mockClientForNonce(mockclient)
-	owner := newOwner(mockclient)
+	owner, err := newOwner(mockclient)
+	assert.Nil(t, err)
 
-	_, err := owner.executeTransaction(context.TODO(), ExecuteRequest{
+	owner.nonce = 0
+	_, err = owner.executeTransaction(context.TODO(), ExecuteRequest{
 		ID:      0,
 		Address: "",
 		Data:    []byte(""),
@@ -163,9 +172,11 @@ func TestExecuteTransactionNoAddressBadNonce(t *testing.T) {
 func TestExecuteTransactionAddressBadNonce(t *testing.T) {
 	mockclient := &ethtest.MockClient{}
 	mockClientForNonce(mockclient)
-	owner := newOwner(mockclient)
+	owner, err := newOwner(mockclient)
+	assert.Nil(t, err)
 
-	_, err := owner.executeTransaction(context.TODO(), ExecuteRequest{
+	owner.nonce = 0
+	_, err = owner.executeTransaction(context.TODO(), ExecuteRequest{
 		ID:      0,
 		Address: strings.Repeat("0", 20),
 		Data:    []byte(""),
@@ -178,7 +189,8 @@ func TestExecuteTransactionAddressBadNonce(t *testing.T) {
 func TestExecuteTransactionExceedsBalance(t *testing.T) {
 	mockclient := &ethtest.MockClient{}
 	mockClientForWalletOutOfFundsBodyCallback(mockclient)
-	owner := newOwner(mockclient)
+	owner, err := newOwner(mockclient)
+	assert.Nil(t, err)
 	mockcallback := owner.callbacks.(*MockCallbacks)
 
 	mockcallback.On("WalletOutOfFunds",
@@ -186,7 +198,7 @@ func TestExecuteTransactionExceedsBalance(t *testing.T) {
 		mock.AnythingOfType("client.WalletOutOfFundsBody"),
 	).Return()
 
-	_, err := owner.executeTransaction(context.TODO(), ExecuteRequest{
+	_, err = owner.executeTransaction(context.TODO(), ExecuteRequest{
 		ID:      0,
 		Address: strings.Repeat("0", 20),
 		Data:    []byte(""),
