@@ -254,7 +254,7 @@ func (m *MQueue) remove(ctx context.Context, req core.RemoveRequest) error {
 		return ErrRedisExec{Cause: err}
 	}
 
-	if v.(int) == 0 {
+	if v.(int64) == 0 {
 		return ErrQueueNotFound
 	}
 

@@ -23,7 +23,7 @@ local mqnext = function(key)
 
   local payload = cjson.encode({offset = offset, set = false})
   assert(redis.call('rpush', key, payload) == len + 1)
-  assert(redis.call('expire', key, expire_time) == 1)
+  redis.call('expire', key, expire_time)
   return offset
 end
 
@@ -40,13 +40,17 @@ local mqinsert = function(key, offset, value_type, value)
   assert(index >= 0 and index < len)
 
   local payload = cjson.encode({offset = tonumber(offset), value = value, value_type = value_type, set = true})
-  assert(redis.call('expire', key, expire_time) == 1)
+  redis.call('expire', key, expire_time)
   return redis.call('lset', key, index, payload)
 end
 
 -- mqretrieve returns a window of elements within the list
 -- as a contiguous set of elements that have been set
 local mqretrieve = function(key, offset, count)
+  if redis.call('exists', key) == 0 then
+    return {}
+  end
+
   local base_n_len = mqbasenlen(key)
   local base = base_n_len[1]
   local len = base_n_len[2]
@@ -75,7 +79,7 @@ local mqretrieve = function(key, offset, count)
     stop = start
   end
 
-  assert(redis.call('expire', key, expire_time) == 1)
+  redis.call('expire', key, expire_time)
   return redis.call('lrange', key, start, stop)
 end
 
@@ -98,13 +102,12 @@ local mqdiscard = function(key, offset)
 
   assert(start >= 0)
 
-  assert(redis.call('expire', key, expire_time) == 1)
+  redis.call('expire', key, expire_time)
   return redis.call('ltrim', key, start, stop)
 end
 
 -- remove the key and all associated resources
 local mqremove = function(key)
-  assert(redis.call('expire', key, expire_time) == 1)
   return redis.call('del', key)
 end
 
