@@ -48,7 +48,6 @@ func (s *LogSubscriber) createSubscription(
 	client Client,
 	clog chan<- types.Log,
 ) (ethereum.Subscription, error) {
-
 	s.lock.Lock()
 	defer s.lock.Unlock()
 	return client.SubscribeFilterLogs(ctx, s.FilterQuery, clog)
@@ -96,6 +95,7 @@ func (s *LogSubscriber) Subscribe(
 
 				s.BlockNumber = ev.BlockNumber
 				s.Index = ev.Index
+
 				c <- ev
 			case err, ok := <-sub.Err():
 				if !ok {
@@ -257,14 +257,18 @@ type SubscriptionManagerProps struct {
 // SubscriptionManager manages the lifetime
 // of a group of subscriptions
 type SubscriptionManager struct {
+	ctx    context.Context
 	logger log.Logger
 	client Client
 	master *concurrent.Master
 }
 
 // NewSubscriptionManager creates a new subscription manager
-func NewSubscriptionManager(props SubscriptionManagerProps) *SubscriptionManager {
+func NewSubscriptionManager(
+	props SubscriptionManagerProps,
+) *SubscriptionManager {
 	m := SubscriptionManager{
+		ctx:    props.Context,
 		logger: props.Logger.ForClass("eth", "SubscriptionManager"),
 		client: props.Client,
 	}
@@ -301,7 +305,9 @@ func (m *SubscriptionManager) create(ctx context.Context, ev concurrent.CreateWo
 		C:          req.C,
 	})
 
-	if err := sub.subscribe(ctx); err != nil {
+	// inherit context from manager so that cancelling the manager's context
+	// will cancel all subscriptions
+	if err := sub.subscribe(m.ctx); err != nil {
 		return err
 	}
 

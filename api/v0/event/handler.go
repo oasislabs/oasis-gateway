@@ -107,6 +107,9 @@ func (h EventHandler) Unsubscribe(ctx context.Context, v interface{}) (interface
 func (h EventHandler) PollEvent(ctx context.Context, v interface{}) (interface{}, error) {
 	authData := ctx.Value(auth.ContextAuthDataKey).(auth.AuthData)
 	req := v.(*PollEventRequest)
+	if req.Count == 0 {
+		req.Count = 10
+	}
 
 	res, err := h.request.PollEvent(ctx, backend.PollEventRequest{
 		DiscardPrevious: req.DiscardPrevious,
