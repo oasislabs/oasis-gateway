@@ -28,29 +28,34 @@ func (c *Config) Log(fields log.Fields) {
 }
 
 func (c *Config) Configure(v *viper.Viper) error {
+	if c.Providers == nil {
+		c.Providers = make([]core.Auth, 0)
+	}
+
 	providers := v.GetStringSlice("auth.provider")
 	for _, provider := range providers {
 		auth := newAuthSingle(AuthProvider(provider))
 		if auth == nil {
-			// try loading as plugin
-			plug, err := plugin.Open(provider)
-			if err != nil {
-				return config.ErrInvalidValue{Key: "auth.provider", InvalidValue: provider}
-			}
-			symbol, err := plug.Lookup("Auth")
-			if err != nil {
-				return config.ErrInvalidValue{Key: "auth.provider", InvalidValue: provider}
-			}
-			var ok bool
-			auth, ok = symbol.(core.Auth)
-			if !ok {
-				return config.ErrInvalidValue{Key: "auth.provider", InvalidValue: provider}
-			}
+			return config.ErrKeyNotSet{Key: "auth.provider"}
 		}
 		c.Providers = append(c.Providers, auth)
 	}
-	if len(c.Providers) < len(providers) {
-		return config.ErrKeyNotSet{Key: "auth.provider"}
+
+	providers = v.GetStringSlice("auth.plugin")
+	for _, provider := range providers {
+		plug, err := plugin.Open(provider)
+		if err != nil {
+			return config.ErrInvalidValue{Key: "auth.provider", InvalidValue: provider}
+		}
+		symbol, err := plug.Lookup("Auth")
+		if err != nil {
+			return config.ErrInvalidValue{Key: "auth.provider", InvalidValue: provider}
+		}
+		auth, ok := symbol.(core.Auth)
+		if !ok {
+			return config.ErrInvalidValue{Key: "auth.provider", InvalidValue: provider}
+		}
+		c.Providers = append(c.Providers, auth)
 	}
 
 	return nil
@@ -58,5 +63,6 @@ func (c *Config) Configure(v *viper.Viper) error {
 
 func (c *Config) Bind(v *viper.Viper, cmd *cobra.Command) error {
 	cmd.PersistentFlags().StringSlice("auth.provider", []string{"insecure"}, "providers for request authentication")
+	cmd.PersistentFlags().StringSlice("auth.plugin", []string{}, "plugins for request authentication")
 	return nil
 }
