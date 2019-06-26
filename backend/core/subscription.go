@@ -85,8 +85,6 @@ func (s *subscription) Start() {
 		s.wg.Done()
 	}()
 
-	s.wg.Add(1)
-
 	for {
 		select {
 		case <-s.ctx.Done():
@@ -272,6 +270,7 @@ func (m *SubscriptionManager) create(req createSubscriptionRequest) {
 		C:       req.C,
 	})
 
+	m.subs[req.Key].wg.Add(1)
 	go m.subs[req.Key].Start()
 	req.Err <- nil
 }

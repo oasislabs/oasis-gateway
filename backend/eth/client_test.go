@@ -315,17 +315,21 @@ func TestSubscribeSubscriptionErr(t *testing.T) {
 	sub.ErrC <- errors.New("error")
 
 	count := int32(0)
-	client.client.(*ethtest.MockClient).On("SubscribeFilterLogs",
-		mock.Anything, mock.Anything, mock.Anything).
-		Run(func(args mock.Arguments) {
-			value := atomic.AddInt32(&count, 1)
-			if value == 2 {
-				c := args.Get(2).(chan<- types.Log)
-				c <- types.Log{}
-				close(c)
-			}
-		}).
-		Return(sub, nil)
+	ethtest.ImplementMockWithOverwrite(client.client.(*ethtest.MockClient),
+		ethtest.MockMethods{
+			"SubscribeFilterLogs": ethtest.MockMethod{
+				Arguments: []interface{}{mock.Anything, mock.Anything, mock.Anything},
+				Return:    []interface{}{sub, nil},
+				Run: func(args mock.Arguments) {
+					value := atomic.AddInt32(&count, 1)
+					if value == 2 {
+						c := args.Get(2).(chan<- types.Log)
+						c <- types.Log{}
+						close(c)
+					}
+				},
+			},
+		})
 
 	c := make(chan interface{})
 	err = client.SubscribeRequest(Context, backend.CreateSubscriptionRequest{
