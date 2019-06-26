@@ -8,10 +8,12 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/oasislabs/developer-gateway/api/v0/event"
+	backend "github.com/oasislabs/developer-gateway/backend/core"
 	"github.com/oasislabs/developer-gateway/concurrent"
 	"github.com/oasislabs/developer-gateway/eth"
 	"github.com/oasislabs/developer-gateway/eth/ethtest"
 	"github.com/oasislabs/developer-gateway/rpc"
+	"github.com/oasislabs/developer-gateway/stats"
 	"github.com/oasislabs/developer-gateway/tests/apitest"
 	"github.com/oasislabs/developer-gateway/tests/gatewaytest"
 	"github.com/stretchr/testify/assert"
@@ -23,6 +25,7 @@ type EventsTestSuite struct {
 	suite.Suite
 	ethclient   *ethtest.MockClient
 	eventclient *apitest.EventClient
+	request     *backend.RequestManager
 }
 
 func (s *EventsTestSuite) SetupTest() {
@@ -32,6 +35,7 @@ func (s *EventsTestSuite) SetupTest() {
 	}
 
 	s.ethclient = provider.MustGet(reflect.TypeOf((*eth.Client)(nil)).Elem()).(*ethtest.MockClient)
+	s.request = provider.MustGet(reflect.TypeOf((&backend.RequestManager{}))).(*backend.RequestManager)
 
 	router := gatewaytest.NewPublicRouter(provider)
 	s.eventclient = apitest.NewEventClient(router)
@@ -129,11 +133,19 @@ func (s *EventsTestSuite) TestUnsubscribeOK() {
 	assert.Equal(s.T(), event.SubscribeResponse{
 		ID: 0,
 	}, res)
+	subStats := s.request.Stats()["subscriptions"].(stats.Metrics)
+	assert.Equal(s.T(), uint64(1), subStats["subscriptionCount"])
+	assert.Equal(s.T(), uint64(1), subStats["currentSubscriptions"])
+	assert.Equal(s.T(), uint64(1), subStats["totalSubscriptionCount"])
 
 	err = s.eventclient.Unsubscribe(context.TODO(), event.UnsubscribeRequest{
 		ID: 0,
 	})
 	assert.Nil(s.T(), err)
+	subStats = s.request.Stats()["subscriptions"].(stats.Metrics)
+	assert.Equal(s.T(), uint64(0), subStats["subscriptionCount"])
+	assert.Equal(s.T(), uint64(0), subStats["currentSubscriptions"])
+	assert.Equal(s.T(), uint64(1), subStats["totalSubscriptionCount"])
 
 	_, err = s.eventclient.PollEventUntilNotEmpty(context.TODO(), event.PollEventRequest{
 		ID:     0,

@@ -11,6 +11,7 @@ import (
 	"github.com/oasislabs/developer-gateway/errors"
 	"github.com/oasislabs/developer-gateway/log"
 	mqueue "github.com/oasislabs/developer-gateway/mqueue/core"
+	"github.com/oasislabs/developer-gateway/stats"
 )
 
 type subscription struct {
@@ -171,6 +172,11 @@ type existsSubscriptionRequest struct {
 	Out     chan<- bool
 }
 
+type statsRequest struct {
+	Context context.Context
+	Out     chan<- stats.Metrics
+}
+
 // SubscriptionManagerProps properties used to create the
 // behaviour of the manager and the subscriptions created
 type SubscriptionManagerProps struct {
@@ -190,27 +196,44 @@ type SubscriptionManagerProps struct {
 // SubscriptionManager manages the lifetime
 // of a group of subscriptions
 type SubscriptionManager struct {
-	ctx    context.Context
-	logger log.Logger
-	done   chan subscriptionEndEvent
-	req    chan interface{}
-	subs   map[string]*subscription
-	mqueue mqueue.MQueue
+	ctx     context.Context
+	logger  log.Logger
+	done    chan subscriptionEndEvent
+	req     chan interface{}
+	subs    map[string]*subscription
+	mqueue  mqueue.MQueue
+	metrics SubscriptionMetrics
+}
+
+type SubscriptionMetrics struct {
+	SubscriptionCount      uint64
+	SubscriptionCurrent    uint64
+	TotalSubscriptionCount uint64
 }
 
 // NewSubscriptionManager creates a new subscription manager
 func NewSubscriptionManager(props SubscriptionManagerProps) *SubscriptionManager {
 	m := SubscriptionManager{
-		ctx:    props.Context,
-		logger: props.Logger.ForClass("backend/core", "SubscriptionManager"),
-		done:   make(chan subscriptionEndEvent),
-		req:    make(chan interface{}),
-		subs:   make(map[string]*subscription),
-		mqueue: props.MQueue,
+		ctx:     props.Context,
+		logger:  props.Logger.ForClass("backend/core", "SubscriptionManager"),
+		done:    make(chan subscriptionEndEvent),
+		req:     make(chan interface{}),
+		subs:    make(map[string]*subscription),
+		mqueue:  props.MQueue,
+		metrics: SubscriptionMetrics{},
 	}
 
 	go m.startLoop()
 	return &m
+}
+
+func (m *SubscriptionManager) incrSubscriptions() {
+	m.metrics.SubscriptionCount++
+	m.metrics.TotalSubscriptionCount++
+}
+
+func (m *SubscriptionManager) decrSubscriptions() {
+	m.metrics.SubscriptionCount--
 }
 
 func (m *SubscriptionManager) startLoop() {
@@ -243,17 +266,33 @@ func (m *SubscriptionManager) handleRequest(req interface{}) {
 		m.destroy(req)
 	case existsSubscriptionRequest:
 		m.exists(req)
+	case statsRequest:
+		m.stats(req)
 	default:
 		panic("received unknown request")
 	}
 }
 
+func (m *SubscriptionManager) stats(req statsRequest) {
+	// subscriptionCount must be equal to currentSubscriptions, otherwise
+	// there must be a bug somewhere
+	req.Out <- stats.Metrics{
+		"subscriptionCount":      m.metrics.SubscriptionCount,
+		"totalSubscriptionCount": m.metrics.TotalSubscriptionCount,
+		"currentSubscriptions":   uint64(len(m.subs)),
+	}
+	close(req.Out)
+}
+
 func (m *SubscriptionManager) exists(req existsSubscriptionRequest) {
+	defer close(req.Out)
 	_, ok := m.subs[req.Key]
 	req.Out <- ok
 }
 
 func (m *SubscriptionManager) create(req createSubscriptionRequest) {
+	defer close(req.Err)
+
 	_, ok := m.subs[req.Key]
 	if ok {
 		req.Err <- errors.New(errors.ErrSubscriptionAlreadyExists,
@@ -270,12 +309,14 @@ func (m *SubscriptionManager) create(req createSubscriptionRequest) {
 		C:       req.C,
 	})
 
+	m.incrSubscriptions()
 	m.subs[req.Key].wg.Add(1)
 	go m.subs[req.Key].Start()
 	req.Err <- nil
 }
 
 func (m *SubscriptionManager) destroy(req destroySubscriptionRequest) {
+	defer close(req.Err)
 	sub, ok := m.subs[req.Key]
 	if !ok {
 		req.Err <- errors.New(errors.ErrSubscriptionNotFound,
@@ -285,6 +326,7 @@ func (m *SubscriptionManager) destroy(req destroySubscriptionRequest) {
 
 	sub.Stop()
 	m.remove(req.Key)
+	m.decrSubscriptions()
 	req.Err <- nil
 }
 
@@ -341,4 +383,10 @@ func (m *SubscriptionManager) Destroy(
 	err := make(chan errors.Err)
 	m.req <- destroySubscriptionRequest{Context: ctx, Key: key, Err: err}
 	return <-err
+}
+
+func (m *SubscriptionManager) Stats() stats.Metrics {
+	out := make(chan stats.Metrics)
+	m.req <- statsRequest{Context: context.Background(), Out: out}
+	return <-out
 }

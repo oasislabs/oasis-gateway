@@ -40,7 +40,9 @@ func (r *RequestManager) Name() string {
 }
 
 func (r *RequestManager) Stats() stats.Metrics {
-	return nil
+	return stats.Metrics{
+		"subscriptions": r.subman.Stats(),
+	}
 }
 
 type RequestManagerProperties struct {
