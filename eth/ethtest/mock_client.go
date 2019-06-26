@@ -98,7 +98,7 @@ func ImplementMockWithMethods(client *MockClient, methods MockMethods) {
 			call = call.Return(method.Return...)
 		}
 		if method.Run != nil {
-			call = call.Run(method.Run)
+			_ = call.Run(method.Run)
 		}
 	}
 }
