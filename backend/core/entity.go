@@ -83,7 +83,13 @@ func deserializeElement(el mqueue.Element) (Event, errors.Err) {
 // SubID generates a subscription ID that uniquely
 // identifies a subscription within the global namespace
 func SubID(key string, id uint64) string {
-	return fmt.Sprintf("%s-%d", key, id)
+	return fmt.Sprintf("%s:sub:%d", key, id)
+}
+
+// SubinfoID generates the ID that uniquely identifies
+// the managed subscriptions of a session
+func SubinfoID(key string) string {
+	return fmt.Sprintf("%s:subinfo", key)
 }
 
 // ExecuteServiceRequest is is used by the user to trigger a service

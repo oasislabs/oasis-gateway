@@ -54,6 +54,28 @@ func (c *ServiceClient) DeployService(
 	return res, nil
 }
 
+// DeployServiceSync makes a DeployService request
+// and waits for the event response
+func (c *ServiceClient) DeployServiceSync(
+	ctx context.Context,
+	req service.DeployServiceRequest,
+) (service.Event, error) {
+	res, err := c.DeployService(ctx, req)
+	if err != nil {
+		return service.DeployServiceEvent{}, err
+	}
+
+	evs, err := c.PollServiceUntilNotEmpty(ctx, service.PollServiceRequest{
+		Offset: res.ID,
+		Count:  1,
+	})
+	if err != nil {
+		return service.DeployServiceEvent{}, err
+	}
+
+	return evs.Events[0], nil
+}
+
 // ExecuteService deploys the specific service
 func (c *ServiceClient) ExecuteService(
 	ctx context.Context,
@@ -72,6 +94,28 @@ func (c *ServiceClient) ExecuteService(
 	c.requests[res.ID] = &req
 
 	return res, nil
+}
+
+// ExecuteServiceSync makes a ExecuteService request
+// and waits for the event response
+func (c *ServiceClient) ExecuteServiceSync(
+	ctx context.Context,
+	req service.ExecuteServiceRequest,
+) (service.Event, error) {
+	res, err := c.ExecuteService(ctx, req)
+	if err != nil {
+		return service.ExecuteServiceEvent{}, err
+	}
+
+	evs, err := c.PollServiceUntilNotEmpty(ctx, service.PollServiceRequest{
+		Offset: res.ID,
+		Count:  1,
+	})
+	if err != nil {
+		return service.ExecuteServiceEvent{}, err
+	}
+
+	return evs.Events[0], nil
 }
 
 func (c *ServiceClient) PollService(
@@ -109,7 +153,7 @@ func (c ServiceClient) PollServiceUntilNotEmpty(
 	ctx context.Context,
 	req service.PollServiceRequest,
 ) (service.PollServiceResponse, error) {
-	v, err := concurrent.RetryWithConfig(context.Background(), concurrent.SupplierFunc(func() (interface{}, error) {
+	v, err := concurrent.RetryWithConfig(ctx, concurrent.SupplierFunc(func() (interface{}, error) {
 		v, err := c.PollService(ctx, req)
 		if err != nil {
 			return nil, concurrent.ErrCannotRecover{Cause: err}

@@ -40,7 +40,9 @@ func (r *RequestManager) Name() string {
 }
 
 func (r *RequestManager) Stats() stats.Metrics {
-	return nil
+	return stats.Metrics{
+		"subscriptions": r.subman.Stats(),
+	}
 }
 
 type RequestManagerProperties struct {
@@ -151,7 +153,7 @@ func (m *RequestManager) Subscribe(ctx context.Context, req SubscribeRequest) (u
 
 	// use a queue per subscription to manage the number of queues created. This
 	// also helps us with managing the resources a specific client is using
-	key := req.SessionKey + ":subscriptions"
+	key := SubinfoID(req.SessionKey)
 	id, err := m.mqueue.Next(ctx, mqueue.NextRequest{Key: key})
 	if err != nil {
 		return 0, errors.New(errors.ErrQueueNext, err)

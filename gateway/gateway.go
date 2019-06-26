@@ -210,8 +210,8 @@ func NewPublicRouter(group *ServiceGroup) *rpc.HttpRouter {
 		Verifier: group.Authenticator,
 	}, binder)
 	event.BindHandler(event.Services{
-		Logger:  RootLogger,
-		Request: group.Request,
+		Logger: RootLogger,
+		Client: group.Request,
 	}, binder)
 
 	return binder.Build()

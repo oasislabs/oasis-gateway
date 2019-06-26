@@ -7,11 +7,9 @@ import (
 	"fmt"
 	"io/ioutil"
 	"math/big"
-	"strings"
 	"sync/atomic"
 	"testing"
 
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/oasislabs/developer-gateway/backend/core"
@@ -44,20 +42,13 @@ func GetPrivateKey() *ecdsa.PrivateKey {
 	return privateKey
 }
 
-func NewClientWithMock() (*Client, error) {
+func NewClient() (*Client, error) {
 	mockclient := &ethtest.MockClient{}
 	mockcallbacks := &callbacktest.MockClient{}
 
-	mockclient.On("BalanceAt",
-		mock.AnythingOfType("*context.emptyCtx"),
-		mock.AnythingOfType("common.Address"),
-		mock.AnythingOfType("*big.Int")).
+	mockclient.On("BalanceAt", mock.Anything, mock.Anything, mock.Anything).
 		Return(big.NewInt(1), nil)
-
-	mockclient.On("NonceAt",
-		mock.AnythingOfType("*context.emptyCtx"),
-		mock.AnythingOfType("common.Address")).
-		Return(uint64(0), nil)
+	mockclient.On("NonceAt", mock.Anything, mock.Anything).Return(uint64(0), nil)
 
 	executor, err := tx.NewExecutor(Context, &tx.ExecutorServices{
 		Logger:    Logger,
@@ -76,7 +67,7 @@ func NewClientWithMock() (*Client, error) {
 }
 
 func TestGetPublicKeyInvalidAddress(t *testing.T) {
-	client, err := NewClientWithMock()
+	client, err := NewClient()
 	assert.Nil(t, err)
 
 	_, err = client.GetPublicKey(Context, backend.GetPublicKeyRequest{
@@ -87,33 +78,30 @@ func TestGetPublicKeyInvalidAddress(t *testing.T) {
 }
 
 func TestGetPublicKeyErr(t *testing.T) {
-	client, err := NewClientWithMock()
+	client, err := NewClient()
 	assert.Nil(t, err)
 
-	client.client.(*ethtest.MockClient).On("GetPublicKey",
-		mock.AnythingOfType("*context.emptyCtx"),
-		mock.AnythingOfType("common.Address")).
-		Return(eth.PublicKey{}, errors.New("error"))
+	ethtest.ImplementMockWithOverwrite(client.client.(*ethtest.MockClient),
+		ethtest.MockMethods{
+			"GetPublicKey": ethtest.MockMethod{
+				Arguments: []interface{}{mock.Anything, mock.Anything},
+				Return:    []interface{}{eth.PublicKey{}, errors.New("error")},
+			},
+		})
 
 	_, err = client.GetPublicKey(Context, backend.GetPublicKeyRequest{
 		Address: "0x0000000000000000000000000000000000000000",
 	})
+
 	assert.Error(t, err)
 	assert.Equal(t, "[1000] error code InternalError with desc Internal Error. Please check the status of the service. with cause failed to get public key error", err.Error())
 }
 
 func TestGetPublicKeyOK(t *testing.T) {
-	client, err := NewClientWithMock()
+	client, err := NewClient()
 	assert.Nil(t, err)
 
-	client.client.(*ethtest.MockClient).On("GetPublicKey",
-		mock.AnythingOfType("*context.emptyCtx"),
-		mock.AnythingOfType("common.Address")).
-		Return(eth.PublicKey{
-			Timestamp: 1234,
-			PublicKey: "0x6f6704e5a10332af6672e50b3d9754dc460dfa4d",
-			Signature: "0x6f6704e5a10332af6672e50b3d9754dc460dfa4d",
-		}, nil)
+	ethtest.ImplementMock(client.client.(*ethtest.MockClient))
 
 	pk, err := client.GetPublicKey(Context, backend.GetPublicKeyRequest{
 		Address: "0x0000000000000000000000000000000000000000",
@@ -129,40 +117,16 @@ func TestGetPublicKeyOK(t *testing.T) {
 }
 
 func TestDeployServiceErrNoCode(t *testing.T) {
-	client, err := NewClientWithMock()
+	client, err := NewClient()
 	assert.Nil(t, err)
 
-	client.client.(*ethtest.MockClient).On("EstimateGas",
-		mock.AnythingOfType("*context.emptyCtx"),
-		mock.AnythingOfType("ethereum.CallMsg")).
-		Return(uint64(0), nil)
-	client.client.(*ethtest.MockClient).On("NonceAt",
-		mock.AnythingOfType("*context.emptyCtx"),
-		mock.AnythingOfType("common.Address")).
-		Return(uint64(1), nil)
-	client.client.(*ethtest.MockClient).On("GetCode",
-		mock.AnythingOfType("*context.emptyCtx"),
-		mock.AnythingOfType("common.Address")).
-		Return([]byte("0x"), nil)
-	client.client.(*ethtest.MockClient).On("BalanceAt",
-		mock.AnythingOfType("*context.emptyCtx"),
-		mock.AnythingOfType("common.Address"),
-		mock.AnythingOfType("*big.Int")).
-		Return(big.NewInt(1), nil)
-	client.client.(*ethtest.MockClient).On("TransactionReceipt",
-		mock.AnythingOfType("*context.emptyCtx"),
-		mock.AnythingOfType("common.Hash")).
-		Return(&types.Receipt{
-			ContractAddress: common.HexToAddress(strings.Repeat("0", 20)),
-		}, nil)
-	client.client.(*ethtest.MockClient).On("SendTransaction",
-		mock.AnythingOfType("*context.emptyCtx"),
-		mock.Anything).
-		Return(eth.SendTransactionResponse{
-			Status: StatusOK,
-			Output: "Success",
-			Hash:   "Some hash",
-		}, nil)
+	ethtest.ImplementMockWithOverwrite(client.client.(*ethtest.MockClient),
+		ethtest.MockMethods{
+			"GetCode": ethtest.MockMethod{
+				Arguments: []interface{}{mock.Anything, mock.Anything},
+				Return:    []interface{}{[]byte("0x"), nil},
+			},
+		})
 
 	_, err = client.DeployService(Context, 1, backend.DeployServiceRequest{
 		Data: "0x0000000000000000000000000000000000000000",
@@ -172,40 +136,10 @@ func TestDeployServiceErrNoCode(t *testing.T) {
 }
 
 func TestDeployServiceOK(t *testing.T) {
-	client, err := NewClientWithMock()
+	client, err := NewClient()
 	assert.Nil(t, err)
 
-	client.client.(*ethtest.MockClient).On("EstimateGas",
-		mock.AnythingOfType("*context.emptyCtx"),
-		mock.AnythingOfType("ethereum.CallMsg")).
-		Return(uint64(0), nil)
-	client.client.(*ethtest.MockClient).On("NonceAt",
-		mock.AnythingOfType("*context.emptyCtx"),
-		mock.AnythingOfType("common.Address")).
-		Return(uint64(1), nil)
-	client.client.(*ethtest.MockClient).On("GetCode",
-		mock.AnythingOfType("*context.emptyCtx"),
-		mock.AnythingOfType("common.Address")).
-		Return([]byte("0x0000000000000000000000000000000000000000"), nil)
-	client.client.(*ethtest.MockClient).On("BalanceAt",
-		mock.AnythingOfType("*context.emptyCtx"),
-		mock.AnythingOfType("common.Address"),
-		mock.AnythingOfType("*big.Int")).
-		Return(big.NewInt(1), nil)
-	client.client.(*ethtest.MockClient).On("TransactionReceipt",
-		mock.AnythingOfType("*context.emptyCtx"),
-		mock.AnythingOfType("common.Hash")).
-		Return(&types.Receipt{
-			ContractAddress: common.HexToAddress(strings.Repeat("0", 20)),
-		}, nil)
-	client.client.(*ethtest.MockClient).On("SendTransaction",
-		mock.AnythingOfType("*context.emptyCtx"),
-		mock.Anything).
-		Return(eth.SendTransactionResponse{
-			Status: StatusOK,
-			Output: "Success",
-			Hash:   "Some hash",
-		}, nil)
+	ethtest.ImplementMock(client.client.(*ethtest.MockClient))
 
 	res, err := client.DeployService(Context, 1, backend.DeployServiceRequest{
 		Data: "0x0000000000000000000000000000000000000000",
@@ -219,13 +153,16 @@ func TestDeployServiceOK(t *testing.T) {
 }
 
 func TestDeployServiceEstimateGasErr(t *testing.T) {
-	client, err := NewClientWithMock()
+	client, err := NewClient()
 	assert.Nil(t, err)
 
-	client.client.(*ethtest.MockClient).On("EstimateGas",
-		mock.AnythingOfType("*context.emptyCtx"),
-		mock.AnythingOfType("ethereum.CallMsg")).
-		Return(uint64(0), errors.New("error"))
+	ethtest.ImplementMockWithOverwrite(client.client.(*ethtest.MockClient),
+		ethtest.MockMethods{
+			"EstimateGas": ethtest.MockMethod{
+				Arguments: []interface{}{mock.Anything, mock.Anything},
+				Return:    []interface{}{uint64(0), errors.New("error")},
+			},
+		})
 
 	_, err = client.DeployService(Context, 1, backend.DeployServiceRequest{
 		Data: "0x0000000000000000000000000000000000000000",
@@ -235,36 +172,10 @@ func TestDeployServiceEstimateGasErr(t *testing.T) {
 }
 
 func TestExecuteServiceOK(t *testing.T) {
-	client, err := NewClientWithMock()
+	client, err := NewClient()
 	assert.Nil(t, err)
 
-	client.client.(*ethtest.MockClient).On("EstimateGas",
-		mock.AnythingOfType("*context.emptyCtx"),
-		mock.AnythingOfType("ethereum.CallMsg")).
-		Return(uint64(0), nil)
-	client.client.(*ethtest.MockClient).On("NonceAt",
-		mock.AnythingOfType("*context.emptyCtx"),
-		mock.AnythingOfType("common.Address")).
-		Return(uint64(1), nil)
-	client.client.(*ethtest.MockClient).On("BalanceAt",
-		mock.AnythingOfType("*context.emptyCtx"),
-		mock.AnythingOfType("common.Address"),
-		mock.AnythingOfType("*big.Int")).
-		Return(big.NewInt(1), nil)
-	client.client.(*ethtest.MockClient).On("TransactionReceipt",
-		mock.AnythingOfType("*context.emptyCtx"),
-		mock.AnythingOfType("common.Hash")).
-		Return(&types.Receipt{
-			ContractAddress: common.HexToAddress(strings.Repeat("0", 20)),
-		}, nil)
-	client.client.(*ethtest.MockClient).On("SendTransaction",
-		mock.AnythingOfType("*context.emptyCtx"),
-		mock.Anything).
-		Return(eth.SendTransactionResponse{
-			Status: StatusOK,
-			Output: "Success",
-			Hash:   "Some hash",
-		}, nil)
+	ethtest.ImplementMock(client.client.(*ethtest.MockClient))
 
 	res, err := client.ExecuteService(Context, 1, backend.ExecuteServiceRequest{
 		Address: "0x5d352cf2160f79CBF3554534cF25A4b42C43D502",
@@ -275,18 +186,21 @@ func TestExecuteServiceOK(t *testing.T) {
 	assert.Equal(t, backend.ExecuteServiceResponse{
 		ID:      uint64(1),
 		Address: "0x5d352cf2160f79CBF3554534cF25A4b42C43D502",
-		Output:  "Success",
+		Output:  "0x73756363657373",
 	}, res)
 }
 
 func TestExecuteServiceEstimateGasErr(t *testing.T) {
-	client, err := NewClientWithMock()
+	client, err := NewClient()
 	assert.Nil(t, err)
 
-	client.client.(*ethtest.MockClient).On("EstimateGas",
-		mock.AnythingOfType("*context.emptyCtx"),
-		mock.AnythingOfType("ethereum.CallMsg")).
-		Return(uint64(0), errors.New("error"))
+	ethtest.ImplementMockWithOverwrite(client.client.(*ethtest.MockClient),
+		ethtest.MockMethods{
+			"EstimateGas": ethtest.MockMethod{
+				Arguments: []interface{}{mock.Anything, mock.Anything},
+				Return:    []interface{}{uint64(0), errors.New("error")},
+			},
+		})
 
 	_, err = client.ExecuteService(Context, 1, backend.ExecuteServiceRequest{
 		Address: "0x5d352cf2160f79CBF3554534cF25A4b42C43D502",
@@ -297,13 +211,10 @@ func TestExecuteServiceEstimateGasErr(t *testing.T) {
 }
 
 func TestExecuteServiceEmptyAddressErr(t *testing.T) {
-	client, err := NewClientWithMock()
+	client, err := NewClient()
 	assert.Nil(t, err)
 
-	client.client.(*ethtest.MockClient).On("EstimateGas",
-		mock.AnythingOfType("*context.emptyCtx"),
-		mock.AnythingOfType("ethereum.CallMsg")).
-		Return(uint64(0), errors.New("error"))
+	ethtest.ImplementMock(client.client.(*ethtest.MockClient))
 
 	_, err = client.ExecuteService(Context, 1, backend.ExecuteServiceRequest{
 		Data:    "0x0000000000000000000000000000000000000000",
@@ -314,13 +225,10 @@ func TestExecuteServiceEmptyAddressErr(t *testing.T) {
 }
 
 func TestExecuteServiceNoHexAddressErr(t *testing.T) {
-	client, err := NewClientWithMock()
+	client, err := NewClient()
 	assert.Nil(t, err)
 
-	client.client.(*ethtest.MockClient).On("EstimateGas",
-		mock.AnythingOfType("*context.emptyCtx"),
-		mock.AnythingOfType("ethereum.CallMsg")).
-		Return(uint64(0), errors.New("error"))
+	ethtest.ImplementMock(client.client.(*ethtest.MockClient))
 
 	_, err = client.ExecuteService(Context, 1, backend.ExecuteServiceRequest{
 		Data:    "0x0000000000000000000000000000000000000000",
@@ -331,14 +239,10 @@ func TestExecuteServiceNoHexAddressErr(t *testing.T) {
 }
 
 func TestSubscribeInvalidTopicErr(t *testing.T) {
-	client, err := NewClientWithMock()
+	client, err := NewClient()
 	assert.Nil(t, err)
 
-	client.client.(*ethtest.MockClient).On("SubscribeFilterLogs",
-		mock.Anything,
-		mock.Anything,
-		mock.Anything).
-		Return(nil, errors.New("error"))
+	ethtest.ImplementMock(client.client.(*ethtest.MockClient))
 
 	c := make(chan interface{})
 	err = client.SubscribeRequest(Context, backend.CreateSubscriptionRequest{
@@ -351,14 +255,16 @@ func TestSubscribeInvalidTopicErr(t *testing.T) {
 }
 
 func TestSubscribeErr(t *testing.T) {
-	client, err := NewClientWithMock()
+	client, err := NewClient()
 	assert.Nil(t, err)
 
-	client.client.(*ethtest.MockClient).On("SubscribeFilterLogs",
-		mock.Anything,
-		mock.Anything,
-		mock.Anything).
-		Return(&ethtest.MockSubscription{}, errors.New("error"))
+	ethtest.ImplementMockWithOverwrite(client.client.(*ethtest.MockClient),
+		ethtest.MockMethods{
+			"SubscribeFilterLogs": ethtest.MockMethod{
+				Arguments: []interface{}{mock.Anything, mock.Anything, mock.Anything},
+				Return:    []interface{}{nil, errors.New("error")},
+			},
+		})
 
 	c := make(chan interface{})
 	err = client.SubscribeRequest(Context, backend.CreateSubscriptionRequest{
@@ -371,22 +277,23 @@ func TestSubscribeErr(t *testing.T) {
 }
 
 func TestSubscribeOK(t *testing.T) {
-	client, err := NewClientWithMock()
+	client, err := NewClient()
 	assert.Nil(t, err)
 
-	sub := &ethtest.MockSubscription{}
-	errC := make(<-chan error)
-	sub.On("Err").
-		Return(errC)
+	sub := &ethtest.MockSubscription{ErrC: make(chan error)}
 
-	client.client.(*ethtest.MockClient).On("SubscribeFilterLogs",
-		mock.Anything, mock.Anything, mock.Anything).
-		Run(func(args mock.Arguments) {
-			c := args.Get(2).(chan<- types.Log)
-			c <- types.Log{}
-			close(c)
-		}).
-		Return(sub, nil)
+	ethtest.ImplementMockWithOverwrite(client.client.(*ethtest.MockClient),
+		ethtest.MockMethods{
+			"SubscribeFilterLogs": ethtest.MockMethod{
+				Arguments: []interface{}{mock.Anything, mock.Anything, mock.Anything},
+				Return:    []interface{}{sub, nil},
+				Run: func(args mock.Arguments) {
+					c := args.Get(2).(chan<- types.Log)
+					c <- types.Log{}
+					close(c)
+				},
+			},
+		})
 
 	c := make(chan interface{})
 	err = client.SubscribeRequest(Context, backend.CreateSubscriptionRequest{
@@ -401,28 +308,28 @@ func TestSubscribeOK(t *testing.T) {
 }
 
 func TestSubscribeSubscriptionErr(t *testing.T) {
-	client, err := NewClientWithMock()
+	client, err := NewClient()
 	assert.Nil(t, err)
 
-	sub := &ethtest.MockSubscription{}
-	errC := make(chan error, 1)
-	outErrC := func() <-chan error { return errC }()
-	sub.On("Err").
-		Return(outErrC)
-	errC <- errors.New("error")
+	sub := &ethtest.MockSubscription{ErrC: make(chan error, 1)}
+	sub.ErrC <- errors.New("error")
 
 	count := int32(0)
-	client.client.(*ethtest.MockClient).On("SubscribeFilterLogs",
-		mock.Anything, mock.Anything, mock.Anything).
-		Run(func(args mock.Arguments) {
-			value := atomic.AddInt32(&count, 1)
-			if value == 2 {
-				c := args.Get(2).(chan<- types.Log)
-				c <- types.Log{}
-				close(c)
-			}
-		}).
-		Return(sub, nil)
+	ethtest.ImplementMockWithOverwrite(client.client.(*ethtest.MockClient),
+		ethtest.MockMethods{
+			"SubscribeFilterLogs": ethtest.MockMethod{
+				Arguments: []interface{}{mock.Anything, mock.Anything, mock.Anything},
+				Return:    []interface{}{sub, nil},
+				Run: func(args mock.Arguments) {
+					value := atomic.AddInt32(&count, 1)
+					if value == 2 {
+						c := args.Get(2).(chan<- types.Log)
+						c <- types.Log{}
+						close(c)
+					}
+				},
+			},
+		})
 
 	c := make(chan interface{})
 	err = client.SubscribeRequest(Context, backend.CreateSubscriptionRequest{

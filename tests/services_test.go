@@ -2,87 +2,91 @@ package tests
 
 import (
 	"context"
+	"errors"
+	"reflect"
 	"testing"
 
 	"github.com/oasislabs/developer-gateway/api/v0/service"
-	"github.com/oasislabs/developer-gateway/gateway"
+	"github.com/oasislabs/developer-gateway/eth"
+	"github.com/oasislabs/developer-gateway/eth/ethtest"
 	"github.com/oasislabs/developer-gateway/rpc"
 	"github.com/oasislabs/developer-gateway/tests/apitest"
-	"github.com/oasislabs/developer-gateway/tests/mock"
+	"github.com/oasislabs/developer-gateway/tests/gatewaytest"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 )
 
 type ServicesTestSuite struct {
 	suite.Suite
-	client *apitest.ServiceClient
+	ethclient *ethtest.MockClient
+	client    *apitest.ServiceClient
 }
 
 func (s *ServicesTestSuite) SetupTest() {
-	services, err := mock.NewServices(context.TODO(), Config)
+	provider, err := gatewaytest.NewServices(context.TODO(), Config)
 	if err != nil {
 		panic(err)
 	}
 
-	router := gateway.NewPublicRouter(services)
+	s.ethclient = provider.MustGet(reflect.TypeOf((*eth.Client)(nil)).Elem()).(*ethtest.MockClient)
+
+	router := gatewaytest.NewPublicRouter(provider)
 	s.client = apitest.NewServiceClient(router)
 }
 
 func (s *ServicesTestSuite) TestDeployServiceEmptyData() {
-	_, err := s.client.DeployService(context.Background(), service.DeployServiceRequest{
+	ethtest.ImplementMock(s.ethclient)
+
+	_, err := s.client.DeployServiceSync(context.TODO(), service.DeployServiceRequest{
 		Data: "",
 	})
 
 	assert.Equal(s.T(), &rpc.Error{ErrorCode: 7002, Description: "Failed to verify AAD in transaction data."}, err)
 }
 
-func (s *ServicesTestSuite) TestDeployServiceErr() {
-	deployRes, err := s.client.DeployService(context.Background(), service.DeployServiceRequest{
-		Data: mock.TransactionDataErr,
+func (s *ServicesTestSuite) TestDeployServiceErrEstimateGas() {
+	ethtest.ImplementMockWithOverwrite(s.ethclient,
+		ethtest.MockMethods{
+			"EstimateGas": ethtest.MockMethod{
+				Arguments: []interface{}{mock.Anything, mock.Anything},
+				Return:    []interface{}{uint64(0), errors.New("error")},
+			},
+		})
+
+	ev, err := s.client.DeployServiceSync(context.TODO(), service.DeployServiceRequest{
+		Data: "0x0000000000000000000000000000000000000000",
 	})
 
 	assert.Nil(s.T(), err)
-	assert.Equal(s.T(), uint64(0), deployRes.ID)
-
-	pollRes, err := s.client.PollServiceUntilNotEmpty(context.Background(), service.PollServiceRequest{
-		Offset: 0,
-	})
-
-	assert.Nil(s.T(), err)
-	assert.Equal(s.T(), uint64(0), pollRes.Offset)
-	assert.Equal(s.T(), 1, len(pollRes.Events))
 	assert.Equal(s.T(), service.ErrorEvent{
 		ID: 0x0,
 		Cause: rpc.Error{
 			ErrorCode:   1002,
 			Description: "Internal Error. Please check the status of the service.",
-		}}, pollRes.Events[0])
+		}}, ev)
 }
 
 func (s *ServicesTestSuite) TestDeployServiceOK() {
-	deployRes, err := s.client.DeployService(context.Background(), service.DeployServiceRequest{
-		Data: mock.TransactionDataOK,
-	})
-	assert.Nil(s.T(), err)
-	assert.Equal(s.T(), uint64(0), deployRes.ID)
+	ethtest.ImplementMock(s.ethclient)
 
-	pollRes, err := s.client.PollServiceUntilNotEmpty(context.Background(), service.PollServiceRequest{
-		Offset: deployRes.ID,
+	ev, err := s.client.DeployServiceSync(context.TODO(), service.DeployServiceRequest{
+		Data: "0x0000000000000000000000000000000000000000",
 	})
 
 	assert.Nil(s.T(), err)
-	assert.Equal(s.T(), uint64(0), pollRes.Offset)
-	assert.Equal(s.T(), 1, len(pollRes.Events))
 	assert.Equal(s.T(), service.DeployServiceEvent{
 		ID:      0,
 		Address: "0x0000000000000000000000000000000000000000",
-	}, pollRes.Events[0])
+	}, ev)
 }
 
 func (s *ServicesTestSuite) TestExecuteServiceEmptyAddress() {
-	_, err := s.client.ExecuteService(context.Background(), service.ExecuteServiceRequest{
+	ethtest.ImplementMock(s.ethclient)
+
+	_, err := s.client.ExecuteServiceSync(context.Background(), service.ExecuteServiceRequest{
 		Address: "",
-		Data:    mock.TransactionDataOK,
+		Data:    "0x0000000000000000000000000000000000000000",
 	})
 
 	assert.Error(s.T(), err)
@@ -90,8 +94,10 @@ func (s *ServicesTestSuite) TestExecuteServiceEmptyAddress() {
 }
 
 func (s *ServicesTestSuite) TestExecuteServiceEmptyTransactionData() {
-	_, err := s.client.ExecuteService(context.Background(), service.ExecuteServiceRequest{
-		Address: mock.Address,
+	ethtest.ImplementMock(s.ethclient)
+
+	_, err := s.client.ExecuteServiceSync(context.Background(), service.ExecuteServiceRequest{
+		Address: "0x0000000000000000000000000000000000000000",
 		Data:    "",
 	})
 
@@ -99,73 +105,75 @@ func (s *ServicesTestSuite) TestExecuteServiceEmptyTransactionData() {
 	assert.Equal(s.T(), &rpc.Error{ErrorCode: 7002, Description: "Failed to verify AAD in transaction data."}, err)
 }
 
-func (s *ServicesTestSuite) TestExecuteServiceErr() {
-	executeRes, err := s.client.ExecuteService(context.Background(), service.ExecuteServiceRequest{
-		Address: mock.Address,
-		Data:    mock.TransactionDataErr,
+func (s *ServicesTestSuite) TestExecuteServiceErrEstimateGas() {
+	ethtest.ImplementMockWithOverwrite(s.ethclient,
+		ethtest.MockMethods{
+			"EstimateGas": ethtest.MockMethod{
+				Arguments: []interface{}{mock.Anything, mock.Anything},
+				Return:    []interface{}{uint64(0), errors.New("error")},
+			},
+		})
+
+	ev, err := s.client.ExecuteServiceSync(context.TODO(), service.ExecuteServiceRequest{
+		Address: "0x0000000000000000000000000000000000000000",
+		Data:    "0x0000000000000000000000000000000000000000",
 	})
 	assert.Nil(s.T(), err)
-	assert.Equal(s.T(), uint64(0), executeRes.ID)
-
-	pollRes, err := s.client.PollServiceUntilNotEmpty(context.Background(), service.PollServiceRequest{
-		Offset: 0,
-	})
-
-	assert.Nil(s.T(), err)
-	assert.Equal(s.T(), uint64(0), pollRes.Offset)
-	assert.Equal(s.T(), 1, len(pollRes.Events))
 	assert.Equal(s.T(), service.ErrorEvent{
 		ID: 0x0,
 		Cause: rpc.Error{
 			ErrorCode:   1002,
 			Description: "Internal Error. Please check the status of the service.",
-		}}, pollRes.Events[0])
+		}}, ev)
 }
 
 func (s *ServicesTestSuite) TestExecuteServiceOK() {
-	executeRes, err := s.client.ExecuteService(context.Background(), service.ExecuteServiceRequest{
-		Address: mock.Address,
-		Data:    mock.TransactionDataOK,
+	ethtest.ImplementMock(s.ethclient)
+
+	ev, err := s.client.ExecuteServiceSync(context.TODO(), service.ExecuteServiceRequest{
+		Address: "0x0000000000000000000000000000000000000000",
+		Data:    "0x0000000000000000000000000000000000000000",
 	})
 	assert.Nil(s.T(), err)
-	assert.Equal(s.T(), uint64(0), executeRes.ID)
-
-	pollRes, err := s.client.PollServiceUntilNotEmpty(context.Background(), service.PollServiceRequest{
-		Offset: 0,
-	})
-
-	assert.Nil(s.T(), err)
-	assert.Equal(s.T(), uint64(0), pollRes.Offset)
-	assert.Equal(s.T(), 1, len(pollRes.Events))
 	assert.Equal(s.T(), service.ExecuteServiceEvent{
 		ID:      0,
 		Address: "0x0000000000000000000000000000000000000000",
 		Output:  "0x73756363657373",
-	}, pollRes.Events[0])
+	}, ev)
 }
 
-func (s *ServicesTestSuite) TestExecuteServiceReceiptStatusErr() {
-	executeRes, err := s.client.ExecuteService(context.Background(), service.ExecuteServiceRequest{
-		Address: mock.Address,
-		Data:    mock.TransactionDataReceiptErr,
-	})
-	assert.Nil(s.T(), err)
-	assert.Equal(s.T(), uint64(0), executeRes.ID)
+func (s *ServicesTestSuite) TestExecuteServiceErrStatus0() {
+	ethtest.ImplementMockWithOverwrite(s.ethclient,
+		ethtest.MockMethods{
+			"SendTransaction": ethtest.MockMethod{
+				Arguments: []interface{}{mock.Anything, mock.Anything},
+				Return: []interface{}{
+					eth.SendTransactionResponse{
+						Status: 0,
+						Output: "0x6572726F72",
+						Hash:   "0x00000000000000000000000000000000000000000000000000000000000000000",
+					}, nil,
+				},
+			},
+		})
 
-	pollRes, err := s.client.PollServiceUntilNotEmpty(context.Background(), service.PollServiceRequest{
-		Offset: 0,
+	ev, err := s.client.ExecuteServiceSync(context.TODO(), service.ExecuteServiceRequest{
+		Address: "0x0000000000000000000000000000000000000000",
+		Data:    "0x0000000000000000000000000000000000000000",
 	})
+
 	assert.Nil(s.T(), err)
-	assert.Equal(s.T(), 1, len(pollRes.Events))
 	assert.Equal(s.T(), service.ErrorEvent{
 		ID: 0,
 		Cause: rpc.Error{
 			ErrorCode:   1000,
 			Description: "transaction receipt has status 0 which indicates a transaction execution failure with error error",
-		}}, pollRes.Events[0])
+		}}, ev)
 }
 
 func (s *ServicesTestSuite) TestGetPublicKeyEmptyAddress() {
+	ethtest.ImplementMock(s.ethclient)
+
 	_, err := s.client.GetPublicKey(context.Background(), service.GetPublicKeyRequest{
 		Address: "",
 	})
@@ -175,16 +183,18 @@ func (s *ServicesTestSuite) TestGetPublicKeyEmptyAddress() {
 }
 
 func (s *ServicesTestSuite) TestGetPublicKeyOk() {
+	ethtest.ImplementMock(s.ethclient)
+
 	res, err := s.client.GetPublicKey(context.Background(), service.GetPublicKeyRequest{
-		Address: mock.Address,
+		Address: "0x0000000000000000000000000000000000000000",
 	})
 
 	assert.Nil(s.T(), err)
 	assert.Equal(s.T(), service.GetPublicKeyResponse{
-		Timestamp: 0x1b69b4bab46a831,
+		Timestamp: 1234,
+		PublicKey: "0x6f6704e5a10332af6672e50b3d9754dc460dfa4d",
+		Signature: "0x6f6704e5a10332af6672e50b3d9754dc460dfa4d",
 		Address:   "0x0000000000000000000000000000000000000000",
-		PublicKey: "0x0000000000000000000000000000000000000000",
-		Signature: "0x0000000000000000000000000000000000000000",
 	}, res)
 }
 

@@ -3,13 +3,15 @@ package tests
 import (
 	"context"
 	"net/http"
+	"reflect"
 	"testing"
 
 	auth "github.com/oasislabs/developer-gateway/auth/core"
 	"github.com/oasislabs/developer-gateway/auth/insecure"
-	"github.com/oasislabs/developer-gateway/gateway"
+	"github.com/oasislabs/developer-gateway/eth"
+	"github.com/oasislabs/developer-gateway/eth/ethtest"
 	"github.com/oasislabs/developer-gateway/tests/apitest"
-	"github.com/oasislabs/developer-gateway/tests/mock"
+	"github.com/oasislabs/developer-gateway/tests/gatewaytest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 )
@@ -20,12 +22,15 @@ type ApiTestSuite struct {
 }
 
 func (s *ApiTestSuite) SetupTest() {
-	services, err := mock.NewServices(context.TODO(), Config)
+	provider, err := gatewaytest.NewServices(context.TODO(), Config)
 	if err != nil {
 		panic(err)
 	}
 
-	router := gateway.NewPublicRouter(services)
+	ethclient := provider.MustGet(reflect.TypeOf((*eth.Client)(nil)).Elem()).(*ethtest.MockClient)
+	ethtest.ImplementMock(ethclient)
+
+	router := gatewaytest.NewPublicRouter(provider)
 	s.client = apitest.NewClient(router)
 }
 

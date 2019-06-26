@@ -75,6 +75,10 @@ func (c *Client) RequestAPI(de rpc.Deserializer, req interface{}, session string
 		return err
 	}
 
+	if res.Code == http.StatusNoContent {
+		return nil
+	}
+
 	if res.Code != http.StatusOK {
 		if len(res.Body) > 0 {
 			var rpcError rpc.Error

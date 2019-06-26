@@ -12,16 +12,24 @@ import (
 	"github.com/oasislabs/developer-gateway/rpc"
 )
 
+// Client interface for the underlying operations needed for the API
+// implementation
+type Client interface {
+	Subscribe(context.Context, backend.SubscribeRequest) (uint64, errors.Err)
+	Unsubscribe(context.Context, backend.UnsubscribeRequest) errors.Err
+	PollEvent(context.Context, backend.PollEventRequest) (backend.Events, errors.Err)
+}
+
 type Services struct {
-	Logger  log.Logger
-	Request *backend.RequestManager
+	Logger log.Logger
+	Client Client
 }
 
 // EventHandler implements the handlers associated with subscriptions and
 // event polling
 type EventHandler struct {
-	logger  log.Logger
-	request *backend.RequestManager
+	logger log.Logger
+	client Client
 }
 
 // Subscribe creates a new subscription for the client on the required
@@ -64,7 +72,7 @@ func (h EventHandler) Subscribe(ctx context.Context, v interface{}) (interface{}
 		return nil, err
 	}
 
-	id, err := h.request.Subscribe(ctx, backend.SubscribeRequest{
+	id, err := h.client.Subscribe(ctx, backend.SubscribeRequest{
 		Topic:      req.Events[0],
 		Address:    address,
 		SessionKey: authData.SessionKey,
@@ -87,7 +95,7 @@ func (h EventHandler) Unsubscribe(ctx context.Context, v interface{}) (interface
 	authData := ctx.Value(auth.ContextAuthDataKey).(auth.AuthData)
 	req := v.(*UnsubscribeRequest)
 
-	err := h.request.Unsubscribe(ctx, backend.UnsubscribeRequest{
+	err := h.client.Unsubscribe(ctx, backend.UnsubscribeRequest{
 		ID:         req.ID,
 		SessionKey: authData.SessionKey,
 	})
@@ -107,8 +115,11 @@ func (h EventHandler) Unsubscribe(ctx context.Context, v interface{}) (interface
 func (h EventHandler) PollEvent(ctx context.Context, v interface{}) (interface{}, error) {
 	authData := ctx.Value(auth.ContextAuthDataKey).(auth.AuthData)
 	req := v.(*PollEventRequest)
+	if req.Count == 0 {
+		req.Count = 10
+	}
 
-	res, err := h.request.PollEvent(ctx, backend.PollEventRequest{
+	res, err := h.client.PollEvent(ctx, backend.PollEventRequest{
 		DiscardPrevious: req.DiscardPrevious,
 		Count:           req.Count,
 		Offset:          req.Offset,
@@ -147,20 +158,24 @@ func (h EventHandler) PollEvent(ctx context.Context, v interface{}) (interface{}
 	}, nil
 }
 
-// BindHandler binds the service handler to the provided
-// HandlerBinder
-func BindHandler(services Services, binder rpc.HandlerBinder) {
-	if services.Request == nil {
+func NewEventHandler(services Services) EventHandler {
+	if services.Client == nil {
 		panic("Request must be provided as a service")
 	}
 	if services.Logger == nil {
 		panic("Logger must be provided as a service")
 	}
 
-	handler := EventHandler{
-		logger:  services.Logger.ForClass("event", "handler"),
-		request: services.Request,
+	return EventHandler{
+		logger: services.Logger.ForClass("event", "handler"),
+		client: services.Client,
 	}
+}
+
+// BindHandler binds the service handler to the provided
+// HandlerBinder
+func BindHandler(services Services, binder rpc.HandlerBinder) {
+	handler := NewEventHandler(services)
 
 	binder.Bind("POST", "/v0/api/event/subscribe", rpc.HandlerFunc(handler.Subscribe),
 		rpc.EntityFactoryFunc(func() interface{} { return &SubscribeRequest{} }))
