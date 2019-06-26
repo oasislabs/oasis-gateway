@@ -21,9 +21,8 @@ import (
 
 type EventsTestSuite struct {
 	suite.Suite
-	ethclient     *ethtest.MockClient
-	serviceclient *apitest.ServiceClient
-	eventclient   *apitest.EventClient
+	ethclient   *ethtest.MockClient
+	eventclient *apitest.EventClient
 }
 
 func (s *EventsTestSuite) SetupTest() {
@@ -36,7 +35,6 @@ func (s *EventsTestSuite) SetupTest() {
 
 	router := gatewaytest.NewPublicRouter(provider)
 	s.eventclient = apitest.NewEventClient(router)
-	s.serviceclient = apitest.NewServiceClient(router)
 }
 
 func (s *EventsTestSuite) TestSubscribeErrEvent() {
@@ -90,6 +88,19 @@ func (s *EventsTestSuite) TestSubscribeOK() {
 		Events: []event.Event{
 			event.DataEvent{ID: 0x0, Data: "0x"},
 		}}, evs)
+}
+
+func (s *EventsTestSuite) TestUnsubscribeErrNoExists() {
+	ethtest.ImplementMock(s.ethclient)
+
+	err := s.eventclient.Unsubscribe(context.TODO(), event.UnsubscribeRequest{
+		ID: 0,
+	})
+
+	assert.Equal(s.T(), &rpc.Error{
+		ErrorCode:   6002,
+		Description: "Subscription not found.",
+	}, err)
 }
 
 func (s *EventsTestSuite) TestUnsubscribeOK() {

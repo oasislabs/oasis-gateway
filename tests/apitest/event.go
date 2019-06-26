@@ -74,8 +74,8 @@ func (c *EventClient) PollEvent(
 	}
 
 	return event.PollEventResponse{
-		de.Offset,
-		de.Events,
+		Offset: de.Offset,
+		Events: de.Events,
 	}, nil
 }
 
