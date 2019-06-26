@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/oasislabs/developer-gateway/auth/core"
+	"github.com/oasislabs/developer-gateway/log"
 	"github.com/oasislabs/developer-gateway/stats"
 )
 
@@ -40,4 +41,8 @@ func (InsecureAuth) Verify(req core.AuthRequest, expectedAAD string) error {
 	}
 
 	return nil
+}
+
+func (InsecureAuth) SetLogger(_ log.Logger) {
+	return
 }

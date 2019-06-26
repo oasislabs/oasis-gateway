@@ -8,6 +8,7 @@ import (
 
 	oidc "github.com/coreos/go-oidc"
 	auth "github.com/oasislabs/developer-gateway/auth/core"
+	"github.com/oasislabs/developer-gateway/log"
 	"github.com/oasislabs/developer-gateway/stats"
 )
 
@@ -34,6 +35,7 @@ func (g *GoogleIDTokenVerifier) Verify(ctx context.Context, rawIDToken string) (
 }
 
 type GoogleOauth struct {
+	logger log.Logger
 	verifier IDTokenVerifier
 }
 
@@ -112,4 +114,8 @@ func (GoogleOauth) Verify(data auth.AuthRequest, expectedAAD string) error {
 		return errors.New("AAD does not match")
 	}
 	return nil
+}
+
+func (g GoogleOauth) SetLogger(l log.Logger) {
+	g.logger = l
 }
