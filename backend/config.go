@@ -116,11 +116,6 @@ func (c *WalletConfig) Log(fields log.Fields) {
 
 func (c *WalletConfig) Configure(v *viper.Viper) error {
 	c.PrivateKeys = v.GetStringSlice("eth.wallet.private_keys")
-	if len(c.PrivateKeys) == 0 {
-		// TODO(stan): `wallet.private_key` is deprecated. Should be removed
-		// when it is no longer necessary
-		c.PrivateKeys = []string{v.GetString("wallet.private_key")}
-	}
 
 	if len(c.PrivateKeys) == 0 {
 		return errors.New("eth.wallet.private_keys must be set")
@@ -136,10 +131,6 @@ func (c *WalletConfig) Configure(v *viper.Viper) error {
 }
 
 func (c *WalletConfig) Bind(v *viper.Viper, cmd *cobra.Command) error {
-	cmd.PersistentFlags().String("eth.wallet.private_keys", "", "private keys for the wallet")
-
-	// TODO(stan): `wallet.private_key` is deprecated. Should be removed
-	// when it is no longer necessary
-	cmd.PersistentFlags().String("wallet.private_key", "", "private key for the wallet (deprecated)")
+	cmd.PersistentFlags().StringSlice("eth.wallet.private_keys", []string{}, "private keys for the wallet")
 	return nil
 }
