@@ -2,7 +2,6 @@ package oauth
 
 import (
 	"context"
-	"encoding/binary"
 	"errors"
 	"net/http"
 
@@ -35,7 +34,7 @@ func (g *GoogleIDTokenVerifier) Verify(ctx context.Context, rawIDToken string) (
 }
 
 type GoogleOauth struct {
-	logger log.Logger
+	logger   log.Logger
 	verifier IDTokenVerifier
 }
 
@@ -96,21 +95,7 @@ const (
 //   - cipher length and aad length are uint64 encoded in big endian
 //   - nonce is expected to be 5 bytes
 func (GoogleOauth) Verify(data auth.AuthRequest, expectedAAD string) error {
-	if len(data.Data) < cipherOffset {
-		return errors.New("Payload data is too short")
-	}
-
-	cipherLength := binary.BigEndian.Uint64([]byte(data.Data[cipherLengthOffset:aadLengthOffset]))
-	aadLength := binary.BigEndian.Uint64([]byte(data.Data[aadLengthOffset:cipherOffset]))
-
-	if len(data.Data) < int(cipherOffset+cipherLength+aadLength+nonceLength) {
-		return errors.New("Missing data")
-	}
-
-	aadOffset := cipherOffset + cipherLength
-	aad := data.Data[aadOffset : aadOffset+aadLength]
-
-	if aad != expectedAAD {
+	if string(data.AAD) != expectedAAD {
 		return errors.New("AAD does not match")
 	}
 	return nil

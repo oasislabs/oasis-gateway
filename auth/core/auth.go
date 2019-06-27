@@ -15,7 +15,8 @@ type AuthData struct {
 type AuthRequest struct {
 	API     string
 	Address string
-	AAD     string
+	AAD     []byte
+	PK      []byte
 	Data    string
 }
 

@@ -2,6 +2,8 @@ package service
 
 import (
 	"context"
+	"encoding/binary"
+	"encoding/hex"
 	stderr "errors"
 
 	auth "github.com/oasislabs/developer-gateway/auth/core"
@@ -79,6 +81,36 @@ func (h ServiceHandler) DeployService(ctx context.Context, v interface{}) (inter
 	return AsyncResponse{ID: id}, nil
 }
 
+// parseExecuteMessage attempts to extract the AAD and PK from a standard confidential message format.
+func (h ServiceHandler) parseExecuteMessage(v *ExecuteServiceRequest) (authReq auth.AuthRequest) {
+	authReq.API = "Execute"
+	authReq.Address = v.Address
+	authReq.Data = v.Data
+
+	// Attempt to parse data as hex-encoded bytes.
+	dst := make([]byte, hex.DecodedLen(len(v.Data)))
+	_, err := hex.Decode(dst, []byte(v.Data))
+	if err != nil || len(dst) < 32 {
+		return
+	}
+
+	// PK is 1st 16 bytes.
+	authReq.PK = dst[0:16]
+	// extract msg and aad length after PK
+	cipherLength := binary.BigEndian.Uint64([]byte(dst[16:24]))
+	aadLength := binary.BigEndian.Uint64([]byte(dst[24:32]))
+
+	if len(dst) < int(cipherLength+aadLength+32) {
+		return
+	}
+
+	// AAD slice.
+	aadOffset := 32 + cipherLength
+	authReq.AAD = dst[aadOffset : aadOffset+aadLength]
+
+	return
+}
+
 // ExecuteService handle the execution of deployed services
 func (h ServiceHandler) ExecuteService(ctx context.Context, v interface{}) (interface{}, error) {
 	authData := ctx.Value(auth.ContextAuthDataKey).(auth.AuthData)
@@ -92,12 +124,7 @@ func (h ServiceHandler) ExecuteService(ctx context.Context, v interface{}) (inte
 		return nil, e
 	}
 
-	authReq := auth.AuthRequest{
-		API:     "Execute",
-		Address: req.Address,
-		Data:    req.Data,
-		// TODO: AAD
-	}
+	authReq := h.parseExecuteMessage(req)
 	if err := h.verifier.Verify(authReq, authData.ExpectedAAD); err != nil {
 		e := errors.New(errors.ErrFailedAADVerification, err)
 		h.logger.Debug(ctx, "failed to verify AAD", log.MapFields{
