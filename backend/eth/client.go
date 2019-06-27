@@ -44,8 +44,8 @@ type executeTransactionResponse struct {
 }
 
 type ClientProps struct {
-	PrivateKey *ecdsa.PrivateKey
-	URL        string
+	PrivateKeys []*ecdsa.PrivateKey
+	URL         string
 }
 
 type Client struct {
@@ -395,7 +395,7 @@ func DialContext(ctx context.Context, services *ClientServices, props *ClientPro
 		Logger:    services.Logger,
 		Client:    client,
 		Callbacks: services.Callbacks,
-	}, &tx.ExecutorProps{PrivateKeys: []*ecdsa.PrivateKey{props.PrivateKey}})
+	}, &tx.ExecutorProps{PrivateKeys: props.PrivateKeys})
 	if err != nil {
 		return nil, err
 	}

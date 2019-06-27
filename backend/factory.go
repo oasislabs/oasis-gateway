@@ -2,6 +2,7 @@ package backend
 
 import (
 	"context"
+	"crypto/ecdsa"
 	"fmt"
 
 	"github.com/ethereum/go-ethereum/crypto"
@@ -70,14 +71,20 @@ func NewEthClientWithDeps(ctx context.Context, deps *eth.ClientDeps) (*eth.Clien
 }
 
 func NewEthClient(ctx context.Context, services *eth.ClientServices, config *EthereumConfig) (*eth.Client, error) {
-	privateKey, err := crypto.HexToECDSA(config.WalletConfig.PrivateKey)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read private key with error %s", err.Error())
+	var privateKeys []*ecdsa.PrivateKey
+
+	for _, key := range config.WalletConfig.PrivateKeys {
+		privateKey, err := crypto.HexToECDSA(key)
+		if err != nil {
+			return nil, fmt.Errorf("failed to read private key with error %s", err.Error())
+		}
+
+		privateKeys = append(privateKeys, privateKey)
 	}
 
 	client, err := eth.DialContext(ctx, services, &eth.ClientProps{
-		PrivateKey: privateKey,
-		URL:        config.URL,
+		PrivateKeys: privateKeys,
+		URL:         config.URL,
 	})
 
 	if err != nil {

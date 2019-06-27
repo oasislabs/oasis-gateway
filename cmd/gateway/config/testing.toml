@@ -1,8 +1,5 @@
 title = "Local configuration"
 
-[wallet]
-private_key = ""
-
 [bind_public]
 http_interface = "127.0.0.1"
 http_port = 1234
@@ -23,8 +20,14 @@ https_enabled = false
 tls_private_key_path = "/config/tls/private.pem"
 tls_certificate_path = "/config/tls/cert.pem"
 
+[backend]
+provider = "ethereum"
+
 [eth]
 url = "wss://web3.beta.oasiscloud-staging.net/ws"
+
+[eth.wallet]
+private_keys = [ ]
 
 [mailbox]
 provider = "mem"
