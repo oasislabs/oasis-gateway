@@ -123,9 +123,15 @@ func (s *subscription) Start() {
 				continue
 			}
 
+			var topics []string
+			for _, topic := range data.Topics {
+				topics = append(topics, topic.Hex())
+			}
+
 			el, err := makeElement(DataEvent{
-				ID:   id,
-				Data: hexutil.Encode(data.Data),
+				ID:     id,
+				Data:   hexutil.Encode(data.Data),
+				Topics: topics,
 			}, id)
 			if err != nil {
 				s.logger.Warn(s.ctx, "failed to serialize event", log.MapFields{

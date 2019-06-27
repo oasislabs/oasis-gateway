@@ -73,9 +73,10 @@ func (h EventHandler) Subscribe(ctx context.Context, v interface{}) (interface{}
 	}
 
 	id, err := h.client.Subscribe(ctx, backend.SubscribeRequest{
-		Topic:      req.Events[0],
+		Event:      req.Events[0],
 		Address:    address,
 		SessionKey: authData.SessionKey,
+		Topics:     query["topic"],
 	})
 	if err != nil {
 		h.logger.Debug(ctx, "failed to subscribe", log.MapFields{
@@ -144,8 +145,9 @@ func (h EventHandler) PollEvent(ctx context.Context, v interface{}) (interface{}
 			})
 		case backend.DataEvent:
 			events = append(events, DataEvent{
-				ID:   r.ID,
-				Data: r.Data,
+				ID:     r.ID,
+				Data:   r.Data,
+				Topics: r.Topics,
 			})
 		default:
 			panic("received unexpected event type from polling service")

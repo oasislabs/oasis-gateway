@@ -238,7 +238,7 @@ func (c *Client) subscribeRequest(
 	req backend.CreateSubscriptionRequest,
 	ch chan<- interface{},
 ) errors.Err {
-	if req.Topic != "logs" {
+	if req.Event != "logs" {
 		return errors.New(errors.ErrTopicLogsSupported, nil)
 	}
 
@@ -246,10 +246,16 @@ func (c *Client) subscribeRequest(
 		return errors.New(errors.ErrInvalidAddress, nil)
 	}
 
+	var topics [][]common.Hash
+	for _, topic := range req.Topics {
+		topics = append(topics, []common.Hash{common.HexToHash(topic)})
+	}
+
 	address := common.HexToAddress(req.Address)
 	if err := c.subman.Create(ctx, req.SubID, &eth.LogSubscriber{
 		FilterQuery: ethereum.FilterQuery{
 			Addresses: []common.Address{address},
+			Topics:    topics,
 		},
 	}, ch); err != nil {
 		err := errors.New(errors.ErrInternalError, err)

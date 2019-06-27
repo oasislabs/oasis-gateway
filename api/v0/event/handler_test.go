@@ -144,7 +144,35 @@ func TestSubscribeErrReturn(t *testing.T) {
 	assert.Equal(t, "[1000] error code InternalError with desc Internal Error. Please check the status of the service.", err.Error())
 }
 
-func TestSubscribeOK(t *testing.T) {
+func TestSubscribeOKWithTopics(t *testing.T) {
+	ctx := context.WithValue(Context, auth.ContextAuthDataKey, auth.AuthData{
+		ExpectedAAD: "",
+		SessionKey:  "sessionKey",
+	})
+
+	handler := createEventHandler()
+
+	handler.client.(*MockClient).On("Subscribe", mock.Anything, mock.Anything).
+		Return(uint64(1), nil)
+
+	res, err := handler.Subscribe(ctx, &SubscribeRequest{
+		Events: []string{"event"},
+		Filter: "address=myaddress&topic=topic1&topic=topic2",
+	})
+
+	assert.Nil(t, err)
+	assert.Equal(t, SubscribeResponse{
+		ID: 1,
+	}, res)
+	handler.client.(*MockClient).AssertCalled(t, "Subscribe", ctx, backend.SubscribeRequest{
+		Event:      "event",
+		Address:    "myaddress",
+		SessionKey: "sessionKey",
+		Topics:     []string{"topic1", "topic2"},
+	})
+}
+
+func TestSubscribeOKNoTopic(t *testing.T) {
 	ctx := context.WithValue(Context, auth.ContextAuthDataKey, auth.AuthData{
 		ExpectedAAD: "",
 		SessionKey:  "sessionKey",
@@ -164,6 +192,12 @@ func TestSubscribeOK(t *testing.T) {
 	assert.Equal(t, SubscribeResponse{
 		ID: 1,
 	}, res)
+	handler.client.(*MockClient).AssertCalled(t, "Subscribe", ctx, backend.SubscribeRequest{
+		Event:      "event",
+		Address:    "myaddress",
+		SessionKey: "sessionKey",
+		Topics:     nil,
+	})
 }
 
 func TestUnsubscribeOK(t *testing.T) {
@@ -283,4 +317,78 @@ func TestPollEventErrUnknown(t *testing.T) {
 			Offset: 0,
 		})
 	})
+}
+
+func TestPollEventErrReturn(t *testing.T) {
+	ctx := context.WithValue(Context, auth.ContextAuthDataKey, auth.AuthData{
+		ExpectedAAD: "",
+		SessionKey:  "sessionKey",
+	})
+
+	handler := createEventHandler()
+
+	handler.client.(*MockClient).On("PollEvent", mock.Anything, mock.Anything).
+		Return(backend.Events{
+			Offset: 0,
+			Events: nil,
+		}, errors.New(errors.ErrInternalError, nil))
+
+	_, err := handler.PollEvent(ctx, &PollEventRequest{
+		Offset: 0,
+	})
+
+	assert.Error(t, err)
+}
+
+func TestNewEventHandlerNoClient(t *testing.T) {
+	assert.Panics(t, func() {
+		NewEventHandler(Services{
+			Client: nil,
+			Logger: Logger,
+		})
+	})
+}
+
+func TestNewEventHandlerNoLogger(t *testing.T) {
+	assert.Panics(t, func() {
+		NewEventHandler(Services{
+			Client: &MockClient{},
+			Logger: nil,
+		})
+	})
+}
+
+func TestNewEventHandlerOK(t *testing.T) {
+	h := NewEventHandler(Services{
+		Client: &MockClient{},
+		Logger: Logger,
+	})
+
+	assert.NotNil(t, h)
+}
+
+func TestBindHandlerOK(t *testing.T) {
+	binder := rpc.NewHttpBinder(rpc.HttpBinderProperties{
+		Encoder: rpc.JsonEncoder{},
+		Logger:  Logger,
+		HandlerFactory: rpc.HttpHandlerFactoryFunc(func(factory rpc.EntityFactory, handler rpc.Handler) rpc.HttpMiddleware {
+			return rpc.NewHttpJsonHandler(rpc.HttpJsonHandlerProperties{
+				Limit:   1 << 16,
+				Handler: handler,
+				Logger:  Logger,
+				Factory: factory,
+			})
+		}),
+	})
+
+	BindHandler(Services{
+		Client: &MockClient{},
+		Logger: Logger,
+	}, binder)
+
+	router := binder.Build()
+
+	assert.True(t, router.HasHandler("/v0/api/event/subscribe", "POST"))
+	assert.True(t, router.HasHandler("/v0/api/event/unsubscribe", "POST"))
+	assert.True(t, router.HasHandler("/v0/api/event/poll", "POST"))
 }

@@ -57,7 +57,7 @@ server.`,
 
 	subscribeCmd.PersistentFlags().StringVar(&props.ClientProps.PrivateKey, "privateKey", "", "the hex encoded wallet's private key")
 	subscribeCmd.PersistentFlags().StringVar(&props.ClientProps.URL, "url", "", "the websocket endpoint to the web3 server")
-	subscribeCmd.PersistentFlags().StringVar(&props.Request.Topic, "topic", "", "topic to subscribe to")
+	subscribeCmd.PersistentFlags().StringVar(&props.Request.Event, "event", "", "event type to subscribe to")
 	subscribeCmd.PersistentFlags().StringVar(&props.Request.Address, "address", "", "contract's address")
 	subscribeCmd.PersistentFlags().StringVar(&props.Request.SubID, "subid", "subscription", "subscription id set by the client. "+
 		"It is an optional value that should not affect the behavour fo the client in any way")

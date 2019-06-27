@@ -246,7 +246,7 @@ func TestSubscribeInvalidTopicErr(t *testing.T) {
 
 	c := make(chan interface{})
 	err = client.SubscribeRequest(Context, backend.CreateSubscriptionRequest{
-		Topic:   "topic",
+		Event:   "topic",
 		Address: "address",
 		SubID:   "subID",
 	}, c)
@@ -268,7 +268,7 @@ func TestSubscribeErr(t *testing.T) {
 
 	c := make(chan interface{})
 	err = client.SubscribeRequest(Context, backend.CreateSubscriptionRequest{
-		Topic:   "logs",
+		Event:   "logs",
 		Address: "address",
 		SubID:   "subID",
 	}, c)
@@ -297,7 +297,7 @@ func TestSubscribeOK(t *testing.T) {
 
 	c := make(chan interface{})
 	err = client.SubscribeRequest(Context, backend.CreateSubscriptionRequest{
-		Topic:   "logs",
+		Event:   "logs",
 		Address: "address",
 		SubID:   "subID",
 	}, c)
@@ -333,7 +333,7 @@ func TestSubscribeSubscriptionErr(t *testing.T) {
 
 	c := make(chan interface{})
 	err = client.SubscribeRequest(Context, backend.CreateSubscriptionRequest{
-		Topic:   "logs",
+		Event:   "logs",
 		Address: "address",
 		SubID:   "subID",
 	}, c)

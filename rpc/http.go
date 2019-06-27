@@ -146,6 +146,13 @@ func (h *HttpRoute) Stats() stats.Metrics {
 	return h.tracker.Stats()
 }
 
+// HasHandler returns true if the route has a handler that
+// would handle the provided method
+func (h *HttpRoute) HasHandler(method string) bool {
+	_, ok := h.handlers[method]
+	return ok
+}
+
 func (h *HttpRoute) reportSuccess(
 	res http.ResponseWriter,
 	req *http.Request,
@@ -269,6 +276,24 @@ type HttpRouter struct {
 	encoder Encoder
 	mux     map[string]*HttpRoute
 	logger  log.Logger
+}
+
+// HasRoute returns true if the router has a route to
+// handle a request to the path
+func (h *HttpRouter) HasRoute(path string) bool {
+	_, ok := h.mux[path]
+	return ok
+}
+
+// HasHandler returns true if the router has a handle to
+// handle a request to the path and method
+func (h *HttpRouter) HasHandler(path, method string) bool {
+	route, ok := h.mux[path]
+	if !ok {
+		return false
+	}
+
+	return route.HasHandler(method)
 }
 
 // Stats reports the stats of the handlers called by the http router

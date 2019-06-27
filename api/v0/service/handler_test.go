@@ -436,3 +436,48 @@ func TestGetPublicKeyEmptyOK(t *testing.T) {
 		Signature: "0x02",
 	}, res)
 }
+
+func TestNewServiceHandlerNoLogger(t *testing.T) {
+	assert.Panics(t, func() {
+		NewServiceHandler(Services{
+			Client: &MockClient{},
+			Logger: nil,
+		})
+	})
+}
+
+func TestNewServiceHandlerOK(t *testing.T) {
+	h := NewServiceHandler(Services{
+		Client: &MockClient{},
+		Logger: Logger,
+	})
+
+	assert.NotNil(t, h)
+}
+
+func TestBindHandlerOK(t *testing.T) {
+	binder := rpc.NewHttpBinder(rpc.HttpBinderProperties{
+		Encoder: rpc.JsonEncoder{},
+		Logger:  Logger,
+		HandlerFactory: rpc.HttpHandlerFactoryFunc(func(factory rpc.EntityFactory, handler rpc.Handler) rpc.HttpMiddleware {
+			return rpc.NewHttpJsonHandler(rpc.HttpJsonHandlerProperties{
+				Limit:   1 << 16,
+				Handler: handler,
+				Logger:  Logger,
+				Factory: factory,
+			})
+		}),
+	})
+
+	BindHandler(Services{
+		Client: &MockClient{},
+		Logger: Logger,
+	}, binder)
+
+	router := binder.Build()
+
+	assert.True(t, router.HasHandler("/v0/api/service/deploy", "POST"))
+	assert.True(t, router.HasHandler("/v0/api/service/execute", "POST"))
+	assert.True(t, router.HasHandler("/v0/api/service/poll", "POST"))
+	assert.True(t, router.HasHandler("/v0/api/service/getPublicKey", "GET"))
+}
