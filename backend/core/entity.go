@@ -197,6 +197,9 @@ type DataEvent struct {
 
 	// Data is the blob of data related to this event
 	Data string
+
+	// Topics is the list of topics to which this event refers
+	Topics []string
 }
 
 // EventID is the implementation of Event for ExecuteServiceResponse
@@ -261,11 +264,11 @@ type PollServiceRequest struct {
 }
 
 // SubscribeRequest is a request issued by the client to subscribe to a
-// specific topic and receive events from it until the subscription is
+// specific event type and receive events from it until the subscription is
 // closed
 type SubscribeRequest struct {
-	// Topic is the subscription topic
-	Topic string
+	// Event is the subscription event to subscribe to
+	Event string
 
 	// Address will be used to filter events only issues by or to
 	// the address
@@ -273,6 +276,10 @@ type SubscribeRequest struct {
 
 	// Key is the identifier of the session
 	SessionKey string
+
+	// Topics is the list of topics the subscription client is
+	// interested in
+	Topics []string
 }
 
 // PollEventRequest is a request issued by the client to
@@ -311,9 +318,11 @@ type UnsubscribeRequest struct {
 	SessionKey string
 }
 
+// CreateSubscriptionRequest is the request to subscribe to a specific
+// event type for a contract
 type CreateSubscriptionRequest struct {
-	// Topic is the subscription topic
-	Topic string
+	// Event is the subscription event type
+	Event string
 
 	// Address will be used to filter events only issues by or to
 	// the address
@@ -321,6 +330,9 @@ type CreateSubscriptionRequest struct {
 
 	// SubID is the unique subscription's identifier
 	SubID string
+
+	// Topics is the list of topics the client is interested in
+	Topics []string
 }
 
 // UnsubscribeRequest is a request issued by the client to destroy

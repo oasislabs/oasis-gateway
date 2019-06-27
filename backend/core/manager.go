@@ -176,9 +176,10 @@ func (m *RequestManager) subscribe(ctx context.Context, id uint64, req Subscribe
 	}
 
 	if err := m.client.SubscribeRequest(ctx, CreateSubscriptionRequest{
-		Topic:   req.Topic,
+		Event:   req.Event,
 		Address: req.Address,
 		SubID:   subID,
+		Topics:  req.Topics,
 	}, c); err != nil {
 		return err
 	}

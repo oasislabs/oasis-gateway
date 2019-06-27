@@ -84,6 +84,9 @@ type DataEvent struct {
 
 	// Data is the blob of data related to this event
 	Data string `json:"data"`
+
+	// Topics is the list of topics to which the event refers
+	Topics []string `json:"topics"`
 }
 
 // ErrorEvent is the event that can be polled by the user
