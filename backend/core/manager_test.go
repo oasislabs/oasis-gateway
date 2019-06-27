@@ -7,6 +7,7 @@ import (
 
 	"github.com/oasislabs/developer-gateway/errors"
 	"github.com/oasislabs/developer-gateway/log"
+	"github.com/oasislabs/developer-gateway/mqueue/core"
 	mqueue "github.com/oasislabs/developer-gateway/mqueue/core"
 	"github.com/oasislabs/developer-gateway/mqueue/mailboxtest"
 	"github.com/oasislabs/developer-gateway/stats"
@@ -146,4 +147,83 @@ func TestSubscribeOK(t *testing.T) {
 			SubID:   "session:sub:0",
 			Topics:  []string{"topic1", "topic2"},
 		}, mock.Anything)
+}
+
+func TestPollEventOKNoDiscard(t *testing.T) {
+	manager := createRequestManager()
+
+	manager.mqueue.(*mailboxtest.Mailbox).On("Retrieve",
+		mock.Anything, mqueue.RetrieveRequest{
+			Key:    "session:sub:0",
+			Offset: 0,
+			Count:  1,
+		}).Return(mqueue.Elements{
+		Offset: 0,
+		Elements: []core.Element{
+			core.Element{
+				Offset: 0,
+				Value:  "{\"ID\": 1, \"Data\": \"value\"}",
+				Type:   DataEventType.String(),
+			},
+		},
+	}, nil)
+
+	evs, err := manager.PollEvent(Context, PollEventRequest{
+		Offset:          0,
+		Count:           1,
+		DiscardPrevious: false,
+		ID:              0,
+		SessionKey:      "session",
+	})
+	assert.Nil(t, err)
+	assert.Equal(t, uint64(0), evs.Offset)
+	assert.Equal(t, DataEvent{
+		Data:   "value",
+		ID:     1,
+		Topics: nil,
+	}, evs.Events[0])
+}
+
+func TestPollEventOKDiscardSubinfo(t *testing.T) {
+	manager := createRequestManager()
+
+	manager.mqueue.(*mailboxtest.Mailbox).On("Retrieve",
+		mock.Anything, mqueue.RetrieveRequest{
+			Key:    "session:sub:0",
+			Offset: 0,
+			Count:  1,
+		}).Return(mqueue.Elements{
+		Offset:   0,
+		Elements: nil,
+	}, nil)
+	manager.mqueue.(*mailboxtest.Mailbox).On("Exists",
+		mock.Anything, mqueue.ExistsRequest{Key: "session:sub:0"}).
+		Return(false, nil)
+	manager.mqueue.(*mailboxtest.Mailbox).On("Discard",
+		mock.Anything, mqueue.DiscardRequest{
+			KeepPrevious: true,
+			Count:        1,
+			Offset:       0,
+			Key:          "session:subinfo",
+		}).
+		Return(nil)
+
+	evs, err := manager.PollEvent(Context, PollEventRequest{
+		Offset:          0,
+		Count:           1,
+		DiscardPrevious: false,
+		ID:              0,
+		SessionKey:      "session",
+	})
+	assert.Nil(t, err)
+	assert.Equal(t, uint64(0), evs.Offset)
+	assert.Equal(t, 0, len(evs.Events))
+
+	manager.mqueue.(*mailboxtest.Mailbox).AssertCalled(t, "Discard",
+		mock.Anything, mqueue.DiscardRequest{
+			KeepPrevious: true,
+			Count:        1,
+			Offset:       0,
+			Key:          "session:subinfo",
+		})
 }
