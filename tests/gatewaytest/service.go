@@ -52,9 +52,13 @@ func NewServices(ctx context.Context, config *gateway.Config) (*Provider, error)
 	}
 	provider.MustAdd(mqueue)
 
-	privateKey, err := crypto.HexToECDSA(config.BackendConfig.BackendConfig.(*backend.EthereumConfig).WalletConfig.PrivateKey)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read private key with error %s", err.Error())
+	var privateKeys []*ecdsa.PrivateKey
+	for _, key := range config.BackendConfig.BackendConfig.(*backend.EthereumConfig).WalletConfig.PrivateKeys {
+		privateKey, err := crypto.HexToECDSA(key)
+		if err != nil {
+			return nil, fmt.Errorf("failed to read private key with error %s", err.Error())
+		}
+		privateKeys = append(privateKeys, privateKey)
 	}
 
 	executor, err := tx.NewExecutor(ctx, &tx.ExecutorServices{
@@ -62,7 +66,7 @@ func NewServices(ctx context.Context, config *gateway.Config) (*Provider, error)
 		Client:    ethclient,
 		Callbacks: callbackclient,
 	}, &tx.ExecutorProps{
-		PrivateKeys: []*ecdsa.PrivateKey{privateKey},
+		PrivateKeys: privateKeys,
 	})
 	if err != nil {
 		return nil, err

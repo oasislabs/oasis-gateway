@@ -105,32 +105,38 @@ func (c *EthereumConfig) Bind(v *viper.Viper, cmd *cobra.Command) error {
 
 // WalletConfig holds the configuration of a single wallet
 type WalletConfig struct {
-	// PrivateKey for the wallet
-	PrivateKey string
+	// PrivateKeys for the wallet
+	PrivateKeys []string
 }
 
 func (c *WalletConfig) Log(fields log.Fields) {
-	// do not log the private key itself
-	fields.Add("eth.wallet.private_key_set", true)
+	// do not log the private keys themselves
+	fields.Add("eth.wallet.private_keys", len(c.PrivateKeys))
 }
 
 func (c *WalletConfig) Configure(v *viper.Viper) error {
-	c.PrivateKey = v.GetString("eth.wallet.private_key")
-	if len(c.PrivateKey) == 0 {
+	c.PrivateKeys = v.GetStringSlice("eth.wallet.private_keys")
+	if len(c.PrivateKeys) == 0 {
 		// TODO(stan): `wallet.private_key` is deprecated. Should be removed
 		// when it is no longer necessary
-		c.PrivateKey = v.GetString("wallet.private_key")
+		c.PrivateKeys = []string{v.GetString("wallet.private_key")}
 	}
 
-	if len(c.PrivateKey) == 0 {
-		return errors.New("eth.wallet.private_key must be set")
+	if len(c.PrivateKeys) == 0 {
+		return errors.New("eth.wallet.private_keys must be set")
+	}
+
+	for _, key := range c.PrivateKeys {
+		if len(key) == 0 {
+			return errors.New("eth.wallet.private_keys cannot have empty keys")
+		}
 	}
 
 	return nil
 }
 
 func (c *WalletConfig) Bind(v *viper.Viper, cmd *cobra.Command) error {
-	cmd.PersistentFlags().String("eth.wallet.private_key", "", "private key for the wallet")
+	cmd.PersistentFlags().String("eth.wallet.private_keys", "", "private keys for the wallet")
 
 	// TODO(stan): `wallet.private_key` is deprecated. Should be removed
 	// when it is no longer necessary

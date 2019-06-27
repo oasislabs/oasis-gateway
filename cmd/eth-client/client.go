@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"crypto/ecdsa"
 	"fmt"
 
 	"github.com/ethereum/go-ethereum/crypto"
@@ -26,8 +27,8 @@ func dialClient(props ClientProps) (*eth.Client, error) {
 	client, err := eth.DialContext(ctx, &eth.ClientServices{
 		Logger: logger,
 	}, &eth.ClientProps{
-		PrivateKey: privateKey,
-		URL:        props.URL,
+		PrivateKeys: []*ecdsa.PrivateKey{privateKey},
+		URL:         props.URL,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to endpoint %s", err.Error())
