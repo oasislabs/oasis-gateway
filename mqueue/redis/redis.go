@@ -207,7 +207,6 @@ func (m *MQueue) discard(ctx context.Context, req core.DiscardRequest) error {
 		Count:        req.Count,
 		KeepPrevious: req.KeepPrevious,
 	})
-
 	if err != nil {
 		return ErrRedisExec{Cause: err}
 	}

@@ -94,19 +94,22 @@ local mqdiscard = function(key, offset, count, keep_previous)
   local base_n_len = mqbasenlen(key)
   local base = base_n_len[1]
   local len = base_n_len[2]
+  if offset < base then
+    offset = base
+  end
   local start = offset - base
   local stop = len
 
   if len == 0 then
     -- nothing to discard in that case
-    return
+    return "OK"
   end
 
   if not keep_previous then
     -- make sure that we do not delete the last element in the window.
     -- This element is needed to keep context of what's the current
     -- window offset. A window should never be empty
-    if start == len then
+    if start >= len then
       start = len - 1
     end
 
@@ -114,13 +117,13 @@ local mqdiscard = function(key, offset, count, keep_previous)
 
     -- remove all contiguous elements
     redis.call('ltrim', key, start, stop)
-    len = redis.call('llen', key)
+    local len = redis.call('llen', key)
 
     -- check if there are contiguous elements next to stop
     -- that are discarded to extend the range of the trim.
     -- also, len > 1 so that the last element is not removed
     local discarded = true
-    while discarded && len > 1 do
+    while discarded and len > 1 do
       local el = redis.call('lindex', key, 0)
       discarded = cjson.decode(el)['discarded']
       if discarded then
@@ -207,6 +210,10 @@ local test = function()
   for i = 0, 6  do
     assert(cjson.decode(t[i+1])['offset'] == i + 4)
   end
+
+  mqdiscard('example', 0, 10, true)
+  local t = mqretrieve('example', 0, 10)
+  assert(table.getn(t) == 1)
 
   local ttl = redis.call('ttl', 'example')
   assert(ttl <= 600 and ttl > 100)
