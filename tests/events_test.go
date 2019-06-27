@@ -5,6 +5,7 @@ import (
 	"reflect"
 	"testing"
 
+	ethereum "github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/oasislabs/developer-gateway/api/v0/event"
@@ -67,6 +68,10 @@ func (s *EventsTestSuite) TestSubscribeOK() {
 					c <- types.Log{
 						Address:     common.HexToAddress("0x0000000000000000000000000000000000000000"),
 						BlockNumber: 1,
+						Topics: []common.Hash{
+							common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000000"),
+							common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000001"),
+						},
 					}
 				},
 			},
@@ -74,12 +79,21 @@ func (s *EventsTestSuite) TestSubscribeOK() {
 
 	res, err := s.eventclient.Subscribe(context.TODO(), event.SubscribeRequest{
 		Events: []string{"logs"},
-		Filter: "address=address",
+		Filter: "address=address&topic=0x0000000000000000000000000000000000000000000000000000000000000000&topic=0x0000000000000000000000000000000000000000000000000000000000000001",
 	})
 	assert.Nil(s.T(), err)
 	assert.Equal(s.T(), event.SubscribeResponse{
 		ID: 0,
 	}, res)
+
+	s.ethclient.AssertCalled(s.T(), "SubscribeFilterLogs",
+		mock.Anything, ethereum.FilterQuery{
+			Addresses: []common.Address{common.HexToAddress("address")},
+			Topics: [][]common.Hash{
+				[]common.Hash{common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000000")},
+				[]common.Hash{common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000001")},
+			},
+		}, mock.Anything)
 
 	evs, err := s.eventclient.PollEventUntilNotEmpty(context.TODO(), event.PollEventRequest{
 		ID:     0,
@@ -90,7 +104,14 @@ func (s *EventsTestSuite) TestSubscribeOK() {
 	assert.Equal(s.T(), event.PollEventResponse{
 		Offset: 0x0,
 		Events: []event.Event{
-			event.DataEvent{ID: 0x0, Data: "0x"},
+			event.DataEvent{
+				ID:   0x0,
+				Data: "0x",
+				Topics: []string{
+					"0x0000000000000000000000000000000000000000000000000000000000000000",
+					"0x0000000000000000000000000000000000000000000000000000000000000001",
+				},
+			},
 		}}, evs)
 }
 

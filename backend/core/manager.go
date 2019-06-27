@@ -130,6 +130,9 @@ func (m *RequestManager) Unsubscribe(ctx context.Context, req UnsubscribeRequest
 		return errors.New(errors.ErrInvalidKey, stderr.New("key cannot be empty"))
 	}
 
+	// TODO(stan): when creating a subscription and entry to mqueue is added to
+	// store the state of the newly created subscription. When unsubscribing, if
+	// possible, the subscription should be removed
 	subID := SubID(req.SessionKey, req.ID)
 	if !m.subman.Exists(ctx, subID) {
 		return errors.New(errors.ErrSubscriptionNotFound, stderr.New("cannot unsubscribe from subscription that does not exist"))
