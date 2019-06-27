@@ -44,5 +44,4 @@ func (InsecureAuth) Verify(req core.AuthRequest, expectedAAD string) error {
 }
 
 func (InsecureAuth) SetLogger(_ log.Logger) {
-	return
 }

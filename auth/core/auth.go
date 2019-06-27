@@ -53,5 +53,4 @@ func (NilAuth) Verify(req AuthRequest, expected string) error {
 }
 
 func (NilAuth) SetLogger(log.Logger) {
-	return
 }
