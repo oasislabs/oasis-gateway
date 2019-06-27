@@ -266,6 +266,12 @@ var (
 		desc:     "Internal Error. Please check the status of the service.",
 	}
 
+	ErrQueueExists = ErrorCode{
+		category: InternalError,
+		code:     1042,
+		desc:     "Internal Error. Please check the status of the service.",
+	}
+
 	ErrOutOfRange = ErrorCode{
 		category: InputError,
 		code:     2001,

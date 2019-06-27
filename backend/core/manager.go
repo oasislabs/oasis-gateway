@@ -130,9 +130,17 @@ func (m *RequestManager) Unsubscribe(ctx context.Context, req UnsubscribeRequest
 		return errors.New(errors.ErrInvalidKey, stderr.New("key cannot be empty"))
 	}
 
-	// TODO(stan): when creating a subscription and entry to mqueue is added to
-	// store the state of the newly created subscription. When unsubscribing, if
-	// possible, the subscription should be removed
+	key := SubinfoID(req.SessionKey)
+	err := m.mqueue.Discard(ctx, mqueue.DiscardRequest{
+		KeepPrevious: true,
+		Count:        1,
+		Offset:       req.ID,
+		Key:          key,
+	})
+	if err != nil {
+		return errors.New(errors.ErrQueueDiscard, err)
+	}
+
 	subID := SubID(req.SessionKey, req.ID)
 	if !m.subman.Exists(ctx, subID) {
 		return errors.New(errors.ErrSubscriptionNotFound, stderr.New("cannot unsubscribe from subscription that does not exist"))
@@ -224,7 +232,37 @@ func (m *RequestManager) PollService(ctx context.Context, req PollServiceRequest
 // from the asynchronous requests.
 func (m *RequestManager) PollEvent(ctx context.Context, req PollEventRequest) (Events, errors.Err) {
 	subID := SubID(req.SessionKey, req.ID)
-	return m.poll(ctx, subID, req.Offset, req.Count, req.DiscardPrevious)
+	subinfoID := SubinfoID(req.SessionKey)
+
+	evs, err := m.poll(ctx, subID, req.Offset, req.Count, req.DiscardPrevious)
+	if err != nil {
+		return Events{}, err
+	}
+
+	if evs.Offset == uint64(0) && len(evs.Events) == 0 {
+		// verify that the subscription does not exist and discard the
+		// attached subinfo entry
+		ok, err := m.mqueue.Exists(ctx, mqueue.ExistsRequest{
+			Key: subID,
+		})
+		if err != nil {
+			return Events{}, errors.New(errors.ErrQueueExists, err)
+		}
+
+		if !ok {
+			err := m.mqueue.Discard(ctx, mqueue.DiscardRequest{
+				KeepPrevious: true,
+				Count:        1,
+				Offset:       req.ID,
+				Key:          subinfoID,
+			})
+			if err != nil {
+				return Events{}, errors.New(errors.ErrQueueDiscard, err)
+			}
+		}
+	}
+
+	return evs, nil
 }
 
 func (m *RequestManager) poll(ctx context.Context, key string, offset uint64, count uint, discardPrevious bool) (Events, errors.Err) {

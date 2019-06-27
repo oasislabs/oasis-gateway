@@ -95,6 +95,13 @@ type RemoveRequest struct {
 	Key string
 }
 
+// ExistsRequest to ask to destroy the queue identified
+// by the provided key
+type ExistsRequest struct {
+	// Key unique identifier of the queue
+	Key string
+}
+
 // MQueue is an interface to a messaging queue service that
 // provides the basic operations for a simple publish
 // subscribe mechanism in which the clients manage the offsets
@@ -122,4 +129,7 @@ type MQueue interface {
 
 	// Remove the queue and associated resources with the key
 	Remove(context.Context, RemoveRequest) error
+
+	// Exists returns true if the key exists
+	Exists(context.Context, ExistsRequest) (bool, error)
 }

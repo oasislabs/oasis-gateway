@@ -108,6 +108,12 @@ func (s *Server) Remove(ctx context.Context, req core.RemoveRequest) error {
 	return s.master.Destroy(ctx, req.Key)
 }
 
+// Exists returns true if there is a queue allocated with the
+// provided key
+func (s *Server) Exists(ctx context.Context, req core.ExistsRequest) (bool, error) {
+	return s.master.Exists(ctx, req.Key)
+}
+
 func (s *Server) Name() string {
 	return "mqueue.mem.Server"
 }

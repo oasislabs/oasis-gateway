@@ -21,7 +21,7 @@ local mqnext = function(key)
   local len = base_n_len[2]
   local offset = base + len
 
-  local payload = cjson.encode({offset = offset, set = false})
+  local payload = cjson.encode({offset = offset, set = false, discarded = false})
   assert(redis.call('rpush', key, payload) == len + 1)
   redis.call('expire', key, expire_time)
   return offset
@@ -39,7 +39,7 @@ local mqinsert = function(key, offset, value_type, value)
 
   assert(index >= 0 and index < len)
 
-  local payload = cjson.encode({offset = tonumber(offset), value = value, value_type = value_type, set = true})
+  local payload = cjson.encode({offset = tonumber(offset), value = value, value_type = value_type, set = true, discarded = false})
   redis.call('expire', key, expire_time)
   return redis.call('lset', key, index, payload)
 end
@@ -83,27 +83,77 @@ local mqretrieve = function(key, offset, count)
   return redis.call('lrange', key, start, stop)
 end
 
--- mqdiscard discards all elements up to offset. The list
--- cannot be left empty because at least one element is needed
--- to keep track of which is the current window offset
-local mqdiscard = function(key, offset)
+-- mqdiscard discards all elements up to offset if keep_previous is false.
+-- It also discards all the elements up to offset + count that have been set.
+-- The window cannot be left empty because at least one element is needed
+-- to keep track of which is the current window offset.
+local mqdiscard = function(key, offset, count, keep_previous)
+  offset = tonumber(offset)
+  count = tonumber(count)
+
   local base_n_len = mqbasenlen(key)
   local base = base_n_len[1]
   local len = base_n_len[2]
   local start = offset - base
   local stop = len
 
-  -- make sure that we do not delete the last element in the window. This element
-  -- is needed to keep context of what's the current window offset. A window should
-  -- never be empty
-  if start == len then
-    start = len - 1
+  if len == 0 then
+    -- nothing to discard in that case
+    return
   end
 
-  assert(start >= 0)
+  if not keep_previous then
+    -- make sure that we do not delete the last element in the window.
+    -- This element is needed to keep context of what's the current
+    -- window offset. A window should never be empty
+    if start == len then
+      start = len - 1
+    end
+
+    assert(start >= 0)
+
+    -- remove all contiguous elements
+    redis.call('ltrim', key, start, stop)
+    len = redis.call('llen', key)
+
+    -- check if there are contiguous elements next to stop
+    -- that are discarded to extend the range of the trim.
+    -- also, len > 1 so that the last element is not removed
+    local discarded = true
+    while discarded && len > 1 do
+      local el = redis.call('lindex', key, 0)
+      discarded = cjson.decode(el)['discarded']
+      if discarded then
+        redis.call('lpop', key)
+        len = len - 1
+      end
+    end
+
+    if count > 0 then
+      return mqdiscard(key, offset, count, true)
+    end
+
+    return "OK"
+  end
+
+  if base == offset then
+    return mqdiscard(key, offset + count, 0, false)
+  end
+
+  -- mark as discarded all the elements that cannot be discarded
+  -- by simply sliding the window
+  if count > 0 then
+    local els = redis.call('lrange', key, start, start + count - 1)
+    for index, el in pairs(els) do
+      local decoded = cjson.decode(el)
+      decoded['discarded'] = true
+      local encoded = cjson.encode(decoded)
+      redis.call('lset', key, decoded['offset'] - base, encoded)
+    end
+  end
 
   redis.call('expire', key, expire_time)
-  return redis.call('ltrim', key, start, stop)
+  return "OK"
 end
 
 -- remove the key and all associated resources
@@ -123,27 +173,40 @@ rawset(_G, "mqnext", mqnext)
 local test = function()
   redis.call('flushall')
 
-  assert(mqnext('example') == 0)
-  assert(mqnext('example') == 1)
-  assert(mqnext('example') == 2)
-  assert(mqnext('example') == 3)
-
-  mqinsert('example', 0, 'test', '{"data": "my content0"}')
-  mqinsert('example', 1, 'test', '{"data": "my content1"}')
-  mqinsert('example', 2, 'test', '{"data": "my content2"}')
-  mqinsert('example', 3, 'test', '{"data": "my content3"}')
+  for i = 0, 10  do
+    assert(mqnext('example') == i)
+    mqinsert('example', i, 'test', cjson.encode({data = i}))
+  end
 
   local t = mqretrieve('example', 0, 10)
-  assert(cjson.decode(t[1])['offset'] == 0)
-  assert(cjson.decode(t[2])['offset'] == 1)
-  assert(cjson.decode(t[3])['offset'] == 2)
-  assert(cjson.decode(t[4])['offset'] == 3)
+  assert(table.getn(t) == 11)
+  for i = 0, 10  do
+    assert(cjson.decode(t[i+1])['offset'] == i)
+  end
 
-  mqdiscard('example', 2)
-
+  mqdiscard('example', 2, 0, false)
   local t = mqretrieve('example', 0, 10)
+  for i = 0, 8  do
+    assert(cjson.decode(t[i+1])['offset'] == i + 2)
+  end
+
+  mqdiscard('example', 3, 1, true)
+  local t = mqretrieve('example', 0, 10)
+  assert(table.getn(t) == 9)
   assert(cjson.decode(t[1])['offset'] == 2)
+  assert(cjson.decode(t[1])['discarded'] == false)
   assert(cjson.decode(t[2])['offset'] == 3)
+  assert(cjson.decode(t[2])['discarded'] == true)
+  assert(cjson.decode(t[3])['offset'] == 4)
+  assert(cjson.decode(t[3])['discarded'] == false)
+
+  mqdiscard('example', 2, 1, true)
+  local t = mqretrieve('example', 0, 10)
+
+  assert(table.getn(t) == 7)
+  for i = 0, 6  do
+    assert(cjson.decode(t[i+1])['offset'] == i + 4)
+  end
 
   local ttl = redis.call('ttl', 'example')
   assert(ttl <= 600 and ttl > 100)

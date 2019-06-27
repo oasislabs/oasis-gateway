@@ -12,7 +12,7 @@ const (
 	mqnext     op = "return mqnext(KEYS[1])"
 	mqinsert   op = "return mqinsert(KEYS[1], ARGV[1], ARGV[2], ARGV[3])"
 	mqretrieve op = "return mqretrieve(KEYS[1], ARGV[1], ARGV[2])"
-	mqdiscard  op = "return mqdiscard(KEYS[1], ARGV[1])"
+	mqdiscard  op = "return mqdiscard(KEYS[1], ARGV[1], ARGV[2], ARGV[3])"
 	mqremove   op = "return mqremove(KEYS[1])"
 )
 
@@ -70,8 +70,10 @@ func (r retrieveRequest) Args() []interface{} {
 }
 
 type discardRequest struct {
-	Offset uint64
-	Key    string
+	KeepPrevious bool
+	Count        uint
+	Offset       uint64
+	Key          string
 }
 
 func (r discardRequest) Op() op {
@@ -83,7 +85,7 @@ func (r discardRequest) Keys() []string {
 }
 
 func (r discardRequest) Args() []interface{} {
-	return []interface{}{r.Offset}
+	return []interface{}{r.Offset, r.Count, r.KeepPrevious}
 }
 
 type removeRequest struct {

@@ -11,17 +11,19 @@ import (
 )
 
 const (
-	insert   string = "Insert"
-	retrieve string = "Retrieve"
+	insert   string = "insert"
+	retrieve string = "retrieve"
 	discard  string = "discard"
 	next     string = "next"
 	remove   string = "remove"
+	exists   string = "exists"
 )
 
 // Client is the interface to the redis client used implementing
 // the methods used by the MQueue implementation
 type Client interface {
 	Eval(script string, keys []string, args ...interface{}) *redis.Cmd
+	Exists(key ...string) *redis.IntCmd
 }
 
 type Props struct {
@@ -63,7 +65,7 @@ func NewClusterMQueue(props ClusterProps) (*MQueue, error) {
 	return &MQueue{
 		client:  c,
 		logger:  logger,
-		tracker: stats.NewMethodTracker(insert, retrieve, discard, next, remove),
+		tracker: stats.NewMethodTracker(insert, retrieve, discard, next, remove, exists),
 	}, nil
 }
 
@@ -200,8 +202,10 @@ func (m *MQueue) Discard(ctx context.Context, req core.DiscardRequest) error {
 
 func (m *MQueue) discard(ctx context.Context, req core.DiscardRequest) error {
 	v, err := m.exec(ctx, discardRequest{
-		Key:    req.Key,
-		Offset: req.Offset,
+		Key:          req.Key,
+		Offset:       req.Offset,
+		Count:        req.Count,
+		KeepPrevious: req.KeepPrevious,
 	})
 
 	if err != nil {
@@ -243,6 +247,22 @@ func (m *MQueue) Remove(ctx context.Context, req core.RemoveRequest) error {
 	})
 
 	return err
+}
+
+func (m *MQueue) Exists(ctx context.Context, req core.ExistsRequest) (bool, error) {
+	b, err := m.tracker.Instrument(remove, func() (interface{}, error) {
+		return m.exists(ctx, req)
+	})
+	if err != nil {
+		return false, err
+	}
+
+	return b.(bool), nil
+}
+
+func (m *MQueue) exists(ctx context.Context, req core.ExistsRequest) (bool, error) {
+	v, err := m.client.Exists(req.Key).Result()
+	return v == 1, err
 }
 
 func (m *MQueue) remove(ctx context.Context, req core.RemoveRequest) error {
