@@ -25,6 +25,11 @@ func (m *Mailbox) Insert(ctx context.Context, req core.InsertRequest) error {
 	return args.Error(0)
 }
 
+func (m *Mailbox) Exists(ctx context.Context, req core.ExistsRequest) (bool, error) {
+	args := m.Called(ctx, req)
+	return args.Bool(0), args.Error(1)
+}
+
 func (m *Mailbox) Retrieve(ctx context.Context, req core.RetrieveRequest) (core.Elements, error) {
 	args := m.Called(ctx, req)
 	return args.Get(0).(core.Elements), args.Error(1)

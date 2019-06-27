@@ -85,7 +85,11 @@ func (s *Server) Retrieve(ctx context.Context, req core.RetrieveRequest) (core.E
 // Discard all elements that have a prior or equal
 // offset to the provided offset
 func (s *Server) Discard(ctx context.Context, req core.DiscardRequest) error {
-	_, err := s.master.Request(ctx, req.Key, discardRequest{Offset: req.Offset})
+	_, err := s.master.Request(ctx, req.Key, discardRequest{
+		KeepPrevious: req.KeepPrevious,
+		Count:        req.Count,
+		Offset:       req.Offset,
+	})
 	return err
 }
 
@@ -102,6 +106,12 @@ func (s *Server) Next(ctx context.Context, req core.NextRequest) (uint64, error)
 // Remove the key's queue and it's associated resources
 func (s *Server) Remove(ctx context.Context, req core.RemoveRequest) error {
 	return s.master.Destroy(ctx, req.Key)
+}
+
+// Exists returns true if there is a queue allocated with the
+// provided key
+func (s *Server) Exists(ctx context.Context, req core.ExistsRequest) (bool, error) {
+	return s.master.Exists(ctx, req.Key)
 }
 
 func (s *Server) Name() string {

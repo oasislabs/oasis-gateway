@@ -1,6 +1,7 @@
 package stats
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -20,6 +21,63 @@ func TestMethodTrackerNoMethods(t *testing.T) {
 	assert.Equal(t, map[string]interface{}{
 		"error":     uint64(0),
 		"ok":        uint64(1),
+		"undefined": uint64(0),
+	}, stats["undefined"].(Metrics)["count"])
+
+	avg := stats["undefined"].(Metrics)["latency"].(Metrics)["avg"].(float64)
+	assert.True(t, 0 <= avg && avg <= 1000000)
+}
+
+func TestMethodTrackerCountNotFound(t *testing.T) {
+	tracker := NewMethodTracker()
+
+	group, ok := tracker.Count("not found")
+
+	assert.Nil(t, group)
+	assert.False(t, ok)
+}
+
+func TestMethodTrackerCountOK(t *testing.T) {
+	tracker := NewMethodTracker()
+
+	group, ok := tracker.Count("undefined")
+
+	assert.NotNil(t, group)
+	assert.True(t, ok)
+}
+
+func TestMethodTrackerLatenciesNotFound(t *testing.T) {
+	tracker := NewMethodTracker()
+
+	group, ok := tracker.Latencies("not found")
+
+	assert.Nil(t, group)
+	assert.False(t, ok)
+}
+
+func TestMethodTrackerLatenciesOK(t *testing.T) {
+	tracker := NewMethodTracker()
+
+	window, ok := tracker.Latencies("undefined")
+
+	assert.NotNil(t, window)
+	assert.True(t, ok)
+}
+
+func TestMethodTrackerNoMethodsError(t *testing.T) {
+	tracker := NewMethodTracker()
+	assert.Equal(t, []string{"undefined"}, tracker.Methods())
+
+	v, err := tracker.Instrument("something", func() (interface{}, error) {
+		return nil, errors.New("error")
+	})
+	assert.Error(t, err)
+	assert.Nil(t, v)
+
+	stats := tracker.Stats()
+	assert.Equal(t, map[string]interface{}{
+		"error":     uint64(1),
+		"ok":        uint64(0),
 		"undefined": uint64(0),
 	}, stats["undefined"].(Metrics)["count"])
 

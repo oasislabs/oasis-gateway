@@ -148,3 +148,110 @@ func TestSlidingWindowSlideAll(t *testing.T) {
 	assert.Equal(t, uint(15), n)
 	assert.Equal(t, uint64(15), w.Offset())
 }
+
+func TestDiscardFirstElement(t *testing.T) {
+	w := NewSlidingWindow(SlidingWindowProps{
+		MaxSize: 16,
+	})
+
+	next, err := w.ReserveNext()
+	assert.Nil(t, err)
+	assert.Equal(t, uint64(0), next)
+
+	n, err := w.Discard(0, 1)
+	assert.Equal(t, uint(1), n)
+	assert.Nil(t, err)
+	assert.Equal(t, uint64(1), w.Offset())
+}
+
+func TestDiscardSingleElement(t *testing.T) {
+	w := NewSlidingWindow(SlidingWindowProps{
+		MaxSize: 16,
+	})
+
+	for i := 0; i < 2; i++ {
+		next, err := w.ReserveNext()
+		assert.Nil(t, err)
+		assert.Equal(t, uint64(i), next)
+	}
+
+	n, err := w.Discard(1, 1)
+	assert.Equal(t, uint(1), n)
+	assert.Nil(t, err)
+	assert.Equal(t, uint64(0), w.Offset())
+
+	n, err = w.Discard(0, 1)
+	assert.Equal(t, uint(1), n)
+	assert.Nil(t, err)
+	assert.Equal(t, uint64(2), w.Offset())
+}
+
+func TestDiscardMultipleElements(t *testing.T) {
+	w := NewSlidingWindow(SlidingWindowProps{
+		MaxSize: 16,
+	})
+
+	for i := 0; i < 10; i++ {
+		next, err := w.ReserveNext()
+		assert.Nil(t, err)
+		assert.Equal(t, uint64(i), next)
+	}
+
+	n, err := w.Discard(0, 10)
+	assert.Nil(t, err)
+	assert.Equal(t, uint(10), n)
+	assert.Equal(t, uint64(10), w.Offset())
+}
+
+func TestDiscardAndSlide(t *testing.T) {
+	w := NewSlidingWindow(SlidingWindowProps{
+		MaxSize: 16,
+	})
+
+	for i := 0; i < 10; i++ {
+		next, err := w.ReserveNext()
+		assert.Nil(t, err)
+		assert.Equal(t, uint64(i), next)
+
+		err = w.Set(next, "", strconv.Itoa(i))
+		assert.Nil(t, err)
+	}
+
+	n, err := w.Discard(5, 5)
+	assert.Nil(t, err)
+	assert.Equal(t, uint(5), n)
+
+	n, err = w.Slide(5)
+	assert.Nil(t, err)
+	assert.Equal(t, uint(10), n)
+	assert.Equal(t, uint64(10), w.Offset())
+}
+
+func TestGetDiscarded(t *testing.T) {
+	w := NewSlidingWindow(SlidingWindowProps{
+		MaxSize: 16,
+	})
+
+	for i := 0; i < 10; i++ {
+		next, err := w.ReserveNext()
+		assert.Nil(t, err)
+		assert.Equal(t, uint64(i), next)
+
+		err = w.Set(next, "", strconv.Itoa(i))
+		assert.Nil(t, err)
+	}
+
+	n, err := w.Discard(2, 5)
+	assert.Nil(t, err)
+	assert.Equal(t, uint(5), n)
+
+	els, err := w.Get(0, 10)
+	assert.Nil(t, err)
+	assert.Equal(t, uint64(0), els.Offset)
+	assert.Equal(t, []core.Element{
+		core.Element{Offset: 0x0, Value: "0", Type: ""},
+		core.Element{Offset: 0x1, Value: "1", Type: ""},
+		core.Element{Offset: 0x7, Value: "7", Type: ""},
+		core.Element{Offset: 0x8, Value: "8", Type: ""},
+		core.Element{Offset: 0x9, Value: "9", Type: ""}}, els.Elements)
+}

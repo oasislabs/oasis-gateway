@@ -1,17 +1,20 @@
 package mem
 
 import (
+	"fmt"
+
 	"github.com/oasislabs/developer-gateway/errors"
 	"github.com/oasislabs/developer-gateway/mqueue/core"
 	stderr "github.com/pkg/errors"
 )
 
 type element struct {
-	Reserved bool
-	Set      bool
-	Offset   uint64
-	Value    string
-	Type     string
+	Discarded bool
+	Reserved  bool
+	Set       bool
+	Offset    uint64
+	Value     string
+	Type      string
 }
 
 var (
@@ -93,7 +96,7 @@ func (w *SlidingWindow) Get(offset uint64, count uint) (core.Elements, errors.Er
 
 	for i := index; i < count+index && i < uint(len(w.elements)); i++ {
 		element := &w.elements[i]
-		if element.Reserved && element.Set {
+		if element.Reserved && element.Set && !element.Discarded {
 			res.Elements = append(res.Elements, core.Element{
 				Offset: element.Offset,
 				Value:  element.Value,
@@ -155,7 +158,7 @@ func (w *SlidingWindow) Set(offset uint64, valueType, value string) errors.Err {
 		return errors.New(errors.ErrInvalidStateChangeError, ErrOffsetNotReserved)
 	}
 
-	if w.elements[index].Set {
+	if w.elements[index].Set || w.elements[index].Discarded {
 		return errors.New(errors.ErrInvalidStateChangeError, ErrOffsetAlreadySet)
 	}
 
@@ -163,17 +166,21 @@ func (w *SlidingWindow) Set(offset uint64, valueType, value string) errors.Err {
 	w.elements[index].Type = valueType
 	w.elements[index].Value = value
 
+	w.updateUnsetIndex(index)
+
+	return nil
+}
+
+func (w *SlidingWindow) updateUnsetIndex(index uint) {
 	if w.nextUnsetIndex == index {
 		// update w.nextUnsetIndex to the next unset element
 		for i := w.nextUnsetIndex; i < uint(len(w.elements)); i++ {
-			if !w.elements[i].Set {
+			if !w.elements[i].Set && !w.elements[i].Discarded {
 				w.nextUnsetIndex = i
 				break
 			}
 		}
 	}
-
-	return nil
 }
 
 // Slide slides the window up to offset effectively discarding all
@@ -181,6 +188,50 @@ func (w *SlidingWindow) Set(offset uint64, valueType, value string) errors.Err {
 // new offsets to be reserved and new elements to be set.
 func (w *SlidingWindow) Slide(offset uint64) (uint, errors.Err) {
 	return w.slide(offset)
+}
+
+// Discard marks the requested elements as discarded. Discarded
+// elements are not returned on a Get request, and if possible,
+// the window is slided
+func (w *SlidingWindow) Discard(offset uint64, count uint) (uint, errors.Err) {
+	if count == 0 {
+		return 0, nil
+	}
+
+	if w.offset > offset || offset > w.offset+uint64(len(w.elements)) {
+		return 0, errors.New(errors.ErrOutOfRange, ErrOffsetOutOfWindow)
+	}
+
+	index := uint(offset - w.offset)
+	counter := uint(0)
+
+	// maxContiguousIndex is used to find the index of the greatest contiguous
+	// sequence of elements discarded by this operation
+	maxContiguousIndex := index
+
+	for i := index; i < index+count && i < w.nextUnreservedIndex; i++ {
+		w.elements[i].Discarded = true
+		counter++
+		if i == maxContiguousIndex-1 {
+			maxContiguousIndex++
+		}
+		if i == w.nextUnsetIndex-1 {
+			w.nextUnsetIndex++
+		}
+	}
+
+	w.updateUnsetIndex(maxContiguousIndex)
+
+	if index == 0 {
+		// if the discard started at the beginning of the window we can directly
+		// slide it up to the maximum contiguous index
+		_, err := w.Slide(uint64(maxContiguousIndex) + w.offset + 1)
+		if err != nil {
+			panic(fmt.Sprintf("Failed to slide window after discard %s", err.Error()))
+		}
+	}
+
+	return counter, nil
 }
 
 // makeRoom either grows the window or slides it in order to
@@ -217,6 +268,12 @@ func (w *SlidingWindow) slide(offset uint64) (uint, errors.Err) {
 	limit := uint(offset - w.offset)
 	if limit > w.nextUnsetIndex {
 		limit = w.nextUnsetIndex
+	}
+
+	// check if there are elements discarded after offset
+	// and slide the window pass them as well
+	for limit < w.nextUnsetIndex && w.elements[limit].Discarded {
+		limit++
 	}
 
 	if limit == 0 {

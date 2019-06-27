@@ -59,14 +59,26 @@ type RetrieveRequest struct {
 }
 
 // DiscardRequest to request the queue to discard all the
-// elements in the queue up to Offset
+// elements in the queue up to Offset.
+//
+// The request creates a slice of elements to be discarded, which
+// is,
+// - if KeepPrevious == true, [offset, offset + count].
+// - if KeepPrevious == false, [0, offset+count].
 type DiscardRequest struct {
+	// KeepPrevious when set to true will tell the mqueue to keep the
+	// elements in the queue with a lower offset than Offset
+	KeepPrevious bool
+
+	// Count is the number of elements after the Offset that will also be
+	// discarded
+	Count uint
+
+	// Offset that defines the offset for the request.
+	Offset uint64
+
 	// Key unique identifier of the queue
 	Key string
-
-	// Offset that defines which offsets will be discarded. All elements
-	// at a lower offset than this will be discarded
-	Offset uint64
 }
 
 // NextRequest to request the next offset available
@@ -79,6 +91,13 @@ type NextRequest struct {
 // RemoveRequest to ask to destroy the queue identified
 // by the provided key
 type RemoveRequest struct {
+	// Key unique identifier of the queue
+	Key string
+}
+
+// ExistsRequest to ask to destroy the queue identified
+// by the provided key
+type ExistsRequest struct {
 	// Key unique identifier of the queue
 	Key string
 }
@@ -110,4 +129,7 @@ type MQueue interface {
 
 	// Remove the queue and associated resources with the key
 	Remove(context.Context, RemoveRequest) error
+
+	// Exists returns true if the key exists
+	Exists(context.Context, ExistsRequest) (bool, error)
 }
