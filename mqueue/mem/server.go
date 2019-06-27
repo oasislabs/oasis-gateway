@@ -85,7 +85,11 @@ func (s *Server) Retrieve(ctx context.Context, req core.RetrieveRequest) (core.E
 // Discard all elements that have a prior or equal
 // offset to the provided offset
 func (s *Server) Discard(ctx context.Context, req core.DiscardRequest) error {
-	_, err := s.master.Request(ctx, req.Key, discardRequest{Offset: req.Offset})
+	_, err := s.master.Request(ctx, req.Key, discardRequest{
+		KeepPrevious: req.KeepPrevious,
+		Count:        req.Count,
+		Offset:       req.Offset,
+	})
 	return err
 }
 

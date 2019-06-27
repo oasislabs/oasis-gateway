@@ -22,6 +22,16 @@ var Logger = log.NewLogrus(log.LogrusLoggerProperties{
 	Output: ioutil.Discard,
 })
 
+type InvalidEvent struct{}
+
+func (e InvalidEvent) EventID() uint64 {
+	return 0
+}
+
+func (e InvalidEvent) EventType() backend.EventType {
+	return backend.DataEventType
+}
+
 type MockClient struct {
 	mock.Mock
 }
@@ -314,7 +324,7 @@ func TestPollServiceExecuteOK(t *testing.T) {
 
 	res, err := handler.PollService(ctx, &PollServiceRequest{
 		Offset:          0,
-		Count:           10,
+		Count:           0,
 		DiscardPrevious: false,
 	})
 	assert.Nil(t, err)
@@ -437,11 +447,28 @@ func TestGetPublicKeyEmptyOK(t *testing.T) {
 	}, res)
 }
 
+func TestMapUnkonwnEvent(t *testing.T) {
+	handler := createServiceHandler()
+
+	assert.Panics(t, func() {
+		handler.mapEvent(InvalidEvent{})
+	})
+}
+
 func TestNewServiceHandlerNoLogger(t *testing.T) {
 	assert.Panics(t, func() {
 		NewServiceHandler(Services{
 			Client: &MockClient{},
 			Logger: nil,
+		})
+	})
+}
+
+func TestNewServiceHandlerNoClient(t *testing.T) {
+	assert.Panics(t, func() {
+		NewServiceHandler(Services{
+			Client: nil,
+			Logger: Logger,
 		})
 	})
 }

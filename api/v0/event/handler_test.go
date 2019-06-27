@@ -119,10 +119,10 @@ func TestSubscribeErrInvalidQueryParams(t *testing.T) {
 
 	_, err := handler.Subscribe(ctx, &SubscribeRequest{
 		Events: []string{"event1"},
-		Filter: "this is not a query",
+		Filter: "%&543!!@#)!$/32142",
 	})
 
-	assert.Equal(t, "[2009] error code InputError with desc Failed to parse query parameters.", err.Error())
+	assert.Equal(t, "[2009] error code InputError with desc Failed to parse query parameters. with cause invalid URL escape \"%\"", err.Error())
 }
 
 func TestSubscribeErrReturn(t *testing.T) {

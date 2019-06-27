@@ -21,7 +21,9 @@ type retrieveRequest struct {
 }
 
 type discardRequest struct {
-	Offset uint64
+	KeepPrevious bool
+	Count        uint
+	Offset       uint64
 }
 
 type nextRequest struct{}
@@ -87,7 +89,13 @@ func (w *MessageHandler) retrieve(req retrieveRequest) (core.Elements, error) {
 }
 
 func (w *MessageHandler) discard(req discardRequest) error {
-	_, err := w.window.Slide(req.Offset)
+	if !req.KeepPrevious {
+		if _, err := w.window.Slide(req.Offset); err != nil {
+			return err
+		}
+	}
+
+	_, err := w.window.Discard(req.Offset, req.Count)
 	return err
 }
 
