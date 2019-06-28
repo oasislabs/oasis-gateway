@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"testing"
+	"time"
 
 	jwt "github.com/dgrijalva/jwt-go"
 	"github.com/oasislabs/developer-gateway/stats"
@@ -104,6 +105,24 @@ func (v *JwtVerifier) Verify(req AuthRequest, encoded string) error {
 	return nil
 }
 
+type Claims struct {
+	jwt.StandardClaims
+	Scope string `json:"scope"`
+	Name  string `json:"name"`
+}
+
+func generateToken() (string, error) {
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, &Claims{
+		Scope: "MyAPI",
+		Name:  "John Doe",
+		StandardClaims: jwt.StandardClaims{
+			ExpiresAt: time.Now().Unix() + 1000,
+		},
+	})
+
+	return token.SignedString([]byte("secret"))
+}
+
 func TestJwtAuthVerifyName(t *testing.T) {
 	assert.Equal(t, "JwtVerifier", (&JwtVerifier{}).Name())
 }
@@ -123,8 +142,10 @@ func TestJwtAuthAuthenticateMissingHeader(t *testing.T) {
 }
 
 func TestJwtAuthAuthenticateAndVerifyOK(t *testing.T) {
+	token, err := generateToken()
+	assert.Nil(t, err)
 	req, _ := http.NewRequest("GET", "URL", nil)
-	req.Header.Add(JwtHeader, "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiYWRtaW4iOnRydWUsImp0aSI6ImMzM2M5ZTljLWRmNjgtNGQ4ZS04OTE3LWUzOGFlZmM0MTVlMyIsImlhdCI6MTU2MTcxMDA3MCwiZXhwIjoxNTYxNzEzNjgyLCJzY29wZSI6Ik15QVBJIn0.6Boo8fdEfU3Kzgs-Y6y4Ekd38FY-0KIidSvCNSVGfJQ")
+	req.Header.Add(JwtHeader, token)
 
 	verifier := &JwtVerifier{}
 	v, err := verifier.Authenticate(req)
@@ -140,8 +161,10 @@ func TestJwtAuthAuthenticateAndVerifyOK(t *testing.T) {
 }
 
 func TestJwtAuthAuthenticateAndVerifyErrIdentity(t *testing.T) {
+	token, err := generateToken()
+	assert.Nil(t, err)
 	req, _ := http.NewRequest("GET", "URL", nil)
-	req.Header.Add(JwtHeader, "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiYWRtaW4iOnRydWUsImp0aSI6ImMzM2M5ZTljLWRmNjgtNGQ4ZS04OTE3LWUzOGFlZmM0MTVlMyIsImlhdCI6MTU2MTcxMDA3MCwiZXhwIjoxNTYxNzEzNjgyLCJzY29wZSI6Ik15QVBJIn0.6Boo8fdEfU3Kzgs-Y6y4Ekd38FY-0KIidSvCNSVGfJQ")
+	req.Header.Add(JwtHeader, token)
 
 	verifier := &JwtVerifier{}
 	v, err := verifier.Authenticate(req)
@@ -157,8 +180,10 @@ func TestJwtAuthAuthenticateAndVerifyErrIdentity(t *testing.T) {
 }
 
 func TestJwtAuthAuthenticateAndVerifyErrScope(t *testing.T) {
+	token, err := generateToken()
+	assert.Nil(t, err)
 	req, _ := http.NewRequest("GET", "URL", nil)
-	req.Header.Add(JwtHeader, "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiYWRtaW4iOnRydWUsImp0aSI6ImMzM2M5ZTljLWRmNjgtNGQ4ZS04OTE3LWUzOGFlZmM0MTVlMyIsImlhdCI6MTU2MTcxMDA3MCwiZXhwIjoxNTYxNzEzNjgyLCJzY29wZSI6Ik15QVBJIn0.6Boo8fdEfU3Kzgs-Y6y4Ekd38FY-0KIidSvCNSVGfJQ")
+	req.Header.Add(JwtHeader, token)
 
 	verifier := &JwtVerifier{}
 	v, err := verifier.Authenticate(req)
