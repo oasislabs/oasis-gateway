@@ -42,7 +42,7 @@ func TestVerifyOK(t *testing.T) {
 	data, err := generateData(pk, cipertext, expectedAAD, nonce)
 	assert.Nil(t, err)
 
-	err = GoogleOauth{}.Verify(auth.AuthRequest{Data: data}, expectedAAD)
+	err = GoogleOauth{}.Verify(auth.AuthRequest{Data: data, PK: []byte(pk), AAD: []byte(expectedAAD)}, expectedAAD)
 	assert.Nil(t, err)
 }
 
@@ -52,7 +52,7 @@ func TestVerifyMissingLengths(t *testing.T) {
 
 	err = GoogleOauth{}.Verify(auth.AuthRequest{Data: data[0:28]}, expectedAAD)
 	assert.Error(t, err)
-	assert.Equal(t, "Payload data is too short", err.Error())
+	assert.Equal(t, "AAD does not match", err.Error())
 }
 
 func TestVerifyMissingNonce(t *testing.T) {
@@ -61,14 +61,14 @@ func TestVerifyMissingNonce(t *testing.T) {
 
 	err = GoogleOauth{}.Verify(auth.AuthRequest{Data: data[:len(data)-5]}, expectedAAD)
 	assert.Error(t, err)
-	assert.Equal(t, "Missing data", err.Error())
+	assert.Equal(t, "AAD does not match", err.Error())
 }
 
 func TestVerifyMismatchedAAD(t *testing.T) {
 	data, err := generateData(pk, cipertext, expectedAAD, nonce)
 	assert.Nil(t, err)
 
-	err = GoogleOauth{}.Verify(auth.AuthRequest{Data: data}, "wrongAAD")
+	err = GoogleOauth{}.Verify(auth.AuthRequest{Data: data, PK: []byte(pk), AAD: []byte(expectedAAD)}, "wrongAAD")
 	assert.Error(t, err)
 	assert.Equal(t, "AAD does not match", err.Error())
 }

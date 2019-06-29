@@ -3,6 +3,7 @@ package core
 import (
 	"net/http"
 
+	"github.com/oasislabs/developer-gateway/log"
 	"github.com/oasislabs/developer-gateway/stats"
 )
 
@@ -14,7 +15,8 @@ type AuthData struct {
 type AuthRequest struct {
 	API     string
 	Address string
-	AAD     string
+	AAD     []byte
+	PK      []byte
 	Data    string
 }
 
@@ -30,6 +32,9 @@ type Auth interface {
 	// Verify that a specific payload complies with
 	// the expected format and has the authentication data required
 	Verify(req AuthRequest, expected string) error
+
+	// Sets the logger for the authentication plugin.
+	SetLogger(log.Logger)
 }
 
 type NilAuth struct{}
@@ -45,4 +50,7 @@ func (NilAuth) Authenticate(req *http.Request) (string, error) {
 }
 func (NilAuth) Verify(req AuthRequest, expected string) error {
 	return nil
+}
+
+func (NilAuth) SetLogger(log.Logger) {
 }

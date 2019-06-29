@@ -126,6 +126,7 @@ func NewServiceGroupWithFactories(ctx context.Context, config *Config, factories
 	if err != nil {
 		return nil, err
 	}
+	authenticator.SetLogger(RootLogger)
 
 	return &ServiceGroup{
 		Mailbox:       mqueue,

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"github.com/oasislabs/developer-gateway/log"
 	"github.com/oasislabs/developer-gateway/stats"
 )
 
@@ -59,4 +60,10 @@ func (m *MultiAuth) Verify(data AuthRequest, expected string) error {
 		}
 	}
 	return nil
+}
+
+func (m *MultiAuth) SetLogger(l log.Logger) {
+	for _, auth := range m.auths {
+		auth.SetLogger(l)
+	}
 }
