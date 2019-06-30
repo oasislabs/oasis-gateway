@@ -8,6 +8,7 @@ require (
 	github.com/btcsuite/btcd v0.0.0-20190523000118-16327141da8c // indirect
 	github.com/coreos/go-oidc v2.0.0+incompatible
 	github.com/deckarep/golang-set v1.7.1 // indirect
+	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/ethereum/go-ethereum v1.8.27
 	github.com/flynn/noise v0.0.0-20180327030543-2492fe189ae6
 	github.com/go-redis/redis v6.15.2+incompatible
