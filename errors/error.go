@@ -176,99 +176,105 @@ var (
 		desc:     "Internal Error. Please check the status of the service.",
 	}
 
-	ErrEkidenGetPublicKey = ErrorCode{
+	ErrEkidenGetCode = ErrorCode{
 		category: InternalError,
 		code:     1027,
 		desc:     "Internal Error. Please check the status of the service.",
 	}
 
-	ErrQueueRetrieve = ErrorCode{
+	ErrEkidenGetPublicKey = ErrorCode{
 		category: InternalError,
 		code:     1028,
 		desc:     "Internal Error. Please check the status of the service.",
 	}
 
-	ErrQueueRemove = ErrorCode{
+	ErrQueueRetrieve = ErrorCode{
 		category: InternalError,
 		code:     1029,
 		desc:     "Internal Error. Please check the status of the service.",
 	}
 
-	ErrQueueDiscard = ErrorCode{
+	ErrQueueRemove = ErrorCode{
 		category: InternalError,
 		code:     1030,
 		desc:     "Internal Error. Please check the status of the service.",
 	}
 
-	ErrQueueInsert = ErrorCode{
+	ErrQueueDiscard = ErrorCode{
 		category: InternalError,
 		code:     1031,
 		desc:     "Internal Error. Please check the status of the service.",
 	}
 
-	ErrSignTransaction = ErrorCode{
+	ErrQueueInsert = ErrorCode{
 		category: InternalError,
 		code:     1032,
 		desc:     "Internal Error. Please check the status of the service.",
 	}
 
-	ErrExecuteTransaction = ErrorCode{
+	ErrSignTransaction = ErrorCode{
 		category: InternalError,
 		code:     1033,
 		desc:     "Internal Error. Please check the status of the service.",
 	}
 
-	ErrGetPublicKey = ErrorCode{
+	ErrExecuteTransaction = ErrorCode{
 		category: InternalError,
 		code:     1034,
 		desc:     "Internal Error. Please check the status of the service.",
 	}
 
-	ErrRemoveWallet = ErrorCode{
+	ErrGetPublicKey = ErrorCode{
 		category: InternalError,
 		code:     1035,
 		desc:     "Internal Error. Please check the status of the service.",
 	}
 
-	ErrQueueNext = ErrorCode{
+	ErrRemoveWallet = ErrorCode{
 		category: InternalError,
 		code:     1036,
 		desc:     "Internal Error. Please check the status of the service.",
 	}
 
-	ErrUnkownEventType = ErrorCode{
+	ErrQueueNext = ErrorCode{
 		category: InternalError,
 		code:     1037,
 		desc:     "Internal Error. Please check the status of the service.",
 	}
 
-	ErrDeserializeEvent = ErrorCode{
+	ErrUnkownEventType = ErrorCode{
 		category: InternalError,
 		code:     1038,
 		desc:     "Internal Error. Please check the status of the service.",
 	}
 
-	ErrGetBalance = ErrorCode{
+	ErrDeserializeEvent = ErrorCode{
 		category: InternalError,
 		code:     1039,
 		desc:     "Internal Error. Please check the status of the service.",
 	}
 
-	ErrGetContractCode = ErrorCode{
+	ErrGetBalance = ErrorCode{
 		category: InternalError,
 		code:     1040,
 		desc:     "Internal Error. Please check the status of the service.",
 	}
 
-	ErrContractCodeNotDeployed = ErrorCode{
+	ErrGetContractCode = ErrorCode{
 		category: InternalError,
 		code:     1041,
 		desc:     "Internal Error. Please check the status of the service.",
 	}
 
-	ErrQueueExists = ErrorCode{
+	ErrContractCodeNotDeployed = ErrorCode{
 		category: InternalError,
 		code:     1042,
+		desc:     "Internal Error. Please check the status of the service.",
+	}
+
+	ErrQueueExists = ErrorCode{
+		category: InternalError,
+		code:     1043,
 		desc:     "Internal Error. Please check the status of the service.",
 	}
 

@@ -98,7 +98,25 @@ func (e *Enclave) CallEnclave(ctx context.Context, req *CallEnclaveRequest) (*Ca
 	return &CallEnclaveResponse{Payload: res.Success}, nil
 }
 
-// GetPublicKeyRequest retrieves the public key associated with a contract along with
+// GetCode retrieves the code associated with a service along with
+// its metadata
+func (e *Enclave) GetCode(ctx context.Context, req *GetCodeRequest) (*GetCodeResponse, error) {
+	res, err := e.CallEnclave(ctx, &CallEnclaveRequest{
+		Method: "get_code",
+		Data:   req.Address[:],
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	if res.Payload == nil {
+		return nil, errors.New("Provided address does not have associated source code")
+	}
+
+	return nil, errors.New("GetCode not fully implemented")
+}
+
+// GetPublicKeyRequest retrieves the public key associated with a service along with
 // its metadata
 func (e *Enclave) GetPublicKey(ctx context.Context, req *GetPublicKeyRequest) (*GetPublicKeyResponse, error) {
 	res, err := e.CallEnclave(ctx, &CallEnclaveRequest{

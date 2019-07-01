@@ -17,6 +17,7 @@ import (
 type Client interface {
 	Name() string
 	Stats() stats.Metrics
+	GetCode(context.Context, GetCodeRequest) (GetCodeResponse, errors.Err)
 	GetPublicKey(context.Context, GetPublicKeyRequest) (GetPublicKeyResponse, errors.Err)
 	ExecuteService(context.Context, uint64, ExecuteServiceRequest) (ExecuteServiceResponse, errors.Err)
 	DeployService(context.Context, uint64, DeployServiceRequest) (DeployServiceResponse, errors.Err)
@@ -75,6 +76,18 @@ func NewRequestManager(properties RequestManagerProperties) *RequestManager {
 			MQueue:  properties.MQueue,
 		}),
 	}
+}
+
+// GetCode retrieves the source code for a specific service
+func (m *RequestManager) GetCode(
+	ctx context.Context,
+	req GetCodeRequest,
+) (GetCodeResponse, errors.Err) {
+	if len(req.Address) == 0 {
+		return GetCodeResponse{}, errors.New(errors.ErrInvalidAddress, nil)
+	}
+
+	return m.client.GetCode(ctx, req)
 }
 
 // GetPublicKey retrieves the public key for a specific service

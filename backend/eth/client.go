@@ -22,6 +22,7 @@ import (
 )
 
 const (
+	getCode            string = "GetCode"
 	getPublicKey       string = "GetPublicKey"
 	deployService      string = "DeployService"
 	executeService     string = "ExecuteService"
@@ -68,6 +69,55 @@ func (c *Client) Stats() stats.Metrics {
 		"methods": methodStats,
 		"wallets": walletStats,
 	}
+}
+
+func (c *Client) getCode(
+	ctx context.Context,
+	req backend.GetCodeRequest,
+) (backend.GetCodeResponse, errors.Err) {
+	c.logger.Debug(ctx, "", log.MapFields{
+		"call_type": "GetCodeAttempt",
+		"address":   req.Address,
+	})
+
+	if err := c.verifyAddress(req.Address); err != nil {
+		return backend.GetCodeResponse{}, err
+	}
+
+	code, err := c.client.GetCode(ctx, common.HexToAddress(req.Address))
+	if err != nil {
+		err := errors.New(errors.ErrInternalError, fmt.Errorf("failed to get code %s", err.Error()))
+		c.logger.Debug(ctx, "client call failed", log.MapFields{
+			"call_type": "GetCodeFailure",
+			"address":   req.Address,
+		}, err)
+		return backend.GetCodeResponse{}, err
+	}
+
+	c.logger.Debug(ctx, "", log.MapFields{
+		"call_type": "GetCodeSuccess",
+		"address":   req.Address,
+	})
+
+	return backend.GetCodeResponse{
+		Address:   req.Address,
+		Code:      code,
+	}, nil
+}
+
+func (c *Client) GetCode(
+	ctx context.Context,
+	req backend.GetCodeRequest,
+) (backend.GetCodeResponse, errors.Err) {
+	v, err := c.tracker.Instrument(getCode, func() (interface{}, error) {
+		return c.getCode(ctx, req)
+	})
+
+	if err != nil {
+		return backend.GetCodeResponse{}, err.(errors.Err)
+	}
+
+	return v.(backend.GetCodeResponse), nil
 }
 
 func (c *Client) getPublicKey(

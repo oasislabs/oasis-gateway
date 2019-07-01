@@ -63,6 +63,32 @@ func (c *Client) Stats() stats.Metrics {
 	return nil
 }
 
+func (c *Client) GetCode(
+	ctx context.Context,
+	req core.GetCodeRequest,
+) (*core.GetCodeResponse, errors.Err) {
+	decoded, err := hex.DecodeString(req.Address)
+	if err != nil {
+		return nil, errors.New(errors.ErrInvalidAddress, err)
+	}
+
+	if len(decoded) != 20 {
+		return nil, errors.New(errors.ErrInvalidAddress, nil)
+	}
+
+	var address ekiden.Address
+	copy(address[:], decoded)
+
+	_, err = c.keyManager.GetCode(ctx, &ekiden.GetCodeRequest{
+		Address: address,
+	})
+	if err != nil {
+		return nil, errors.New(errors.ErrEkidenGetCode, err)
+	}
+
+	return &core.GetCodeResponse{}, nil
+}
+
 func (c *Client) GetPublicKey(
 	ctx context.Context,
 	req core.GetPublicKeyRequest,
