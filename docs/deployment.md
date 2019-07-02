@@ -56,7 +56,7 @@ operators but that should not be exposed to the outside world.
 ### Callbacks
 The developer-gateway provides a callback system to expose state changes that
 may be relevant to the operator. These callbacks should be kept internal to the
-system in production deployments. It allows to set the endpoint of each callback
+system in production deployments. The endpoints for callbacks
 and the payload that will be sent are configurable
 
 ```
