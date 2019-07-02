@@ -42,8 +42,8 @@ In order to quickly run the developer-gateway, there's a simple configuration fi
 
 ## Testing
 The tests are organized in unit tests and component tests. 
- - Unit tests are the tests in each module that test a single unit of code, mocking all the other dependencies the code migh thave. 
- - Component tests test all the code in the developer-gateway component mocking the backend client implementation. This allows to test all the code in the gateway itself independently from the backend used. This tests also run with the different `mqueue` implementations provided.
+ - Unit tests are the tests in each module that test a single unit of code, mocking all the other dependencies the code might have `$ make test`.
+ - Component tests test all the code in the developer-gateway component mocking the backend client implementation. This allows to test all the code in the gateway itself independently from the backend used. This tests also run with the different `mqueue` implementations provided `$ make test-component`. Look at the Makefile `test-component-*` to see the different instances of component tests that can be executed
  
 ## Docs
 There is more documentation provided in the [docs](docs) folder
