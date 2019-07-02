@@ -9,22 +9,22 @@ The code is organized in the following packages:
  - `[api](api)` APIs exposed by the developer-gateway, the endpoints and the requests and responses for those APIs
  - `[auth](auth)` policies and generic implementations that can be set up from the configuration
  - `[backend](backend)` manages a client implementation and an mqueue implementation to satisfy client requests and provide the responses to clients
- - `[callback](callback)` callback system implementation
- - `[cmd](cmd)` contains all the code for the generated binaries from this repository
- - `[concurrent](concurrent)` contains utilities for common patters to work with concurrent code
- - `[config](config)` defines how configuration parameters are handled
- - `[ekiden](ekiden)` implementation of the protocol to talk to ekiden
- - `[errors](errors)` definition of the error type used in the developer-gateway
- - `[eth](eth)` abstraction on top of go-ethereum for 
- - `[gateway](gateway)` creates and binds all services together to generate the developer-gateway request router
- - `[log](log)` logging package
- - `[mqueue](mqueue)` message queues implementations used in the backend to keep client messages
- - `[noise](noise)` noise protocol abstraction to be used for ekiden 
- - `[rpc](rpc)` abstraction of request routers to handle client requests
- - `[rw](rw)` io utilities
- - `[stats](stats)` package to gather and expose simple statistics
- - `[tests](tests)` component tests
- - `[tx](tx)` abstraction to execute multiple transactions concurrently
+ - [callback](callback) callback system implementation
+ - [cmd](cmd) contains all the code for the generated binaries from this repository
+ - [concurrent](concurrent) contains utilities for common patters to work with concurrent code
+ - [config](config) defines how configuration parameters are handled
+ - [ekiden](ekiden) implementation of the protocol to talk to ekiden
+ - [errors](errors) definition of the error type used in the developer-gateway
+ - [eth](eth) abstraction on top of go-ethereum for 
+ - [gateway](gateway) creates and binds all services together to generate the developer-gateway request router
+ - [log](log) logging package
+ - [mqueue](mqueue) message queues implementations used in the backend to keep client messages
+ - [noise](noise) noise protocol abstraction to be used for ekiden 
+ - [rpc](rpc) abstraction of request routers to handle client requests
+ - [rw](rw) io utilities
+ - [stats](stats) package to gather and expose simple statistics
+ - [tests](tests) component tests
+ - [tx](tx) abstraction to execute multiple transactions concurrently
 
 ## Build
 The command to build all the code, run the unit tests and generate all the repository binaries is `$ make`.
