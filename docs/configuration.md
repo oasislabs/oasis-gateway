@@ -47,7 +47,6 @@ Flags:
       --mailbox.provider string                        provider for the mailbox service. Options are mem, redis-single, redis-cluster. (default "mem")
       --mailbox.redis_cluster.addrs stringArray        array of addresses for bootstrap redis instances in the cluster (default [127.0.0.1:6379])
       --mailbox.redis_single.addr string               redis instance address (default "127.0.0.1:6379")
-
 ```
 
 The convention on how to set the parameters is the following; for a CLI command
