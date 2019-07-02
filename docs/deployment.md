@@ -126,11 +126,19 @@ For local testing configuration in which the only goal is to be able to test
 contracts quickly the easiest approach is to just use the `mem`
 `mailbox.provider` and set the `eth.wallet.private_keys` in the configuration
 file or the command line directly (assuming that the private key wallet is just
-a wallet for testing) 
+a wallet for testing). A simple command to start the developer-gateway could be
 
 ```
---mailbox.provider mem
---eth.wallet.private_keys private_key
+ ./developer-gateway --eth.url wss://gateway.oasiscloud.io \
+ --eth.wallet.private_keys $PRIVATE_KEYS --mailbox.provider mem
+ --auth.provider insecure
+```
+
+Also, the configuration file provided in `cmd/gateway/config/testing.toml`
+provides a simple base configuration that can be used with
+
+```
+ ./developer-gateway --config.path cmd/gateway/config/testing.toml
 ```
 
 ### Production
