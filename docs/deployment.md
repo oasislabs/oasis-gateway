@@ -85,7 +85,7 @@ in which developer-gateways can be shutdown and restarted without affecting the
 clients. If a developer-gateway is shutdown or crashes, the consequences for the
 client today can be:
 
- - An asyncrhonous request never receives an event, in which case the client
+ - An asynchronous request never receives an event, in which case the client
    will assumes that the request has timeout and it can issue another one. Even
    in that case, it's possible that the request itself has been executed but the
    developer-gateway did not have time to write the event to the mailbox. So the
