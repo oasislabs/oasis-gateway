@@ -57,7 +57,7 @@ operators but that should not be exposed to the outside world.
 The developer-gateway provides a callback system to expose state changes that
 may be relevant to the operator. These callbacks should be kept internal to the
 system in production deployments. It allows to set the endpoint of each callback
-and the payload that will be sent
+and the payload that will be sent are configurable
 
 ```
 --callback.wallet_out_of_funds.body string       http body for the callback.
