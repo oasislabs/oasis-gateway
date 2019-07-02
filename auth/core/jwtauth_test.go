@@ -91,7 +91,7 @@ func (v *JwtVerifier) Verify(req AuthRequest, encoded string) error {
 		return err
 	}
 
-	if data.Name != req.AAD {
+	if data.Name != string(req.AAD) {
 		v.failures.Incr()
 		return errors.New("request AAD does not match token identity name")
 	}
@@ -154,7 +154,7 @@ func TestJwtAuthAuthenticateAndVerifyOK(t *testing.T) {
 	err = verifier.Verify(AuthRequest{
 		API:     "MyAPI",
 		Address: "",
-		AAD:     "John Doe",
+		AAD:     []byte("John Doe"),
 		Data:    "some data",
 	}, v)
 	assert.Nil(t, err)
@@ -173,7 +173,7 @@ func TestJwtAuthAuthenticateAndVerifyErrIdentity(t *testing.T) {
 	err = verifier.Verify(AuthRequest{
 		API:     "MyAPI",
 		Address: "",
-		AAD:     "My Name",
+		AAD:     []byte("My Name"),
 		Data:    "some data",
 	}, v)
 	assert.Equal(t, "request AAD does not match token identity name", err.Error())
@@ -192,7 +192,7 @@ func TestJwtAuthAuthenticateAndVerifyErrScope(t *testing.T) {
 	err = verifier.Verify(AuthRequest{
 		API:     "MyAPI",
 		Address: "",
-		AAD:     "My Name",
+		AAD:     []byte("My Name"),
 		Data:    "some data",
 	}, v)
 	assert.Equal(t, "request AAD does not match token identity name", err.Error())

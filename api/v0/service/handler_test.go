@@ -72,6 +72,18 @@ func (c *MockClient) PollService(
 	return args.Get(0).(backend.Events), nil
 }
 
+func (c *MockClient) GetCode(
+	ctx context.Context,
+	req backend.GetCodeRequest,
+) (backend.GetCodeResponse, errors.Err) {
+	args := c.Mock.Called(ctx, req)
+	if args.Get(1) != nil {
+		return backend.GetCodeResponse{}, args.Get(1).(errors.Err)
+	}
+
+	return args.Get(0).(backend.GetCodeResponse), nil
+}
+
 func (c *MockClient) GetPublicKey(
 	ctx context.Context,
 	req backend.GetPublicKeyRequest,
