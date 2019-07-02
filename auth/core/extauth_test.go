@@ -146,7 +146,7 @@ func TestExtAuthAuthenticateAndVerifyOK(t *testing.T) {
 	err = verifier.Verify(AuthRequest{
 		API:     "MyAPI",
 		Address: "",
-		AAD:     "John Doe",
+		AAD:     []byte("John Doe"),
 		Data:    "some data",
 	}, v)
 	assert.Nil(t, err)
@@ -167,7 +167,7 @@ func TestExtAuthAuthenticateAndVerifyErr(t *testing.T) {
 	err = verifier.Verify(AuthRequest{
 		API:     "MyAPI",
 		Address: "",
-		AAD:     "John Doe",
+		AAD:     []byte("John Doe"),
 		Data:    "some data",
 	}, v)
 	assert.Equal(t, "request not authorized", err.Error())
