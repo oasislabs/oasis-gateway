@@ -6,9 +6,9 @@ The developer-gateway is a component that works along with the Oasis infrastruct
 
 ## Code Organization
 The code is organized in the following packages:
- - `[api](api)` APIs exposed by the developer-gateway, the endpoints and the requests and responses for those APIs
- - `[auth](auth)` policies and generic implementations that can be set up from the configuration
- - `[backend](backend)` manages a client implementation and an mqueue implementation to satisfy client requests and provide the responses to clients
+ - [api](api) APIs exposed by the developer-gateway, the endpoints and the requests and responses for those APIs
+ - [auth](auth) policies and generic implementations that can be set up from the configuration
+ - [backend](backend) manages a client implementation and an mqueue implementation to satisfy client requests and provide the responses to clients
  - [callback](callback) callback system implementation
  - [cmd](cmd) contains all the code for the generated binaries from this repository
  - [concurrent](concurrent) contains utilities for common patters to work with concurrent code
