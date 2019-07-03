@@ -66,6 +66,54 @@ func NewClient() (*Client, error) {
 	}), nil
 }
 
+func TestGetCodeInvalidAddress(t *testing.T) {
+	client, err := NewClient()
+	assert.Nil(t, err)
+
+	_, err = client.GetCode(Context, backend.GetCodeRequest{
+		Address: "0x",
+	})
+	assert.Error(t, err)
+	assert.Equal(t, "[2006] error code InputError with desc Provided invalid address.", err.Error())
+}
+
+func TestGetCodeErr(t *testing.T) {
+	client, err := NewClient()
+	assert.Nil(t, err)
+
+	ethtest.ImplementMockWithOverwrite(client.client.(*ethtest.MockClient),
+		ethtest.MockMethods{
+			"GetCode": ethtest.MockMethod{
+				Arguments: []interface{}{mock.Anything, mock.Anything},
+				Return:    []interface{}{[]byte{}, errors.New("error")},
+			},
+		})
+
+	_, err = client.GetCode(Context, backend.GetCodeRequest{
+		Address: "0x0000000000000000000000000000000000000000",
+	})
+
+	assert.Error(t, err)
+	assert.Equal(t, "[1000] error code InternalError with desc Internal Error. Please check the status of the service. with cause failed to get code error", err.Error())
+}
+
+func TestGetCodeOK(t *testing.T) {
+	client, err := NewClient()
+	assert.Nil(t, err)
+
+	ethtest.ImplementMock(client.client.(*ethtest.MockClient))
+
+	pk, err := client.GetCode(Context, backend.GetCodeRequest{
+		Address: "0x0000000000000000000000000000000000000000",
+	})
+
+	assert.Nil(t, err)
+	assert.Equal(t, core.GetCodeResponse{
+		Code:    []byte("0x0000000000000000000000000000000000000000"),
+		Address: "0x0000000000000000000000000000000000000000",
+	}, pk)
+}
+
 func TestGetPublicKeyInvalidAddress(t *testing.T) {
 	client, err := NewClient()
 	assert.Nil(t, err)
