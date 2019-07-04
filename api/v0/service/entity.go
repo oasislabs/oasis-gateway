@@ -10,7 +10,8 @@ const (
 	Deploy       RequestType = 0
 	Execute      RequestType = 1
 	Poll         RequestType = 2
-	GetPublicKey RequestType = 3
+	GetCode      RequestType = 3
+	GetPublicKey RequestType = 4
 )
 
 // Request is the type implemented by requests expected
@@ -69,6 +70,32 @@ func (r DeployServiceRequest) Type() RequestType {
 // DeployServiceResponse is an asynchronous response that will be obtained
 // using the polling mechanism
 type DeployServiceResponse AsyncResponse
+
+// GetCodeRequest is a request to retrieve the code
+// associated with a specific service
+type GetCodeRequest struct {
+	// Address is the unique address that identifies the service,
+	// is generated when a service is deployed and it can be used
+	// for service execution
+	Address string `json:"address"`
+}
+
+// Type implementation of Request for GetCodeRequest
+func (r GetCodeRequest) Type() RequestType {
+	return GetCode
+}
+
+// GetCodeResponse is the response in which the code
+// associated with the service is provided
+type GetCodeResponse struct {
+	// Address is the unique address that identifies the service,
+	// is generated when a service is deployed and it can be used
+	// for service execution
+	Address string `json:"address"`
+
+	// Code associated to the service
+	Code []byte `json:"code"`
+}
 
 // GetPublicKeyRequest is a request to retrieve the public key
 // associated with a specific service

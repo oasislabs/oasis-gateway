@@ -33,6 +33,18 @@ func (c *MockClient) Stats() stats.Metrics {
 	return nil
 }
 
+func (c *MockClient) GetCode(
+	ctx context.Context,
+	req GetCodeRequest,
+) (GetCodeResponse, errors.Err) {
+	args := c.Called(ctx, req)
+	if args.Get(1) != nil {
+		return GetCodeResponse{}, args.Get(1).(errors.Err)
+	}
+
+	return args.Get(0).(GetCodeResponse), nil
+}
+
 func (c *MockClient) GetPublicKey(
 	ctx context.Context,
 	req GetPublicKeyRequest,

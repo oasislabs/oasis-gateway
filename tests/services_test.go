@@ -171,6 +171,31 @@ func (s *ServicesTestSuite) TestExecuteServiceErrStatus0() {
 		}}, ev)
 }
 
+func (s *ServicesTestSuite) TestGetCodeEmptyAddress() {
+	ethtest.ImplementMock(s.ethclient)
+
+	_, err := s.client.GetCode(context.Background(), service.GetCodeRequest{
+		Address: "",
+	})
+
+	assert.Error(s.T(), err)
+	assert.Equal(s.T(), &rpc.Error{ErrorCode: 2006, Description: "Provided invalid address."}, err)
+}
+
+func (s *ServicesTestSuite) TestGetCodeOk() {
+	ethtest.ImplementMock(s.ethclient)
+
+	res, err := s.client.GetCode(context.Background(), service.GetCodeRequest{
+		Address: "0x0000000000000000000000000000000000000000",
+	})
+
+	assert.Nil(s.T(), err)
+	assert.Equal(s.T(), service.GetCodeResponse{
+		Code:    []byte("0x0000000000000000000000000000000000000000"),
+		Address: "0x0000000000000000000000000000000000000000",
+	}, res)
+}
+
 func (s *ServicesTestSuite) TestGetPublicKeyEmptyAddress() {
 	ethtest.ImplementMock(s.ethclient)
 

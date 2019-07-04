@@ -134,6 +134,21 @@ func (c *ServiceClient) PollService(
 	return de.response, err
 }
 
+func (c *ServiceClient) GetCode(
+	ctx context.Context,
+	req service.GetCodeRequest,
+) (service.GetCodeResponse, error) {
+	var res service.GetCodeResponse
+	err := c.client.RequestAPI(&rpc.SimpleJsonDeserializer{
+		O: &res,
+	}, &req, c.session, Route{
+		Method: "GET",
+		Path:   "/v0/api/service/getCode",
+	})
+
+	return res, err
+}
+
 func (c *ServiceClient) GetPublicKey(
 	ctx context.Context,
 	req service.GetPublicKeyRequest,

@@ -39,8 +39,19 @@ type EthereumTransactionResponse struct {
 	Result interface{}
 }
 
+// GetCodeRequest is a request from a client to retrieve the
+// source code associated with a specific service
+type GetCodeRequest struct {
+	Address Address
+}
+
+// GetCodeResponse contains the source code associated with the address
+type GetCodeResponse struct {
+	Payload []byte
+}
+
 // GetPublicKeyRequest is a request from a client to retrieve the
-// public key associated with a specific contract
+// public key associated with a specific service
 type GetPublicKeyRequest struct {
 	Address Address
 }

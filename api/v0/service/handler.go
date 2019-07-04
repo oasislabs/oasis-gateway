@@ -27,6 +27,9 @@ type Client interface {
 	// PollService allows the client to poll for asynchronous responses
 	PollService(context.Context, backend.PollServiceRequest) (backend.Events, errors.Err)
 
+	// GetCode retrieves the code associated with a service.
+	GetCode(context.Context, backend.GetCodeRequest) (backend.GetCodeResponse, errors.Err)
+
 	// GetPublicKey retrieves the public key associated with a service
 	// so that the client can encrypt and format the input data in a confidental
 	// and privacy preserving manner.
@@ -202,6 +205,37 @@ func (h ServiceHandler) PollService(ctx context.Context, v interface{}) (interfa
 	return PollServiceResponse{Offset: res.Offset, Events: events}, nil
 }
 
+// GetCode retrives the source code associated with a service.
+func (h ServiceHandler) GetCode(ctx context.Context, v interface{}) (interface{}, error) {
+	req := v.(*GetCodeRequest)
+
+	if len(req.Address) == 0 {
+		err := errors.New(errors.ErrInvalidAddress, stderr.New("address field has not been set"))
+		h.logger.Debug(ctx, "failed to start request", log.MapFields{
+			"call_type": "GetCodeFailure",
+			"address":   req.Address,
+		}, err)
+		return nil, err
+	}
+
+	res, err := h.client.GetCode(ctx, backend.GetCodeRequest{
+		Address: req.Address,
+	})
+
+	if err != nil {
+		h.logger.Debug(ctx, "request failed", log.MapFields{
+			"call_type": "GetCodeFailure",
+			"address":   req.Address,
+		}, err)
+		return nil, err
+	}
+
+	return GetCodeResponse{
+		Address:   res.Address,
+		Code:      res.Code,
+	}, nil
+}
+
 // GetPublicKey retrives the public key associated with a service
 // to allow the client to encrypt the data that serves as argument for
 // a service deployment or service execution.
@@ -263,6 +297,8 @@ func BindHandler(services Services, binder rpc.HandlerBinder) {
 		rpc.EntityFactoryFunc(func() interface{} { return &ExecuteServiceRequest{} }))
 	binder.Bind("POST", "/v0/api/service/poll", rpc.HandlerFunc(handler.PollService),
 		rpc.EntityFactoryFunc(func() interface{} { return &PollServiceRequest{} }))
+	binder.Bind("GET", "/v0/api/service/getCode", rpc.HandlerFunc(handler.GetCode),
+		rpc.EntityFactoryFunc(func() interface{} { return &GetCodeRequest{} }))
 	binder.Bind("GET", "/v0/api/service/getPublicKey", rpc.HandlerFunc(handler.GetPublicKey),
 		rpc.EntityFactoryFunc(func() interface{} { return &GetPublicKeyRequest{} }))
 }

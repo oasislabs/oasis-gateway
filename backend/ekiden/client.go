@@ -63,6 +63,13 @@ func (c *Client) Stats() stats.Metrics {
 	return nil
 }
 
+func (c *Client) GetCode(
+	ctx context.Context,
+	req core.GetCodeRequest,
+) (*core.GetCodeResponse, errors.Err) {
+	return nil, errors.New(errors.ErrAPINotImplemented, nil)
+}
+
 func (c *Client) GetPublicKey(
 	ctx context.Context,
 	req core.GetPublicKeyRequest,

@@ -72,6 +72,18 @@ func (c *MockClient) PollService(
 	return args.Get(0).(backend.Events), nil
 }
 
+func (c *MockClient) GetCode(
+	ctx context.Context,
+	req backend.GetCodeRequest,
+) (backend.GetCodeResponse, errors.Err) {
+	args := c.Mock.Called(ctx, req)
+	if args.Get(1) != nil {
+		return backend.GetCodeResponse{}, args.Get(1).(errors.Err)
+	}
+
+	return args.Get(0).(backend.GetCodeResponse), nil
+}
+
 func (c *MockClient) GetPublicKey(
 	ctx context.Context,
 	req backend.GetPublicKeyRequest,
@@ -370,6 +382,77 @@ func TestPollServiceErrorOK(t *testing.T) {
 		ID:    0,
 		Cause: rpc.Error{},
 	}, evs.Events[0])
+}
+
+func TestGetCodeEmptyAddress(t *testing.T) {
+	ctx := context.WithValue(Context, auth.ContextAuthDataKey, auth.AuthData{
+		SessionKey: "sessionKey",
+	})
+	handler := createServiceHandler()
+
+	handler.client.(*MockClient).On("GetCode",
+		mock.Anything,
+		backend.GetCodeRequest{
+			Address: "0x00",
+		}).Return(nil, nil)
+
+	_, err := handler.GetCode(ctx, &GetCodeRequest{
+		Address: "",
+	})
+
+	assert.Error(t, err)
+	baserr := err.(errors.Err)
+
+	assert.Equal(t, "address field has not been set", baserr.Cause().Error())
+	assert.Equal(t, errors.ErrInvalidAddress, baserr.ErrorCode())
+}
+
+func TestGetCodeEmptyErr(t *testing.T) {
+	ctx := context.WithValue(Context, auth.ContextAuthDataKey, auth.AuthData{
+		SessionKey: "sessionKey",
+	})
+	handler := createServiceHandler()
+
+	handler.client.(*MockClient).On("GetCode",
+		mock.Anything,
+		backend.GetCodeRequest{
+			Address: "0x00",
+		}).Return(nil, errors.New(errors.ErrInternalError, stderr.New("made up error")))
+
+	_, err := handler.GetCode(ctx, &GetCodeRequest{
+		Address: "0x00",
+	})
+
+	assert.Error(t, err)
+	baserr := err.(errors.Err)
+
+	assert.Equal(t, "made up error", baserr.Cause().Error())
+	assert.Equal(t, errors.ErrInternalError, baserr.ErrorCode())
+}
+
+func TestGetCodeEmptyOK(t *testing.T) {
+	ctx := context.WithValue(Context, auth.ContextAuthDataKey, auth.AuthData{
+		SessionKey: "sessionKey",
+	})
+	handler := createServiceHandler()
+
+	handler.client.(*MockClient).On("GetCode",
+		mock.Anything,
+		backend.GetCodeRequest{
+			Address: "0x00",
+		}).Return(backend.GetCodeResponse{
+		Code:    []byte("service implementation"),
+		Address: "0x00",
+	}, nil)
+
+	res, err := handler.GetCode(ctx, &GetCodeRequest{
+		Address: "0x00",
+	})
+	assert.Nil(t, err)
+	assert.Equal(t, GetCodeResponse{
+		Code:    []byte("service implementation"),
+		Address: "0x00",
+	}, res)
 }
 
 func TestGetPublicKeyEmptyAddress(t *testing.T) {
