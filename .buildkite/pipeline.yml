@@ -61,21 +61,3 @@ steps:
         # Retry if Agent has been forced to shut down.
         - exit_status: 255
           limit: 3
-
-  - label: Generate steps for generic docker pipeline
-    branches: master
-    env:
-      GOPROXY: https://athens.ops.oasiscloud.io/
-    command: >
-      .buildkite/common/pipelines/generic_docker_build_publish_and_deploy.sh
-      --docker-build-arg BUILDKITE_ACCESS_TOKEN=$BUILDKITE_ACCESS_TOKEN
-      --docker-build-arg GOPROXY=$GOPROXY
-      --staging-environment staging
-      --staging-chart-name developer-gateway
-      --production-environment production
-      --trigger-deploy
-      oasislabs/developer-gateway
-      developer-gateway
-      .buildkite/Dockerfile
-    plugins:
-      - *common_tools_plugin
