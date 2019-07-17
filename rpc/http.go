@@ -548,21 +548,15 @@ func (h *HttpCorsPreProcessor) ServeHTTP(w http.ResponseWriter, req *http.Reques
 	)
 
 	h.cors.ServeHTTP(w, req, func(w http.ResponseWriter, req *http.Request) {
-		switch {
-		case req.Method == http.MethodOptions:
+		if req.Method == http.MethodOptions {
 			// if it is a query request this handler can give a response directly
 			w.WriteHeader(http.StatusOK)
 			next = false
-		case len(w.Header().Get("Vary")) > 0 &&
-			len(w.Header().Get("Access-Control-Allow-Origin")) > 0:
-			// the request can be handled
-			next = true
-			nextReq = req
-		default:
-			// request has not been verified successfully
-			w.WriteHeader(http.StatusForbidden)
-			next = false
+			return
 		}
+
+		next = true
+		nextReq = req
 	})
 
 	return next, nextReq
