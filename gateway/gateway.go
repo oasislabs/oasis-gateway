@@ -147,7 +147,7 @@ type Routers struct {
 	Private *rpc.HttpRouter
 }
 
-func NewRouters(group *ServiceGroup) *Routers {
+func NewRouters(config *Config, group *ServiceGroup) *Routers {
 	services := NewServices()
 	services.Add(group.Mailbox)
 	services.Add(group.Callback)
@@ -157,18 +157,18 @@ func NewRouters(group *ServiceGroup) *Routers {
 	services.Add(RuntimeService{})
 
 	var routers Routers
-	routers.Public = NewPublicRouter(group)
+	routers.Public = NewPublicRouter(config, group)
 	services.Add(HttpRouterService{
 		name:   "PublicRouter",
 		router: routers.Public,
 	})
 
-	routers.Private = NewPrivateRouter(services, group)
+	routers.Private = NewPrivateRouter(config, services, group)
 
 	return &routers
 }
 
-func NewPrivateRouter(services Services, group *ServiceGroup) *rpc.HttpRouter {
+func NewPrivateRouter(config *Config, services Services, group *ServiceGroup) *rpc.HttpRouter {
 	binder := rpc.NewHttpBinder(rpc.HttpBinderProperties{
 		Encoder: rpc.JsonEncoder{},
 		Logger:  RootLogger,
@@ -176,7 +176,7 @@ func NewPrivateRouter(services Services, group *ServiceGroup) *rpc.HttpRouter {
 			// TODO(stan): we may want to add some authentication mechanism
 			// to the private router
 			return rpc.NewHttpJsonHandler(rpc.HttpJsonHandlerProperties{
-				Limit:   1 << 16,
+				Limit:   config.BindPrivateConfig.MaxBodyBytes,
 				Handler: handler,
 				Logger:  RootLogger,
 				Factory: factory,
@@ -189,13 +189,13 @@ func NewPrivateRouter(services Services, group *ServiceGroup) *rpc.HttpRouter {
 	return binder.Build()
 }
 
-func NewPublicRouter(group *ServiceGroup) *rpc.HttpRouter {
+func NewPublicRouter(config *Config, group *ServiceGroup) *rpc.HttpRouter {
 	binder := rpc.NewHttpBinder(rpc.HttpBinderProperties{
 		Encoder: rpc.JsonEncoder{},
 		Logger:  RootLogger,
 		HandlerFactory: rpc.HttpHandlerFactoryFunc(func(factory rpc.EntityFactory, handler rpc.Handler) rpc.HttpMiddleware {
 			jsonHandler := rpc.NewHttpJsonHandler(rpc.HttpJsonHandlerProperties{
-				Limit:   1 << 22,
+				Limit:   config.BindPublicConfig.MaxBodyBytes,
 				Handler: handler,
 				Logger:  RootLogger,
 				Factory: factory,

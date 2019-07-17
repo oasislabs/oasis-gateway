@@ -38,7 +38,7 @@ func (s *EventsTestSuite) SetupTest() {
 	s.ethclient = provider.MustGet(reflect.TypeOf((*eth.Client)(nil)).Elem()).(*ethtest.MockClient)
 	s.request = provider.MustGet(reflect.TypeOf((&backend.RequestManager{}))).(*backend.RequestManager)
 
-	router := gatewaytest.NewPublicRouter(provider)
+	router := gatewaytest.NewPublicRouter(Config, provider)
 	s.eventclient = apitest.NewEventClient(router)
 }
 
