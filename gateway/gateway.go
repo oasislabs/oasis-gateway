@@ -195,7 +195,7 @@ func NewPublicRouter(group *ServiceGroup) *rpc.HttpRouter {
 		Logger:  RootLogger,
 		HandlerFactory: rpc.HttpHandlerFactoryFunc(func(factory rpc.EntityFactory, handler rpc.Handler) rpc.HttpMiddleware {
 			jsonHandler := rpc.NewHttpJsonHandler(rpc.HttpJsonHandlerProperties{
-				Limit:   1 << 16,
+				Limit:   1 << 22,
 				Handler: handler,
 				Logger:  RootLogger,
 				Factory: factory,
