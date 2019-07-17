@@ -9,6 +9,7 @@ import (
 	"github.com/oasislabs/developer-gateway/config"
 	"github.com/oasislabs/developer-gateway/log"
 	"github.com/oasislabs/developer-gateway/mqueue"
+	"github.com/oasislabs/developer-gateway/rpc"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -132,6 +133,7 @@ func (c *BindConfig) Bind(prefix string, v *viper.Viper, cmd *cobra.Command) err
 
 type BindPublicConfig struct {
 	BindConfig
+	rpc.HttpCorsPreProcessorProps
 }
 
 func (c *BindPublicConfig) Log(fields log.Fields) {
@@ -143,14 +145,52 @@ func (c *BindPublicConfig) Log(fields log.Fields) {
 	fields.Add("bind_public.https_enabled", c.BindConfig.HttpsEnabled)
 	fields.Add("bind_public.tls_certificate_path", c.BindConfig.TlsCertificatePath)
 	fields.Add("bind_public.tls_private_key_path", c.BindConfig.TlsPrivateKeyPath)
+	fields.Add("bind_public.http_cors.enabled", c.HttpCorsPreProcessorProps.Enabled)
+	fields.Add("bind_public.http_cors.allowed_origins", c.HttpCorsPreProcessorProps.AllowedOrigins)
+	fields.Add("bind_public.http_cors.allowed_methods", c.HttpCorsPreProcessorProps.AllowedMethods)
+	fields.Add("bind_public.http_cors.allowed_headers", c.HttpCorsPreProcessorProps.AllowedHeaders)
+	fields.Add("bind_public.http_cors.exposed_headers", c.HttpCorsPreProcessorProps.ExposedHeaders)
+	fields.Add("bind_public.http_cors.max_age", c.HttpCorsPreProcessorProps.MaxAge)
+	fields.Add("bind_public.http_cors.allowed_credentials", c.HttpCorsPreProcessorProps.AllowCredentials)
 }
 
 func (c *BindPublicConfig) Configure(v *viper.Viper) error {
-	return c.BindConfig.Configure("bind_public", v)
+	if err := c.BindConfig.Configure("bind_public", v); err != nil {
+		return err
+	}
+
+	c.HttpCorsPreProcessorProps.Enabled = v.GetBool("bind_public.http_cors.enabled")
+	c.HttpCorsPreProcessorProps.AllowedOrigins = v.GetStringSlice("bind_public.http_cors.allowed_origins")
+	c.HttpCorsPreProcessorProps.AllowedMethods = v.GetStringSlice("bind_public.http_cors.allowed_methods")
+	c.HttpCorsPreProcessorProps.AllowedHeaders = v.GetStringSlice("bind_public.http_cors.allowed_headers")
+	c.HttpCorsPreProcessorProps.ExposedHeaders = v.GetStringSlice("bind_public.http_cors.exposed_headers")
+	c.HttpCorsPreProcessorProps.MaxAge = v.GetInt("bind_public.http_cors.max_age")
+	c.HttpCorsPreProcessorProps.AllowCredentials = v.GetBool("bind_public.http_cors.allowed_credentials")
+
+	return nil
 }
 
 func (c *BindPublicConfig) Bind(v *viper.Viper, cmd *cobra.Command) error {
-	return c.BindConfig.Bind("bind_public", v, cmd)
+	if err := c.BindConfig.Bind("bind_public", v, cmd); err != nil {
+		return err
+	}
+
+	cmd.PersistentFlags().Bool("bind_public.http_cors.enabled", false,
+		"if set to true the public port will do CORS handling")
+	cmd.PersistentFlags().StringSlice("bind_public.http_cors.allowed_origins", []string{"*"},
+		"allowed origins for CORS")
+	cmd.PersistentFlags().StringSlice("bind_public.http_cors.allowed_methods", nil,
+		"allowed methods for CORS")
+	cmd.PersistentFlags().StringSlice("bind_public.http_cors.allowed_headers", nil,
+		"allowed headers for CORS")
+	cmd.PersistentFlags().StringSlice("bind_public.http_cors.exposed_headers", nil,
+		"exposed headers for CORS")
+	cmd.PersistentFlags().Int("bind_public.http_cors.max_age", -1,
+		"exposed headers for CORS")
+	cmd.PersistentFlags().Bool("bind_public.http_cors.allowed_credentials", true,
+		"whether credentials are allowed when using CORS")
+
+	return nil
 }
 
 type BindPrivateConfig struct {

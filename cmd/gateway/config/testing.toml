@@ -10,6 +10,15 @@ https_enabled = true
 tls_private_key_path = "/config/tls/private.pem"
 tls_certificate_path = "/config/tls/cert.pem"
 
+[bind_public.http_cors]
+enabled = true
+allowed_origins = "*"
+allowed_methods = ["GET", "HEAD", "POST"]
+allowed_headers = []
+exposed_headers = []
+max_age = -1
+allowed_credentials = true
+
 [bind_private]
 http_interface = "127.0.0.1"
 http_port = 1235
