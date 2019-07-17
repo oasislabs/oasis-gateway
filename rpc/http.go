@@ -12,9 +12,22 @@ import (
 	"github.com/oasislabs/developer-gateway/log"
 	"github.com/oasislabs/developer-gateway/rw"
 	"github.com/oasislabs/developer-gateway/stats"
+	"github.com/rs/cors"
 )
 
 const HttpHeaderTraceID = "X-OASIS-TRACE-ID"
+
+// HttpPreProcessor processes a request and can directly write a response
+// to the writer if required.
+type HttpPreProcessor interface {
+	// ServeHTTP is a similar interface to http.Handler with the difference that
+	// it returns true parameters. The boolean parameter indicates in case of its
+	// value being true that the request can be further processed by another handler.
+	// In case that it's false, no further processing of the request is required.
+	// The *http.Request returned is a potentially modified request resulting of
+	// mutating the original *http.Request
+	ServeHTTP(w http.ResponseWriter, req *http.Request) (bool, *http.Request)
+}
 
 // HttpMiddleware are the handlers that offer extra functionality to a request and
 // that in success will forward the request to another handler
@@ -108,22 +121,24 @@ type RouteLatencies map[string]*stats.IntWindow
 // HttpRoute multiplexes the handling of a request to the handler
 // that expects a particular method
 type HttpRoute struct {
-	logger   log.Logger
-	handlers map[string]HttpMiddleware
-	encoder  Encoder
-	tracker  *stats.MethodTracker
+	logger        log.Logger
+	handlers      map[string]HttpMiddleware
+	preProcessors []HttpPreProcessor
+	encoder       Encoder
+	tracker       *stats.MethodTracker
 }
 
 // HttpRouteProps are the required properties to create
 // a new HttpRoute instance
 type HttpRouteProps struct {
-	Logger   log.Logger
-	Encoder  Encoder
-	Handlers MethodHandlers
+	Logger        log.Logger
+	Encoder       Encoder
+	Handlers      MethodHandlers
+	PreProcessors []HttpPreProcessor
 }
 
 // NewHttpRoute creates a new route instance
-func NewHttpRoute(props *HttpRouteProps) *HttpRoute {
+func NewHttpRoute(props HttpRouteProps) *HttpRoute {
 	methods := make([]string, 0, len(props.Handlers))
 
 	for method := range props.Handlers {
@@ -131,11 +146,12 @@ func NewHttpRoute(props *HttpRouteProps) *HttpRoute {
 	}
 
 	return &HttpRoute{
-		logger:   props.Logger,
-		handlers: props.Handlers,
+		logger:        props.Logger,
+		handlers:      props.Handlers,
+		preProcessors: props.PreProcessors,
 		tracker: stats.NewMethodTrackerWithResult(&stats.MethodTrackerProps{
 			Methods:    methods,
-			Results:    []string{"200", "204", "400", "401", "403", "405", "409", "500", "error"},
+			Results:    []string{"200", "204", "400", "401", "403", "405", "409", "500", "error", "preprocessor"},
 			WindowSize: 64,
 		}),
 		encoder: props.Encoder,
@@ -198,6 +214,18 @@ func (h *HttpRoute) reportSuccess(
 // HttpRoute implementation of HttpMiddleware
 func (h *HttpRoute) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 	_, _ = h.tracker.InstrumentResult(req.Method, func() *stats.TrackResult {
+		var ok bool
+		for _, preProcessor := range h.preProcessors {
+			ok, req = preProcessor.ServeHTTP(res, req)
+			if !ok {
+				return &stats.TrackResult{
+					Value: nil,
+					Error: nil,
+					Type:  "preprocessor",
+				}
+			}
+		}
+
 		status, err := h.serveHTTP(res, req)
 		t := fmt.Sprintf("%d", status)
 		if err != nil {
@@ -444,7 +472,97 @@ func (h *HttpRouter) reportError(res http.ResponseWriter, req *http.Request, err
 	}, err)
 }
 
-// HttpJsonHandler is handlers requests that expect a body in the JSON format,
+// HttpCorsPreProcessorProps properties used to define the behaviour
+// of the CORS implementation
+type HttpCorsPreProcessorProps struct {
+	// Enabled if true the HttpCorsHandler will verify requests, if false
+	// the handler will just pass on a request to the next middleware
+	Enabled bool
+
+	// AllowedOrigins is a list of origins a cross-domain request can be executed from.
+	// If the special "*" value is present in the list, all origins will be allowed.
+	// An origin may contain a wildcard (*) to replace 0 or more characters
+	// (i.e.: http://*.domain.com). Usage of wildcards implies a small performance penalty.
+	// Only one wildcard can be used per origin.
+	// Default value is ["*"]
+	AllowedOrigins []string
+
+	// AllowedMethods is a list of methods the client is allowed to use with
+	// cross-domain requests. Default value is simple methods (HEAD, GET and POST).
+	AllowedMethods []string
+
+	// AllowedHeaders is list of non simple headers the client is allowed to use with
+	// cross-domain requests.
+	// If the special "*" value is present in the list, all headers will be allowed.
+	// Default value is [] but "Origin" is always appended to the list.
+	AllowedHeaders []string
+
+	// ExposedHeaders indicates which headers are safe to expose to the API of a CORS
+	// API specification
+	ExposedHeaders []string
+
+	// MaxAge indicates how long (in seconds) the results of a preflight request
+	// can be cached
+	MaxAge int
+
+	// AllowCredentials indicates whether the request can include user credentials like
+	// cookies, HTTP authentication or client side SSL certificates.
+	AllowCredentials bool
+}
+
+// HttpCorsPreProcessor handles CORS https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS
+// for requests
+type HttpCorsPreProcessor struct {
+	cors    *cors.Cors
+	enabled bool
+}
+
+// NewHttpCorsPreProcessor creates a new instance of a Cors Http PreProcessor
+func NewHttpCorsPreProcessor(props HttpCorsPreProcessorProps) *HttpCorsPreProcessor {
+	cors := cors.New(cors.Options{
+		AllowedOrigins:     props.AllowedOrigins,
+		AllowedMethods:     props.AllowedMethods,
+		AllowedHeaders:     props.AllowedHeaders,
+		ExposedHeaders:     props.ExposedHeaders,
+		MaxAge:             props.MaxAge,
+		AllowCredentials:   props.AllowCredentials,
+		OptionsPassthrough: false,
+		Debug:              false,
+	})
+
+	return &HttpCorsPreProcessor{
+		cors:    cors,
+		enabled: props.Enabled,
+	}
+}
+
+// ServeHTTP is the implementation of HttpMiddleware for HttpCorsHandler
+func (h *HttpCorsPreProcessor) ServeHTTP(w http.ResponseWriter, req *http.Request) (bool, *http.Request) {
+	if !h.enabled {
+		return true, req
+	}
+
+	var (
+		next    bool
+		nextReq *http.Request
+	)
+
+	h.cors.ServeHTTP(w, req, func(w http.ResponseWriter, req *http.Request) {
+		if req.Method == http.MethodOptions {
+			// if it is a query request this handler can give a response directly
+			w.WriteHeader(http.StatusOK)
+			next = false
+			return
+		}
+
+		next = true
+		nextReq = req
+	})
+
+	return next, nextReq
+}
+
+// HttpJsonHandler handles requests that expect a body in the JSON format,
 // handles the body and executes the final handler with the expected type
 type HttpJsonHandler struct {
 	limit   uint
@@ -586,10 +704,11 @@ func (f HttpHandlerFactoryFunc) Make(factory EntityFactory, handler Handler) Htt
 // HttpRouter's. This is done so that an HttpRouter cannot be modified
 // after it has been created
 type HttpBinder struct {
-	handlers map[string]MethodHandlers
-	encoder  Encoder
-	logger   log.Logger
-	factory  HttpHandlerFactory
+	handlers      map[string]MethodHandlers
+	preProcessors []HttpPreProcessor
+	encoder       Encoder
+	logger        log.Logger
+	factory       HttpHandlerFactory
 }
 
 // Bind is the implementation of HandlerBinder for HttpBinder
@@ -603,6 +722,10 @@ func (b *HttpBinder) Bind(method string, uri string, handler Handler, factory En
 	route.Add(method, b.factory.Make(factory, handler))
 }
 
+func (b *HttpBinder) AddPreProcessor(preProcessor HttpPreProcessor) {
+	b.preProcessors = append(b.preProcessors, preProcessor)
+}
+
 // Build creates a new HttpRouter and clears the handler map of the
 // HttpBinder, so if new instances of HttpRouters need to be build
 // Bind needs to be used again
@@ -610,10 +733,11 @@ func (b *HttpBinder) Build() *HttpRouter {
 	mux := make(map[string]*HttpRoute)
 
 	for path, handlers := range b.handlers {
-		route := NewHttpRoute(&HttpRouteProps{
-			Logger:   b.logger,
-			Encoder:  b.encoder,
-			Handlers: handlers,
+		route := NewHttpRoute(HttpRouteProps{
+			Logger:        b.logger,
+			Encoder:       b.encoder,
+			Handlers:      handlers,
+			PreProcessors: b.preProcessors,
 		})
 
 		mux[path] = route

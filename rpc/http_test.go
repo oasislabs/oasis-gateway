@@ -77,7 +77,7 @@ func setupRouter() *HttpRouter {
 
 	mux := make(map[string]*HttpRoute)
 	for path, handler := range handlers {
-		mux[path] = NewHttpRoute(&HttpRouteProps{
+		mux[path] = NewHttpRoute(HttpRouteProps{
 			Logger:   logger,
 			Encoder:  enc,
 			Handlers: handler,
@@ -381,4 +381,68 @@ func TestHttpInternalServerError(t *testing.T) {
 	err := HttpInternalServerError(context.Background(), e)
 	assert.Equal(t, http.StatusInternalServerError, err.StatusCode)
 	assert.Equal(t, err.Cause, &e)
+}
+
+func TestHttpCorsPreProcessorOK(t *testing.T) {
+	processor := NewHttpCorsPreProcessor(HttpCorsPreProcessorProps{
+		AllowedOrigins:   []string{"*"},
+		AllowedMethods:   nil,
+		ExposedHeaders:   nil,
+		MaxAge:           10,
+		AllowCredentials: true,
+		Enabled:          true,
+	})
+
+	req, err := http.NewRequest("GET", "http://localhost.com/path", nil)
+	assert.Nil(t, err)
+
+	req.Header.Add("Origin", "http://localhost.example")
+	recorder := httptest.NewRecorder()
+
+	ok, newReq := processor.ServeHTTP(recorder, req)
+
+	assert.True(t, ok)
+	assert.Equal(t, req, newReq)
+}
+
+func TestHttpCorsPreProcessorErrOriginNotAllowed(t *testing.T) {
+	processor := NewHttpCorsPreProcessor(HttpCorsPreProcessorProps{
+		AllowedOrigins:   []string{"http://localhost.example"},
+		AllowedMethods:   nil,
+		ExposedHeaders:   nil,
+		MaxAge:           10,
+		AllowCredentials: true,
+		Enabled:          true,
+	})
+
+	req, err := http.NewRequest("GET", "http://potato.example/fries", nil)
+	req.Header.Add("Origin", "http://potato.example")
+	assert.Nil(t, err)
+	recorder := httptest.NewRecorder()
+
+	ok, newReq := processor.ServeHTTP(recorder, req)
+
+	assert.True(t, ok)
+	assert.Equal(t, recorder.Header(), http.Header{"Vary": []string{"Origin"}})
+	assert.Equal(t, req, newReq)
+}
+
+func TestHttpCorsPreProcessorErrMethodNotAllowed(t *testing.T) {
+	processor := NewHttpCorsPreProcessor(HttpCorsPreProcessorProps{
+		AllowedOrigins:   []string{"*"},
+		AllowedMethods:   nil,
+		ExposedHeaders:   nil,
+		MaxAge:           10,
+		AllowCredentials: true,
+		Enabled:          true,
+	})
+
+	req, err := http.NewRequest("OPTIONS", "/path", nil)
+	req.Header.Add("Access-Control-Request-Method", "NOT_ALLOWED")
+	assert.Nil(t, err)
+	recorder := httptest.NewRecorder()
+
+	ok, _ := processor.ServeHTTP(recorder, req)
+
+	assert.False(t, ok)
 }

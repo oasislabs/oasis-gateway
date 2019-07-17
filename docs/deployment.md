@@ -33,6 +33,14 @@ need to use it.
                                                  and bind_public.tls_private_key_path must be set as well
 --bind_public.tls_certificate_path string       path to the tls certificate for https
 --bind_public.tls_private_key_path string       path to the private key for https
+
+--bind_public.http_cors.allowed_credentials       whether credentials are allowed when using CORS (default true)
+--bind_public.http_cors.allowed_headers strings   allowed headers for CORS
+--bind_public.http_cors.allowed_methods strings   allowed methods for CORS
+--bind_public.http_cors.allowed_origins strings   allowed origins for CORS (default [*])
+--bind_public.http_cors.enabled                   if set to true the public port will do CORS handling
+--bind_public.http_cors.exposed_headers strings   exposed headers for CORS
+--bind_public.http_cors.max_age int               exposed headers for CORS (default -1)
 ```
 
 ### Private API
@@ -166,7 +174,10 @@ exposed endpoints apply:
    that resources  are not abused. However, users could create new sessions
    every time to bypass this. So, keep this into consideration when defining the
    infrastructure for a developer-gateway deployment
-   
+ - If your application has a web frontend, it is important to set the `--bind_public.http_cors.*`
+   options to limit the domains from which applications can make requests to the
+   server and have control on what requests the developer-gateway replies to.
+
 ### Private API
 The private API should not be publicly exposed. This private API should be used
 for operational purposes; health checks and data collection for monitoring.
