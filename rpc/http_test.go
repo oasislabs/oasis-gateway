@@ -420,10 +420,11 @@ func TestHttpCorsPreProcessorErrOriginNotAllowed(t *testing.T) {
 	assert.Nil(t, err)
 	recorder := httptest.NewRecorder()
 
-	ok, req := processor.ServeHTTP(recorder, req)
+	ok, newReq := processor.ServeHTTP(recorder, req)
 
 	assert.True(t, ok)
 	assert.Equal(t, recorder.Header(), http.Header{"Vary": []string{"Origin"}})
+	assert.Equal(t, req, newReq)
 }
 
 func TestHttpCorsPreProcessorErrMethodNotAllowed(t *testing.T) {
