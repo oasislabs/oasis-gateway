@@ -22,11 +22,11 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
-func NewPublicRouter(provider *Provider) *rpc.HttpRouter {
+func NewPublicRouter(config *gateway.Config, provider *Provider) *rpc.HttpRouter {
 	request := provider.MustGet(reflect.TypeOf(&backendcore.RequestManager{})).(*backendcore.RequestManager)
 	authenticator := provider.MustGet(reflect.TypeOf((*authcore.Auth)(nil)).Elem()).(authcore.Auth)
 
-	return gateway.NewPublicRouter(&gateway.ServiceGroup{
+	return gateway.NewPublicRouter(config, &gateway.ServiceGroup{
 		Request:       request,
 		Authenticator: authenticator,
 	})

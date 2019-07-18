@@ -2,6 +2,7 @@ package gateway
 
 import (
 	"errors"
+	"math"
 
 	"github.com/oasislabs/developer-gateway/auth"
 	"github.com/oasislabs/developer-gateway/backend"
@@ -66,6 +67,7 @@ type BindConfig struct {
 	HttpsEnabled       bool
 	TlsCertificatePath string
 	TlsPrivateKeyPath  string
+	MaxBodyBytes       uint
 }
 
 func (c *BindConfig) Configure(prefix string, v *viper.Viper) error {
@@ -92,6 +94,11 @@ func (c *BindConfig) Configure(prefix string, v *viper.Viper) error {
 	c.HttpMaxHeaderBytes = v.GetInt32(prefix + ".http_max_header_bytes")
 	if c.HttpMaxHeaderBytes < 0 {
 		return errors.New(prefix + ".http_max_header_bytes cannot be negative")
+	}
+
+	c.MaxBodyBytes = uint(v.GetInt32(prefix + ".max_body_bytes"))
+	if c.MaxBodyBytes > math.MaxInt32 {
+		return errors.New(prefix + ".max_body_bytes cannot be negative")
 	}
 
 	c.HttpsEnabled = v.GetBool(prefix + ".https_enabled")
@@ -123,6 +130,9 @@ func (c *BindConfig) Bind(prefix string, v *viper.Viper, cmd *cobra.Command) err
 		false, "if set the interface will listen with https. If this option is "+
 			"set, then "+prefix+".tls_certificate_path and "+prefix+
 			".tls_private_key_path must be set as well")
+	cmd.PersistentFlags().Int32(prefix+".max_body_bytes", 1<<16,
+		"sets the maximum size for a request body. Any request received"+
+			" with a greater body will be rejected")
 	cmd.PersistentFlags().String(prefix+".tls_certificate_path",
 		"", "path to the tls certificate for https")
 	cmd.PersistentFlags().String(prefix+".tls_private_key_path",
@@ -143,6 +153,7 @@ func (c *BindPublicConfig) Log(fields log.Fields) {
 	fields.Add("bind_public.http_write_timeout_ms", c.BindConfig.HttpWriteTimeoutMs)
 	fields.Add("bind_public.http_max_header_bytes", c.BindConfig.HttpMaxHeaderBytes)
 	fields.Add("bind_public.https_enabled", c.BindConfig.HttpsEnabled)
+	fields.Add("bind_public.max_body_bytes", c.BindConfig.MaxBodyBytes)
 	fields.Add("bind_public.tls_certificate_path", c.BindConfig.TlsCertificatePath)
 	fields.Add("bind_public.tls_private_key_path", c.BindConfig.TlsPrivateKeyPath)
 	fields.Add("bind_public.http_cors.enabled", c.HttpCorsPreProcessorProps.Enabled)
@@ -203,6 +214,7 @@ func (c *BindPrivateConfig) Log(fields log.Fields) {
 	fields.Add("bind_private.http_read_timeout_ms", c.BindConfig.HttpReadTimeoutMs)
 	fields.Add("bind_private.http_write_timeout_ms", c.BindConfig.HttpWriteTimeoutMs)
 	fields.Add("bind_private.http_max_header_bytes", c.BindConfig.HttpMaxHeaderBytes)
+	fields.Add("bind_public.max_body_bytes", c.BindConfig.MaxBodyBytes)
 	fields.Add("bind_private.https_enabled", c.BindConfig.HttpsEnabled)
 	fields.Add("bind_private.tls_certificate_path", c.BindConfig.TlsCertificatePath)
 	fields.Add("bind_private.tls_private_key_path", c.BindConfig.TlsPrivateKeyPath)

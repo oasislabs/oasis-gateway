@@ -147,7 +147,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	routers := gateway.NewRouters(group)
+	routers := gateway.NewRouters(config, group)
 
 	go func() {
 		publicServer(&config.BindPublicConfig, routers.Public)

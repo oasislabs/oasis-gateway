@@ -30,7 +30,7 @@ func (s *ApiTestSuite) SetupTest() {
 	ethclient := provider.MustGet(reflect.TypeOf((*eth.Client)(nil)).Elem()).(*ethtest.MockClient)
 	ethtest.ImplementMock(ethclient)
 
-	router := gatewaytest.NewPublicRouter(provider)
+	router := gatewaytest.NewPublicRouter(Config, provider)
 	s.client = apitest.NewClient(router)
 }
 
