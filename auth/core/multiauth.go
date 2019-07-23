@@ -13,10 +13,7 @@ type MultiAuth struct {
 }
 
 func (m *MultiAuth) Add(a Auth) {
-	if m.auths == nil {
-		m.auths = make([]Auth, 0)
-		m.auths = append(m.auths, a)
-	}
+	m.auths = append(m.auths, a)
 }
 
 func (*MultiAuth) Name() string {
@@ -50,7 +47,7 @@ func (m *MultiAuth) Authenticate(req *http.Request) (string, error) {
 
 func (m *MultiAuth) Verify(data AuthRequest, expected string) error {
 	var strs []string
-	err := json.Unmarshal([]byte(data.Data), &strs)
+	err := json.Unmarshal([]byte(expected), &strs)
 	if err != nil {
 		return err
 	}

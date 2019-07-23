@@ -59,6 +59,7 @@ func (h ServiceHandler) DeployService(ctx context.Context, v interface{}) (inter
 		API:  "Deploy",
 		Data: req.Data,
 	}
+
 	if err := h.verifier.Verify(authReq, authData.ExpectedAAD); err != nil {
 		e := errors.New(errors.ErrFailedAADVerification, err)
 		h.logger.Debug(ctx, "failed to verify AAD", log.MapFields{
@@ -231,8 +232,8 @@ func (h ServiceHandler) GetCode(ctx context.Context, v interface{}) (interface{}
 	}
 
 	return GetCodeResponse{
-		Address:   res.Address,
-		Code:      res.Code,
+		Address: res.Address,
+		Code:    res.Code,
 	}, nil
 }
 
