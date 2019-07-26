@@ -30,7 +30,7 @@ func mockClientForNonce(client *ethtest.MockClient) {
 	client.On("GetCode",
 		mock.AnythingOfType("*context.emptyCtx"),
 		mock.AnythingOfType("common.Address")).
-		Return([]byte("0x0000000000000000000000000000000000000000"), nil)
+		Return("0x0000000000000000000000000000000000000000", nil)
 	client.On("BalanceAt",
 		mock.AnythingOfType("*context.emptyCtx"),
 		mock.AnythingOfType("common.Address"),

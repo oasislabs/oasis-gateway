@@ -441,7 +441,7 @@ func TestGetCodeEmptyOK(t *testing.T) {
 		backend.GetCodeRequest{
 			Address: "0x00",
 		}).Return(backend.GetCodeResponse{
-		Code:    []byte("service implementation"),
+		Code:    "service implementation",
 		Address: "0x00",
 	}, nil)
 
@@ -450,7 +450,7 @@ func TestGetCodeEmptyOK(t *testing.T) {
 	})
 	assert.Nil(t, err)
 	assert.Equal(t, GetCodeResponse{
-		Code:    []byte("service implementation"),
+		Code:    "service implementation",
 		Address: "0x00",
 	}, res)
 }
