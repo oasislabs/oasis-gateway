@@ -199,6 +199,17 @@ func (e *WalletOwner) signTransaction(tx *types.Transaction) (*types.Transaction
 }
 
 func (e *WalletOwner) estimateGas(ctx context.Context, id uint64, address string, data []byte) (uint64, errors.Err) {
+	if len(address) == 0 {
+		return e.estimateGasNonConfidential(ctx, id, address, data)
+	}
+
+	// TODO(stan): parse the data to identify whether the contract is confidential.
+	// estimateGas does not work for confidential contracts so in that case we provide a reasonable
+	// amount of gas that may work
+	return 15177522, nil
+}
+
+func (e *WalletOwner) estimateGasNonConfidential(ctx context.Context, id uint64, address string, data []byte) (uint64, errors.Err) {
 	e.logger.Debug(ctx, "", log.MapFields{
 		"call_type": "EstimateGasAttempt",
 		"id":        id,
