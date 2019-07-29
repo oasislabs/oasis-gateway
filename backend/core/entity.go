@@ -139,7 +139,7 @@ type GetCodeResponse struct {
 	Address string
 
 	// Code associated to the service
-	Code []byte
+	Code string
 }
 
 // GetPublicKeyRequest is a request to retrieve the public key

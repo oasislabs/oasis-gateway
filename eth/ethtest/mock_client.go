@@ -30,7 +30,7 @@ var DefaultMockMethods = map[string]MockMethod{
 	},
 	"GetCode": MockMethod{
 		Arguments: []interface{}{mock.Anything, mock.Anything},
-		Return:    []interface{}{[]byte("0x0000000000000000000000000000000000000000"), nil},
+		Return:    []interface{}{"0x0000000000000000000000000000000000000000", nil},
 	},
 	"BalanceAt": MockMethod{
 		Arguments: []interface{}{mock.Anything, mock.Anything, mock.Anything},
@@ -151,9 +151,9 @@ func (m *MockClient) NonceAt(
 func (m *MockClient) GetCode(
 	ctx context.Context,
 	addr common.Address,
-) ([]byte, error) {
+) (string, error) {
 	args := m.Called(ctx, addr)
-	return args.Get(0).([]byte), args.Error(1)
+	return args.Get(0).(string), args.Error(1)
 }
 
 func (m *MockClient) SendTransaction(

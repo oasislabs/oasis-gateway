@@ -85,7 +85,7 @@ func TestGetCodeErr(t *testing.T) {
 		ethtest.MockMethods{
 			"GetCode": ethtest.MockMethod{
 				Arguments: []interface{}{mock.Anything, mock.Anything},
-				Return:    []interface{}{[]byte{}, errors.New("error")},
+				Return:    []interface{}{"", errors.New("error")},
 			},
 		})
 
@@ -109,7 +109,7 @@ func TestGetCodeOK(t *testing.T) {
 
 	assert.Nil(t, err)
 	assert.Equal(t, core.GetCodeResponse{
-		Code:    []byte("0x0000000000000000000000000000000000000000"),
+		Code:    "0x0000000000000000000000000000000000000000",
 		Address: "0x0000000000000000000000000000000000000000",
 	}, pk)
 }
@@ -172,7 +172,7 @@ func TestDeployServiceErrNoCode(t *testing.T) {
 		ethtest.MockMethods{
 			"GetCode": ethtest.MockMethod{
 				Arguments: []interface{}{mock.Anything, mock.Anything},
-				Return:    []interface{}{[]byte("0x"), nil},
+				Return:    []interface{}{"0x", nil},
 			},
 		})
 

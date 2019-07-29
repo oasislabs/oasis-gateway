@@ -94,7 +94,7 @@ type GetCodeResponse struct {
 	Address string `json:"address"`
 
 	// Code associated to the service
-	Code []byte `json:"code"`
+	Code string `json:"code"`
 }
 
 // GetPublicKeyRequest is a request to retrieve the public key

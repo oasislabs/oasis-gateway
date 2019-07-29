@@ -100,8 +100,8 @@ func (c *Client) getCode(
 	})
 
 	return backend.GetCodeResponse{
-		Address:   req.Address,
-		Code:      code,
+		Address: req.Address,
+		Code:    code,
 	}, nil
 }
 

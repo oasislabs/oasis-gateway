@@ -191,7 +191,7 @@ func (s *ServicesTestSuite) TestGetCodeOk() {
 
 	assert.Nil(s.T(), err)
 	assert.Equal(s.T(), service.GetCodeResponse{
-		Code:    []byte("0x0000000000000000000000000000000000000000"),
+		Code:    "0x0000000000000000000000000000000000000000",
 		Address: "0x0000000000000000000000000000000000000000",
 	}, res)
 }

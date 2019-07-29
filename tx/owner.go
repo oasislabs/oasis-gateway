@@ -433,13 +433,13 @@ func (e *WalletOwner) executeTransaction(ctx context.Context, req ExecuteRequest
 	}, nil
 }
 
-func (e *WalletOwner) getCode(ctx context.Context, addr common.Address) ([]byte, errors.Err) {
-	receipt, err := e.client.GetCode(ctx, addr)
+func (e *WalletOwner) getCode(ctx context.Context, addr common.Address) (string, errors.Err) {
+	code, err := e.client.GetCode(ctx, addr)
 	if err != nil {
-		return nil, errors.New(errors.ErrGetContractCode, err)
+		return "", errors.New(errors.ErrGetContractCode, err)
 	}
 
-	return receipt, nil
+	return code, nil
 }
 
 func (e *WalletOwner) transactionReceipt(ctx context.Context, hash string) (*types.Receipt, errors.Err) {

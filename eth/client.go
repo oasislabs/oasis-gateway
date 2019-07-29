@@ -32,7 +32,7 @@ type Client interface {
 	SubscribeFilterLogs(context.Context, ethereum.FilterQuery, chan<- types.Log) (ethereum.Subscription, error)
 	TransactionReceipt(ctx context.Context, txHash common.Hash) (*types.Receipt, error)
 	BalanceAt(ctx context.Context, account common.Address, blockNumber *big.Int) (*big.Int, error)
-	GetCode(ctx context.Context, addr common.Address) ([]byte, error)
+	GetCode(ctx context.Context, addr common.Address) (string, error)
 }
 
 type ethClient interface {
@@ -204,16 +204,16 @@ func (c *PooledClient) SendTransaction(ctx context.Context, tx *types.Transactio
 	}, err
 }
 
-func (c *PooledClient) GetCode(ctx context.Context, addr common.Address) ([]byte, error) {
+func (c *PooledClient) GetCode(ctx context.Context, addr common.Address) (string, error) {
 	v, err := c.request(ctx, func(conn *Conn) (interface{}, error) {
 		return conn.eclient.CodeAt(ctx, addr, nil)
 	})
 
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 
-	return v.([]byte), nil
+	return hexutil.Encode(v.([]byte)), nil
 }
 
 func (c *PooledClient) TransactionReceipt(ctx context.Context, txHash common.Hash) (*types.Receipt, error) {
