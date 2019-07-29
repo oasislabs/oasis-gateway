@@ -238,26 +238,6 @@ func TestExecuteServiceOK(t *testing.T) {
 	}, res)
 }
 
-func TestExecuteServiceEstimateGasErr(t *testing.T) {
-	client, err := NewClient()
-	assert.Nil(t, err)
-
-	ethtest.ImplementMockWithOverwrite(client.client.(*ethtest.MockClient),
-		ethtest.MockMethods{
-			"EstimateGas": ethtest.MockMethod{
-				Arguments: []interface{}{mock.Anything, mock.Anything},
-				Return:    []interface{}{uint64(0), errors.New("error")},
-			},
-		})
-
-	_, err = client.ExecuteService(Context, 1, backend.ExecuteServiceRequest{
-		Address: "0x5d352cf2160f79CBF3554534cF25A4b42C43D502",
-		Data:    "0x0000000000000000000000000000000000000000",
-	})
-
-	assert.Equal(t, "[1002] error code InternalError with desc Internal Error. Please check the status of the service. with cause error", err.Error())
-}
-
 func TestExecuteServiceEmptyAddressErr(t *testing.T) {
 	client, err := NewClient()
 	assert.Nil(t, err)

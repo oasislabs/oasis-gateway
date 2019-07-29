@@ -105,28 +105,6 @@ func (s *ServicesTestSuite) TestExecuteServiceEmptyTransactionData() {
 	assert.Equal(s.T(), &rpc.Error{ErrorCode: 7002, Description: "Failed to verify AAD in transaction data."}, err)
 }
 
-func (s *ServicesTestSuite) TestExecuteServiceErrEstimateGas() {
-	ethtest.ImplementMockWithOverwrite(s.ethclient,
-		ethtest.MockMethods{
-			"EstimateGas": ethtest.MockMethod{
-				Arguments: []interface{}{mock.Anything, mock.Anything},
-				Return:    []interface{}{uint64(0), errors.New("error")},
-			},
-		})
-
-	ev, err := s.client.ExecuteServiceSync(context.TODO(), service.ExecuteServiceRequest{
-		Address: "0x0000000000000000000000000000000000000000",
-		Data:    "0x0000000000000000000000000000000000000000",
-	})
-	assert.Nil(s.T(), err)
-	assert.Equal(s.T(), service.ErrorEvent{
-		ID: 0x0,
-		Cause: rpc.Error{
-			ErrorCode:   1002,
-			Description: "Internal Error. Please check the status of the service.",
-		}}, ev)
-}
-
 func (s *ServicesTestSuite) TestExecuteServiceOK() {
 	ethtest.ImplementMock(s.ethclient)
 
