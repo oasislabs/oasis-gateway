@@ -93,8 +93,10 @@ func (s *LogSubscriber) Subscribe(
 					continue
 				}
 
+				s.lock.Lock()
 				s.BlockNumber = ev.BlockNumber
 				s.Index = ev.Index
+				s.lock.Unlock()
 
 				c <- ev
 			case err, ok := <-sub.Err():
