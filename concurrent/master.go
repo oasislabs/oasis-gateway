@@ -366,6 +366,10 @@ func (m *Master) shutdownWorker(key string) (<-chan error, bool) {
 
 func (m *Master) startLoop(ctx context.Context) {
 	defer func() {
+		if r := recover(); r != nil {
+			panic(errorFromPanic(r))
+		}
+
 		m.shutdown()
 	}()
 
@@ -544,9 +548,15 @@ func (m *Master) removeWorker(ev workerDestroyed) {
 			err = errorFromPanic(r)
 		}
 
+		if w == nil {
+			if err != nil {
+				panic(fmt.Sprintf("panic caught %s", err.Error()))
+			}
+
+			return
+		}
+
 		if err != nil {
-			// in case of an error raise it to the listener so it can be bubbled up
-			// propertly
 			w.ShutdownC <- err
 		}
 
