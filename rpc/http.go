@@ -197,6 +197,7 @@ func (h *HttpRoute) reportSuccess(
 			"method":      method,
 			"call_type":   "HttpRequestHandleFailure",
 			"status_code": http.StatusInternalServerError,
+			"err":         err,
 		})
 		return 0, err
 	}
