@@ -148,7 +148,7 @@ func TestHttpRouterServeHTTPOKWithBody(t *testing.T) {
 
 	assert.Nil(t, err)
 	assert.Equal(t, http.StatusOK, recorder.Code)
-	assert.Equal(t, "{\"result\":\"ok\"}\n", string(s))
+	assert.Equal(t, "{\"result\":\"ok\"}", string(s))
 }
 
 func TestHttpRouterServeHTTPPanic(t *testing.T) {
@@ -163,7 +163,7 @@ func TestHttpRouterServeHTTPPanic(t *testing.T) {
 
 	assert.Nil(t, err)
 	assert.Equal(t, http.StatusInternalServerError, recorder.Code)
-	assert.Equal(t, "{\"errorCode\":1000,\"description\":\"Internal Error. Please check the status of the service.\"}\n", string(s))
+	assert.Equal(t, "{\"errorCode\":1000,\"description\":\"Internal Error. Please check the status of the service.\"}", string(s))
 }
 
 func TestHttpBinderBuildRouterNoEncoder(t *testing.T) {
@@ -305,7 +305,7 @@ func TestHttpJsonHandlerContentMissing(t *testing.T) {
 	})
 
 	req, _ := http.NewRequest("GET", "/path",
-		bytes.NewBufferString("{\"hamburger\":\"rare\",\"potato\":\"fried\"}\n"))
+		bytes.NewBufferString("{\"hamburger\":\"rare\",\"potato\":\"fried\"}"))
 	req.ContentLength = 38
 
 	v, err := handler.ServeHTTP(req)
@@ -323,7 +323,7 @@ func TestHttpJsonHandlerOK(t *testing.T) {
 	})
 
 	req, _ := http.NewRequest("GET", "/path",
-		bytes.NewBufferString("{\"hamburger\":\"rare\",\"potato\":\"fried\"}\n"))
+		bytes.NewBufferString("{\"hamburger\":\"rare\",\"potato\":\"fried\"}"))
 	req.ContentLength = 38
 	req.Header.Add("Content-type", "application/json")
 

@@ -19,5 +19,5 @@ func TestJsonEncoderEncode(t *testing.T) {
 
 	p, err := ioutil.ReadAll(buffer)
 	assert.Nil(t, err)
-	assert.Equal(t, "{\"hamburger\":\"rare\",\"potato\":\"fried\"}\n", string(p))
+	assert.Equal(t, "{\"hamburger\":\"rare\",\"potato\":\"fried\"}", string(p))
 }

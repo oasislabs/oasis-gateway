@@ -118,7 +118,7 @@ func (s *ApiTestSuite) TestPathNoContentType() {
 	assert.Nil(s.T(), err)
 
 	assert.Equal(s.T(), http.StatusBadRequest, res.Code)
-	assert.Equal(s.T(), "{\"errorCode\":2004,\"description\":\"Content-type should be application/json.\"}\n", string(res.Body))
+	assert.Equal(s.T(), "{\"errorCode\":2004,\"description\":\"Content-type should be application/json.\"}", string(res.Body))
 }
 
 func TestApiTestSuite(t *testing.T) {

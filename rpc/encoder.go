@@ -2,6 +2,7 @@ package rpc
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 )
 
@@ -44,5 +45,24 @@ type JsonEncoder struct{}
 
 // Encode is the implementation of Encoder for JsonEncoder
 func (e JsonEncoder) Encode(writer io.Writer, v interface{}) error {
-	return json.NewEncoder(writer).Encode(v)
+	p, err := json.Marshal(v)
+	if err != nil {
+		return fmt.Errorf("failed to marshal struct %s", err.Error())
+	}
+
+	var offset int
+	for {
+		n, err := writer.Write(p[offset:])
+		if err != nil {
+			return fmt.Errorf("failed to write payload of %d bytes to writer pending %d bytes %s",
+				len(p), len(p)-offset, err.Error())
+		}
+
+		offset += n
+		if offset >= n {
+			break
+		}
+	}
+
+	return nil
 }
