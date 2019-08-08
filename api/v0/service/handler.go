@@ -63,6 +63,7 @@ func (h ServiceHandler) DeployService(ctx context.Context, v interface{}) (inter
 	if err := h.verifier.Verify(authReq, authData.ExpectedAAD); err != nil {
 		e := errors.New(errors.ErrFailedAADVerification, err)
 		h.logger.Debug(ctx, "failed to verify AAD", log.MapFields{
+			"call_type":   "DeployServiceFailure",
 			"expectedAAD": authData.ExpectedAAD,
 			"err":         e,
 		})

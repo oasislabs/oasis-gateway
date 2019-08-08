@@ -46,12 +46,20 @@ func NewHttpMiddlewareAuth(auth Auth, logger log.Logger, next rpc.HttpMiddleware
 func (m *HttpMiddlewareAuth) ServeHTTP(req *http.Request) (interface{}, error) {
 	expectedAAD, err := m.auth.Authenticate(req)
 	if err != nil {
-		return nil, &rpc.HttpError{Cause: nil, StatusCode: http.StatusForbidden}
+		newErr := errors.New(errors.ErrAuthenticateRequest, err)
+		return nil, &rpc.HttpError{
+			Cause:      &newErr,
+			StatusCode: http.StatusForbidden,
+		}
 	}
 
 	sessionKey := req.Header.Get(RequestHeaderSessionKey)
 	if len(sessionKey) == 0 {
-		return nil, &rpc.HttpError{Cause: nil, StatusCode: http.StatusForbidden}
+		newErr := errors.New(errors.ErrAuthenticateRequest, fmt.Errorf("no %s header provided", RequestHeaderSessionKey))
+		return nil, &rpc.HttpError{
+			Cause:      &newErr,
+			StatusCode: http.StatusForbidden,
+		}
 	}
 
 	hasher := sha256.New()

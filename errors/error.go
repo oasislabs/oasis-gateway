@@ -404,6 +404,18 @@ var (
 		code:     7002,
 		desc:     "Failed to verify AAD in transaction data.",
 	}
+
+	ErrAuthenticateRequest = ErrorCode{
+		category: AuthenticationError,
+		code:     7003,
+		desc:     "Failed to authenticate request.",
+	}
+
+	ErrVerifyRequest = ErrorCode{
+		category: AuthenticationError,
+		code:     7004,
+		desc:     "Failed to verify request.",
+	}
 )
 
 // Category defines error categories that logically group them. This classification
