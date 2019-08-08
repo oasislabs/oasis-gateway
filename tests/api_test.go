@@ -46,7 +46,7 @@ func (s *ApiTestSuite) TestPathNotAuth() {
 
 	assert.Nil(s.T(), err)
 	assert.Equal(s.T(), http.StatusForbidden, res.Code)
-	assert.Equal(s.T(), "", string(res.Body))
+	assert.Equal(s.T(), "{\"errorCode\":7003,\"description\":\"Failed to authenticate request.\"}\n", string(res.Body))
 }
 
 func (s *ApiTestSuite) TestPathNoSession() {
@@ -63,7 +63,7 @@ func (s *ApiTestSuite) TestPathNoSession() {
 	assert.Nil(s.T(), err)
 
 	assert.Equal(s.T(), http.StatusForbidden, res.Code)
-	assert.Equal(s.T(), "", string(res.Body))
+	assert.Equal(s.T(), "{\"errorCode\":7003,\"description\":\"Failed to authenticate request.\"}\n", string(res.Body))
 }
 
 func (s *ApiTestSuite) TestPathUnknownPath() {
