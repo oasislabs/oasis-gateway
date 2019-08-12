@@ -102,7 +102,7 @@ func (h EventHandler) Unsubscribe(ctx context.Context, v interface{}) (interface
 	})
 	if err != nil {
 		h.logger.Debug(ctx, "failed unsubscribe from events", log.MapFields{
-			"call_type": "PollEventFailure",
+			"call_type": "UnsubscribeFailure",
 			"id":        req.ID,
 		}, err)
 		return nil, err
