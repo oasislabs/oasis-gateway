@@ -136,11 +136,13 @@ func TestSubscribeErrReturn(t *testing.T) {
 	handler.client.(*MockClient).On("Subscribe", mock.Anything, mock.Anything).
 		Return(0, errors.New(errors.ErrInternalError, nil))
 
-	_, err := handler.Subscribe(ctx, &SubscribeRequest{
+	res, err := handler.Subscribe(ctx, &SubscribeRequest{
 		Events: []string{"event"},
 		Filter: "address=myaddress",
 	})
 
+	assert.Nil(t, res)
+	assert.Error(t, err)
 	assert.Equal(t, "[1000] error code InternalError with desc Internal Error. Please check the status of the service.", err.Error())
 }
 
