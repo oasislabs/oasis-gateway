@@ -205,6 +205,10 @@ func NewPublicRouter(config *Config, group *ServiceGroup) *rpc.HttpRouter {
 		}),
 	})
 
+	if config.BindPublicConfig.HttpCorsPreProcessorProps.Enabled {
+		binder.AddPreProcessor(rpc.NewHttpCorsPreProcessor(config.BindPublicConfig.HttpCorsPreProcessorProps))
+	}
+
 	service.BindHandler(service.Services{
 		Logger:   RootLogger,
 		Client:   group.Request,
