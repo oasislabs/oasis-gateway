@@ -70,6 +70,10 @@ steps:
       .buildkite/common/pipelines/generic_docker_build_publish_and_deploy.sh
       --docker-build-arg BUILDKITE_ACCESS_TOKEN=$BUILDKITE_ACCESS_TOKEN
       --docker-build-arg GOPROXY=$$GOPROXY
+      --staging-environment staging
+      --staging-chart-name developer-gateway
+      --production-environment production
+      --trigger-deploy
       oasislabs/developer-gateway
       developer-gateway
       .buildkite/Dockerfile
