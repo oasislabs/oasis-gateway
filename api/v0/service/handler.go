@@ -303,4 +303,8 @@ func BindHandler(services Services, binder rpc.HandlerBinder) {
 		rpc.EntityFactoryFunc(func() interface{} { return &GetCodeRequest{} }))
 	binder.Bind("GET", "/v0/api/service/getPublicKey", rpc.HandlerFunc(handler.GetPublicKey),
 		rpc.EntityFactoryFunc(func() interface{} { return &GetPublicKeyRequest{} }))
+	binder.Bind("POST", "/v0/api/service/getCode", rpc.HandlerFunc(handler.GetCode),
+		rpc.EntityFactoryFunc(func() interface{} { return &GetCodeRequest{} }))
+	binder.Bind("POST", "/v0/api/service/getPublicKey", rpc.HandlerFunc(handler.GetPublicKey),
+		rpc.EntityFactoryFunc(func() interface{} { return &GetPublicKeyRequest{} }))
 }
