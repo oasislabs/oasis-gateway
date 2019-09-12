@@ -26,6 +26,11 @@ type Callbacks interface {
 	// WalletOutOfFunds is called when the wallet owned by the
 	// WalletOwner does not have enough funds for a transaction
 	WalletOutOfFunds(ctx context.Context, body callback.WalletOutOfFundsBody)
+
+	// WalletReachedFundsThreshold is called when the wallet owned by the
+	// WalletOwner realizes it's wallet balance has go down a certain
+	// threshold
+	WalletReachedFundsThreshold(ctx context.Context, body callback.WalletReachedFundsThresholdBody)
 }
 
 // StatusOK defined by ethereum is the value of status
@@ -112,6 +117,8 @@ func NewWalletOwner(
 }
 
 func (e *WalletOwner) updateBalance(ctx context.Context) errors.Err {
+	balanceBefore := e.currentBalance
+
 	balance, err := e.client.BalanceAt(ctx, e.wallet.Address(), nil)
 	if err != nil {
 		err := errors.New(errors.ErrGetBalance, err)
@@ -123,6 +130,13 @@ func (e *WalletOwner) updateBalance(ctx context.Context) errors.Err {
 	}
 
 	e.currentBalance = balance
+
+	e.callbacks.WalletReachedFundsThreshold(ctx, callback.WalletReachedFundsThresholdBody{
+		Address: e.wallet.Address().Hex(),
+		Before:  balanceBefore,
+		After:   new(big.Int).Set(e.currentBalance),
+	})
+
 	return nil
 }
 

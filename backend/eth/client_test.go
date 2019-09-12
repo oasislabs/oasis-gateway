@@ -46,6 +46,7 @@ func NewClient() (*Client, error) {
 	mockclient := &ethtest.MockClient{}
 	mockcallbacks := &callbacktest.MockClient{}
 
+	callbacktest.ImplementMock(mockcallbacks)
 	mockclient.On("BalanceAt", mock.Anything, mock.Anything, mock.Anything).
 		Return(big.NewInt(1), nil)
 	mockclient.On("NonceAt", mock.Anything, mock.Anything).Return(uint64(0), nil)

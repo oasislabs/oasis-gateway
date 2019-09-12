@@ -17,3 +17,15 @@ func (c *MockClient) WalletOutOfFunds(
 ) {
 	_ = c.Called(ctx, body)
 }
+
+func (c *MockClient) WalletReachedFundsThreshold(
+	ctx context.Context,
+	body callback.WalletReachedFundsThresholdBody,
+) {
+	_ = c.Called(ctx, body)
+}
+
+func ImplementMock(client *MockClient) {
+	client.On("WalletOutOfFunds", mock.Anything, mock.Anything).Return()
+	client.On("WalletReachedFundsThreshold", mock.Anything, mock.Anything).Return()
+}

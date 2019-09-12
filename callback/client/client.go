@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"math/big"
 	"net/http"
 	"strings"
 	"time"
@@ -28,6 +29,7 @@ type CallbackProps struct {
 // Calls are all the callbacks that the client implements
 type Calls interface {
 	WalletOutOfFunds(ctx context.Context, body WalletOutOfFundsBody)
+	WalletReachedFundsThreshold(ctx context.Context, body WalletReachedFundsThresholdBody)
 }
 
 // HttpClient is the basic interface for the
@@ -36,11 +38,17 @@ type HttpClient interface {
 	Do(*http.Request) (*http.Response, error)
 }
 
+type WalletReachedFundsThresholdCallback struct {
+	Callback
+	Threshold *big.Int
+}
+
 // Callbacks defines all the callbacks that the
 // client supports and the behaviour that the client
 // should have on those callbacks
 type Callbacks struct {
-	WalletOutOfFunds Callback
+	WalletOutOfFunds            Callback
+	WalletReachedFundsThreshold WalletReachedFundsThresholdCallback
 }
 
 // Services are services required by the client
@@ -252,4 +260,30 @@ func (c *Client) WalletOutOfFunds(ctx context.Context, body WalletOutOfFundsBody
 	_ = c.Callback(ctx, &c.callbacks.WalletOutOfFunds, &CallbackProps{
 		Body: body,
 	})
+}
+
+// WalletReachedFundsThreshold sends a callback that is triggered when a wallet
+// reaches a specific threshold of funds
+func (c *Client) WalletReachedFundsThreshold(ctx context.Context, body WalletReachedFundsThresholdBody) {
+	isSet := c.callbacks.WalletReachedFundsThreshold.Threshold != nil &&
+		c.callbacks.WalletReachedFundsThreshold.Threshold.Cmp(new(big.Int).SetInt64(0)) > 0
+
+	if isSet &&
+		(body.Before == nil ||
+			c.callbacks.WalletReachedFundsThreshold.Threshold.Cmp(body.Before) < 0) &&
+		body.After != nil &&
+		c.callbacks.WalletReachedFundsThreshold.Threshold.Cmp(body.After) > 0 {
+		if body.Before == nil {
+			body.Before = new(big.Int).SetInt64(0)
+		}
+
+		_ = c.Callback(ctx, &c.callbacks.WalletReachedFundsThreshold.Callback, &CallbackProps{
+			Body: WalletReachedFundsThresholdRequest{
+				Address:   body.Address,
+				Before:    fmt.Sprintf("0x%x", body.Before),
+				After:     fmt.Sprintf("0x%x", body.After),
+				Threshold: fmt.Sprintf("0x%x", c.callbacks.WalletReachedFundsThreshold.Threshold),
+			},
+		})
+	}
 }
