@@ -2,6 +2,7 @@ package client
 
 import (
 	"html/template"
+	"math/big"
 	"time"
 )
 
@@ -47,8 +48,30 @@ type Callback struct {
 }
 
 // WalletOutOfFundsBody is the body sent on a WalletOutOfFunds
-// to the required endpoint.
+// to the required endpoint
 type WalletOutOfFundsBody struct {
 	// Address is the address of the wallet that is out of funds
 	Address string
+}
+
+// WalletReachedFundsThresholdBody is the body sent on a WalletReachedFundsThresholdBody
+// to the required endpoint
+type WalletReachedFundsThresholdBody struct {
+	// Address is the address of the wallet that reached the threshold
+	Address string
+
+	// Before the threshold of currency reached
+	Before *big.Int
+
+	// After the threshold of currency reached
+	After *big.Int
+}
+
+// WalletReachedFundsThresholdRequest is the request sent on
+// the callback
+type WalletReachedFundsThresholdRequest struct {
+	Address   string
+	Before    string
+	After     string
+	Threshold string
 }

@@ -41,6 +41,7 @@ func NewServices(ctx context.Context, config *gateway.Config) (*Provider, error)
 	callbackclient := &callbacktest.MockClient{}
 	provider.MustAdd(callbackclient)
 
+	callbacktest.ImplementMock(callbackclient)
 	ethclient.On("BalanceAt", mock.Anything, mock.Anything, mock.Anything).
 		Return(big.NewInt(1), nil)
 

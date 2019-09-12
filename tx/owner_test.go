@@ -9,6 +9,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 
+	"github.com/oasislabs/developer-gateway/callback/callbacktest"
 	callback "github.com/oasislabs/developer-gateway/callback/client"
 	"github.com/oasislabs/developer-gateway/eth"
 	"github.com/oasislabs/developer-gateway/eth/ethtest"
@@ -86,23 +87,14 @@ func mockClientForWalletOutOfFundsBodyCallback(client *ethtest.MockClient) {
 		Return(eth.SendTransactionResponse{}, eth.ErrExceedsBalance)
 }
 
-type MockCallbacks struct {
-	mock.Mock
-}
-
-func (m *MockCallbacks) WalletOutOfFunds(
-	ctx context.Context,
-	body callback.WalletOutOfFundsBody,
-) {
-	_ = m.Called(ctx, body)
-}
-
 func newOwner(client *ethtest.MockClient) (*WalletOwner, error) {
+	callbackclient := &callbacktest.MockClient{}
+	callbacktest.ImplementMock(callbackclient)
 	return NewWalletOwner(
 		context.TODO(),
 		&WalletOwnerServices{
 			Client:    client,
-			Callbacks: &MockCallbacks{},
+			Callbacks: callbackclient,
 			Logger:    Logger,
 		},
 		&WalletOwnerProps{
@@ -191,12 +183,7 @@ func TestExecuteTransactionExceedsBalance(t *testing.T) {
 	mockClientForWalletOutOfFundsBodyCallback(mockclient)
 	owner, err := newOwner(mockclient)
 	assert.Nil(t, err)
-	mockcallback := owner.callbacks.(*MockCallbacks)
-
-	mockcallback.On("WalletOutOfFunds",
-		mock.AnythingOfType("*context.emptyCtx"),
-		mock.AnythingOfType("client.WalletOutOfFundsBody"),
-	).Return()
+	mockcallback := owner.callbacks.(*callbacktest.MockClient)
 
 	_, err = owner.executeTransaction(context.TODO(), ExecuteRequest{
 		ID:      0,
@@ -209,5 +196,42 @@ func TestExecuteTransactionExceedsBalance(t *testing.T) {
 	mockcallback.AssertCalled(t, "WalletOutOfFunds", mock.Anything,
 		mock.MatchedBy(func(body callback.WalletOutOfFundsBody) bool {
 			return body.Address == owner.wallet.Address().Hex()
+		}))
+}
+
+func TestOwnerWalletReachedFundsThresholdOnNewOK(t *testing.T) {
+	mockclient := &ethtest.MockClient{}
+	ethtest.ImplementMock(mockclient)
+	owner, err := newOwner(mockclient)
+	assert.Nil(t, err)
+	mockcallback := owner.callbacks.(*callbacktest.MockClient)
+
+	mockcallback.AssertCalled(t, "WalletReachedFundsThreshold", mock.Anything,
+		mock.MatchedBy(func(body callback.WalletReachedFundsThresholdBody) bool {
+			return body.Address == "0x0759BC19964B467FcadaFdA49BE7986CB27183E3" &&
+				body.Before == nil &&
+				body.After.Cmp(new(big.Int).SetInt64(1)) == 0
+		}))
+}
+
+func TestWalletReachedFundsThresholdOnTransactionOK(t *testing.T) {
+	mockclient := &ethtest.MockClient{}
+	ethtest.ImplementMock(mockclient)
+	owner, err := newOwner(mockclient)
+	assert.Nil(t, err)
+
+	// reset callbacks to test the call of a transaction
+	callbackclient := &callbacktest.MockClient{}
+	callbacktest.ImplementMock(callbackclient)
+	owner.callbacks = callbackclient
+
+	_, err = owner.executeTransaction(context.TODO(), ExecuteRequest{})
+
+	assert.Nil(t, err)
+	callbackclient.AssertCalled(t, "WalletReachedFundsThreshold", mock.Anything,
+		mock.MatchedBy(func(body callback.WalletReachedFundsThresholdBody) bool {
+			return body.Address == "0x0759BC19964B467FcadaFdA49BE7986CB27183E3" &&
+				body.Before.Cmp(new(big.Int).SetInt64(1)) == 0 &&
+				body.After.Cmp(new(big.Int).SetInt64(1)) == 0
 		}))
 }

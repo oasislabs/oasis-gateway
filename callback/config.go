@@ -1,6 +1,7 @@
 package callback
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/oasislabs/developer-gateway/config"
@@ -66,6 +67,83 @@ func (c *WalletOutOfFunds) Log(fields log.Fields) {
 	fields.Add("callback.wallet_out_of_funds.sync", c.Sync)
 }
 
+type WalletReachedFundsThreshold struct {
+	Enabled   bool
+	Sync      bool
+	Method    string
+	URL       string
+	Body      string
+	QueryURL  string
+	Headers   []string
+	Threshold uint64
+}
+
+func (c *WalletReachedFundsThreshold) Configure(v *viper.Viper) error {
+	c.Enabled = v.GetBool("callback.wallet_reached_funds_threshold.enabled")
+	if !c.Enabled {
+		return nil
+	}
+
+	c.Method = v.GetString("callback.wallet_reached_funds_threshold.method")
+	if len(c.Method) == 0 {
+		return config.ErrKeyNotSet{Key: "callback.wallet_reached_funds_threshold.method"}
+	}
+
+	c.URL = v.GetString("callback.wallet_reached_funds_threshold.url")
+	if len(c.URL) == 0 {
+		return config.ErrKeyNotSet{Key: "callback.wallet_reached_funds_threshold.url"}
+	}
+
+	c.Body = v.GetString("callback.wallet_reached_funds_threshold.body")
+	c.QueryURL = v.GetString("callback.wallet_reached_funds_threshold.queryurl")
+	c.Headers = v.GetStringSlice("callback.wallet_reached_funds_threshold.headers")
+	c.Sync = v.GetBool("callback.wallet_reached_funds_threshold.sync")
+	i := v.GetInt64("callback.wallet_reached_funds_threshold.threshold")
+	if i < 0 {
+		return config.ErrInvalidValue{
+			Key:          "callback.wallet_reached_funds_threshold.threshold",
+			InvalidValue: fmt.Sprintf("%d", i),
+			Values:       []string{},
+		}
+	}
+
+	c.Threshold = uint64(i)
+
+	return nil
+}
+
+func (c *WalletReachedFundsThreshold) Bind(v *viper.Viper, cmd *cobra.Command) error {
+	cmd.PersistentFlags().Bool("callback.wallet_reached_funds_threshold.enabled", false,
+		"enables the wallet_reached_funds_threshold callback. This callback will be sent by the"+
+			"gateway when the provided wallet has run out of funds to execute a transaction.")
+	cmd.PersistentFlags().String("callback.wallet_reached_funds_threshold.method", "",
+		"http method on the request for the callback.")
+	cmd.PersistentFlags().String("callback.wallet_reached_funds_threshold.url", "",
+		"http url for the callback.")
+	cmd.PersistentFlags().String("callback.wallet_reached_funds_threshold.body", "",
+		"http body for the callback.")
+	cmd.PersistentFlags().String("callback.wallet_reached_funds_threshold.queryurl", "",
+		"http query url for the callback.")
+	cmd.PersistentFlags().StringSlice("callback.wallet_reached_funds_threshold.headers", nil,
+		"http headers for the callback.")
+	cmd.PersistentFlags().Bool("callback.wallet_reached_funds_threshold.sync", false,
+		"whether to send the callback synchronously.")
+	cmd.PersistentFlags().Uint64("callback.wallet_reached_funds_threshold.threshold", 0,
+		"sets the lower threshold to trigger the callback")
+
+	return nil
+}
+
+func (c *WalletReachedFundsThreshold) Log(fields log.Fields) {
+	fields.Add("callback.wallet_reached_funds_threshold.enabled", c.Enabled)
+	fields.Add("callback.wallet_reached_funds_threshold.method", c.Method)
+	fields.Add("callback.wallet_reached_funds_threshold.url", c.URL)
+	fields.Add("callback.wallet_reached_funds_threshold.body", c.Body)
+	fields.Add("callback.wallet_reached_funds_threshold.queryurl", c.QueryURL)
+	fields.Add("callback.wallet_reached_funds_threshold.headers", strings.Join(c.Headers, ","))
+	fields.Add("callback.wallet_reached_funds_threshold.sync", c.Sync)
+}
+
 type Callback struct {
 	Enabled  bool
 	Sync     bool
@@ -77,17 +155,31 @@ type Callback struct {
 }
 
 type Config struct {
-	WalletOutOfFunds WalletOutOfFunds
+	WalletOutOfFunds            WalletOutOfFunds
+	WalletReachedFundsThreshold WalletReachedFundsThreshold
 }
 
 func (c *Config) Configure(v *viper.Viper) error {
-	return c.WalletOutOfFunds.Configure(v)
+	if err := c.WalletOutOfFunds.Configure(v); err != nil {
+		return err
+	}
+	if err := c.WalletReachedFundsThreshold.Configure(v); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (c *Config) Bind(v *viper.Viper, cmd *cobra.Command) error {
-	return c.WalletOutOfFunds.Bind(v, cmd)
+	if err := c.WalletOutOfFunds.Bind(v, cmd); err != nil {
+		return err
+	}
+	if err := c.WalletReachedFundsThreshold.Bind(v, cmd); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (c *Config) Log(fields log.Fields) {
 	c.WalletOutOfFunds.Log(fields)
+	c.WalletReachedFundsThreshold.Log(fields)
 }

@@ -3,6 +3,7 @@ package callback
 import (
 	"context"
 	"html/template"
+	"math/big"
 	"net/http"
 	"time"
 
@@ -29,42 +30,77 @@ func (f CallbacksFactoryFunc) New(ctx context.Context, services *ClientServices,
 	return f(ctx, services, config)
 }
 
-func NewClientWithDeps(ctx context.Context, deps *client.Deps, config *Config) (*client.Client, error) {
+func parseCallback(name string, callback Callback) (client.Callback, error) {
 	var (
 		bodyFormat     *template.Template
 		queryURLFormat *template.Template
 	)
-	if len(config.WalletOutOfFunds.Body) > 0 {
-		tmpl, err := template.New("WalletOutOfFundsBody").Parse(config.WalletOutOfFunds.Body)
+	if len(callback.Body) > 0 {
+		tmpl, err := template.New(name).Parse(callback.Body)
 		if err != nil {
-			return nil, err
+			return client.Callback{}, err
 		}
 
 		bodyFormat = tmpl
 	}
 
-	if len(config.WalletOutOfFunds.QueryURL) > 0 {
-		tmpl, err := template.New("WalletOutOfFundsQueryURL").Parse(config.WalletOutOfFunds.QueryURL)
+	if len(callback.QueryURL) > 0 {
+		tmpl, err := template.New(name).Parse(callback.QueryURL)
 		if err != nil {
-			return nil, err
+			return client.Callback{}, err
 		}
 
 		queryURLFormat = tmpl
 	}
 
+	return client.Callback{
+		Enabled:        callback.Enabled,
+		Name:           name,
+		Method:         callback.Method,
+		URL:            callback.URL,
+		BodyFormat:     bodyFormat,
+		QueryURLFormat: queryURLFormat,
+		Headers:        callback.Headers,
+		Sync:           callback.Sync,
+		PeriodLimit:    1 * time.Minute,
+	}, nil
+}
+
+func parseWalletReachedFundsThresholdCallback(config WalletReachedFundsThreshold) (client.WalletReachedFundsThresholdCallback, error) {
+	callback, err := parseCallback("WalletReachedFundsThreshold", Callback{
+		Enabled:  config.Enabled,
+		Sync:     config.Sync,
+		Method:   config.Method,
+		URL:      config.URL,
+		Body:     config.Body,
+		QueryURL: config.QueryURL,
+		Headers:  config.Headers,
+	})
+	if err != nil {
+		return client.WalletReachedFundsThresholdCallback{}, err
+	}
+
+	return client.WalletReachedFundsThresholdCallback{
+		Callback:  callback,
+		Threshold: new(big.Int).SetUint64(config.Threshold),
+	}, nil
+}
+
+func NewClientWithDeps(ctx context.Context, deps *client.Deps, config *Config) (*client.Client, error) {
+	walletOutOfFunds, err := parseCallback("WalletOutOfFundsBody", config.WalletOutOfFunds.Callback)
+	if err != nil {
+		return nil, err
+	}
+
+	walletReachedFundsThreshold, err := parseWalletReachedFundsThresholdCallback(config.WalletReachedFundsThreshold)
+	if err != nil {
+		return nil, err
+	}
+
 	return client.NewClientWithDeps(deps, &client.Props{
 		Callbacks: client.Callbacks{
-			WalletOutOfFunds: client.Callback{
-				Enabled:        config.WalletOutOfFunds.Enabled,
-				Name:           "WalletOutOfFunds",
-				Method:         config.WalletOutOfFunds.Method,
-				URL:            config.WalletOutOfFunds.URL,
-				BodyFormat:     bodyFormat,
-				QueryURLFormat: queryURLFormat,
-				Headers:        config.WalletOutOfFunds.Headers,
-				Sync:           config.WalletOutOfFunds.Sync,
-				PeriodLimit:    1 * time.Minute,
-			},
+			WalletOutOfFunds:            walletOutOfFunds,
+			WalletReachedFundsThreshold: walletReachedFundsThreshold,
 		},
 	}), nil
 }

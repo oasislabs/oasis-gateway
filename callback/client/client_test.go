@@ -4,6 +4,7 @@ import (
 	"context"
 	"html/template"
 	"io/ioutil"
+	"math/big"
 	"net/http"
 	"testing"
 	"time"
@@ -147,4 +148,166 @@ func TestClientWalletOutOfFundsOK(t *testing.T) {
 		return string(v) == "{\"address\": \"myAddress\"}" &&
 			req.URL.RawQuery == "address=myAddress"
 	}))
+}
+
+func TestClientWalletReachedFundsThresholdOKCalledBeforeSet(t *testing.T) {
+	bodyTmplFmt := `{
+  "address": "{{.Address}}",
+  "before": "{{.Before}}",
+  "after": "{{.After}}",
+  "threshold": "{{.Threshold}}"
+}`
+	queryTmplFmt := "address={{.Address}}&before={{.Before}}" +
+		"&after={{.After}}&threshold={{.Threshold}}"
+	bodyTmpl, err := template.New("WalletReachedFundsThreshold").Parse(bodyTmplFmt)
+	assert.Nil(t, err)
+
+	queryURLTmpl, err := template.New("WalletReachedFundsThreshold").Parse(queryTmplFmt)
+	assert.Nil(t, err)
+
+	client := newClient()
+	mockclient := client.client.(*MockHttpClient)
+	client.callbacks = Callbacks{
+		WalletReachedFundsThreshold: WalletReachedFundsThresholdCallback{
+			Callback: Callback{
+				Enabled:        true,
+				Method:         http.MethodPost,
+				URL:            "http://localhost:1234/",
+				BodyFormat:     bodyTmpl,
+				QueryURLFormat: queryURLTmpl,
+				Headers:        []string{"Content-type:plain/text"},
+				Sync:           true,
+			},
+			Threshold: new(big.Int).SetInt64(1024),
+		},
+	}
+
+	mockclient.On("Do", mock.Anything).
+		Return(&http.Response{StatusCode: http.StatusOK}, nil)
+
+	client.WalletReachedFundsThreshold(context.TODO(), WalletReachedFundsThresholdBody{
+		Before:  new(big.Int).SetInt64(1025),
+		After:   new(big.Int).SetInt64(1023),
+		Address: "0x0000000000000000000000000000000000000000",
+	})
+
+	assert.Nil(t, err)
+	mockclient.AssertCalled(t, "Do", mock.MatchedBy(func(req *http.Request) bool {
+		v, err := ioutil.ReadAll(req.Body)
+		if err != nil {
+			return false
+		}
+
+		return string(v) == `{
+  "address": "0x0000000000000000000000000000000000000000",
+  "before": "0x401",
+  "after": "0x3ff",
+  "threshold": "0x400"
+}` && req.URL.RawQuery == "address=0x0000000000000000000000000000000000000000"+
+			"&before=0x401&after=0x3ff&threshold=0x400"
+	}))
+}
+
+func TestClientWalletReachedFundsThresholdOKCalledBeforeNil(t *testing.T) {
+	bodyTmplFmt := `{
+  "address": "{{.Address}}",
+  "before": "{{.Before}}",
+  "after": "{{.After}}",
+  "threshold": "{{.Threshold}}"
+}`
+	queryTmplFmt := "address={{.Address}}&before={{.Before}}" +
+		"&after={{.After}}&threshold={{.Threshold}}"
+	bodyTmpl, err := template.New("WalletReachedFundsThreshold").Parse(bodyTmplFmt)
+	assert.Nil(t, err)
+
+	queryURLTmpl, err := template.New("WalletReachedFundsThreshold").Parse(queryTmplFmt)
+	assert.Nil(t, err)
+
+	client := newClient()
+	mockclient := client.client.(*MockHttpClient)
+	client.callbacks = Callbacks{
+		WalletReachedFundsThreshold: WalletReachedFundsThresholdCallback{
+			Callback: Callback{
+				Enabled:        true,
+				Method:         http.MethodPost,
+				URL:            "http://localhost:1234/",
+				BodyFormat:     bodyTmpl,
+				QueryURLFormat: queryURLTmpl,
+				Headers:        []string{"Content-type:plain/text"},
+				Sync:           true,
+			},
+			Threshold: new(big.Int).SetInt64(1024),
+		},
+	}
+
+	mockclient.On("Do", mock.Anything).
+		Return(&http.Response{StatusCode: http.StatusOK}, nil)
+
+	client.WalletReachedFundsThreshold(context.TODO(), WalletReachedFundsThresholdBody{
+		Before:  nil,
+		After:   new(big.Int).SetInt64(1023),
+		Address: "0x0000000000000000000000000000000000000000",
+	})
+
+	assert.Nil(t, err)
+	mockclient.AssertCalled(t, "Do", mock.MatchedBy(func(req *http.Request) bool {
+		v, err := ioutil.ReadAll(req.Body)
+		if err != nil {
+			return false
+		}
+
+		return string(v) == `{
+  "address": "0x0000000000000000000000000000000000000000",
+  "before": "0x0",
+  "after": "0x3ff",
+  "threshold": "0x400"
+}` && req.URL.RawQuery == "address=0x0000000000000000000000000000000000000000"+
+			"&before=0x0&after=0x3ff&threshold=0x400"
+	}))
+}
+
+func TestClientWalletReachedFundsThresholdOKNoCalled(t *testing.T) {
+	bodyTmplFmt := `{
+  "address": "{{.Address}}",
+  "before": "{{.Before}}",
+  "after": "{{.After}}",
+  "threshold": "{{.Threshold}}"
+}`
+	queryTmplFmt := "address={{.Address}}&before={{.Before}}" +
+		"&after={{.After}}&threshold={{.Threshold}}"
+	bodyTmpl, err := template.New("WalletReachedFundsThreshold").Parse(bodyTmplFmt)
+	assert.Nil(t, err)
+
+	queryURLTmpl, err := template.New("WalletReachedFundsThreshold").Parse(queryTmplFmt)
+	assert.Nil(t, err)
+
+	client := newClient()
+	mockclient := client.client.(*MockHttpClient)
+	client.callbacks = Callbacks{
+		WalletReachedFundsThreshold: WalletReachedFundsThresholdCallback{
+			Callback: Callback{
+				Enabled:        true,
+				Method:         http.MethodPost,
+				URL:            "http://localhost:1234/",
+				BodyFormat:     bodyTmpl,
+				QueryURLFormat: queryURLTmpl,
+				Headers:        []string{"Content-type:plain/text"},
+				Sync:           true,
+			},
+			Threshold: new(big.Int).SetInt64(0),
+		},
+	}
+
+	mockclient.On("Do", mock.Anything).
+		Return(&http.Response{StatusCode: http.StatusOK}, nil)
+
+	client.WalletReachedFundsThreshold(context.TODO(), WalletReachedFundsThresholdBody{
+		Before:  nil,
+		After:   new(big.Int).SetInt64(1023),
+		Address: "0x0000000000000000000000000000000000000000",
+	})
+
+	assert.Nil(t, err)
+
+	mockclient.AssertNotCalled(t, "Do", mock.Anything)
 }
