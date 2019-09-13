@@ -1,7 +1,8 @@
 package core
 
 import (
-	"encoding/json"
+	"context"
+	stderr "errors"
 	"net/http"
 
 	"github.com/oasislabs/developer-gateway/log"
@@ -29,34 +30,31 @@ func (m *MultiAuth) Stats() stats.Metrics {
 	return metrics
 }
 
-func (m *MultiAuth) Authenticate(req *http.Request) (string, error) {
-	strs := make([]string, 0, len(m.auths))
+func (m *MultiAuth) Authenticate(req *http.Request) (*http.Request, error) {
+	var errs []error
+
 	for _, auth := range m.auths {
-		s, err := auth.Authenticate(req)
+		req, err := auth.Authenticate(req)
 		if err != nil {
-			return "", err
+			errs = append(errs, err)
+			continue
 		}
-		strs = append(strs, s)
+
+		ctx := context.WithValue(req.Context(), MultiAuth{}, auth)
+		req = req.WithContext(ctx)
+		return req, nil
 	}
-	bytes, err := json.Marshal(strs)
-	if err != nil {
-		return "", err
-	}
-	return string(bytes), nil
+
+	return req, MultiError{Errors: errs}
 }
 
-func (m *MultiAuth) Verify(data AuthRequest, expected string) error {
-	var strs []string
-	err := json.Unmarshal([]byte(expected), &strs)
-	if err != nil {
-		return err
+func (m *MultiAuth) Verify(ctx context.Context, data AuthRequest) error {
+	auth := ctx.Value(MultiAuth{})
+	if auth == nil {
+		return stderr.New("request without auth cannot be verified")
 	}
-	for i, auth := range m.auths {
-		if err = auth.Verify(data, strs[i]); err != nil {
-			return err
-		}
-	}
-	return nil
+
+	return auth.(Auth).Verify(ctx, data)
 }
 
 func (m *MultiAuth) SetLogger(l log.Logger) {

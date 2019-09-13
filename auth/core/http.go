@@ -12,6 +12,9 @@ import (
 	"github.com/oasislabs/developer-gateway/rpc"
 )
 
+type AAD struct{}
+type Session struct{}
+
 const (
 	sessionKeyFormat               = "%s:%s"
 	RequestHeaderSessionKey string = "X-OASIS-SESSION-KEY"
@@ -43,8 +46,17 @@ func NewHttpMiddlewareAuth(auth Auth, logger log.Logger, next rpc.HttpMiddleware
 	}
 }
 
+func MustGetAAD(ctx context.Context) string {
+	value := ctx.Value(AAD{})
+	if value == nil {
+		panic("Authenticate method did not set AAD in http.Request's context")
+	}
+
+	return value.(string)
+}
+
 func (m *HttpMiddlewareAuth) ServeHTTP(req *http.Request) (interface{}, error) {
-	expectedAAD, err := m.auth.Authenticate(req)
+	req, err := m.auth.Authenticate(req)
 	if err != nil {
 		newErr := errors.New(errors.ErrAuthenticateRequest, err)
 		return nil, &rpc.HttpError{
@@ -62,17 +74,14 @@ func (m *HttpMiddlewareAuth) ServeHTTP(req *http.Request) (interface{}, error) {
 		}
 	}
 
+	expectedAAD := MustGetAAD(req.Context())
 	hasher := sha256.New()
 	if _, err = hasher.Write([]byte(expectedAAD)); err != nil {
 		return nil, rpc.HttpForbidden(context.TODO(), errors.New(errors.ErrInvalidAAD, err))
 	}
 
 	aadHash := hex.EncodeToString(hasher.Sum(nil))
-	authData := AuthData{
-		ExpectedAAD: expectedAAD,
-		SessionKey:  fmt.Sprintf(sessionKeyFormat, aadHash, sessionKey),
-	}
 
-	req = req.WithContext(context.WithValue(req.Context(), ContextAuthDataKey, authData))
+	req = req.WithContext(context.WithValue(req.Context(), Session{}, fmt.Sprintf(sessionKeyFormat, aadHash, sessionKey)))
 	return m.next.ServeHTTP(req)
 }
