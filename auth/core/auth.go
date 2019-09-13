@@ -1,16 +1,12 @@
 package core
 
 import (
+	"context"
 	"net/http"
 
 	"github.com/oasislabs/developer-gateway/log"
 	"github.com/oasislabs/developer-gateway/stats"
 )
-
-type AuthData struct {
-	ExpectedAAD string
-	SessionKey  string
-}
 
 type AuthRequest struct {
 	API     string
@@ -27,11 +23,11 @@ type Auth interface {
 	// Authenticate the user from the http request. This should return:
 	// - the expected AAD
 	// - the authentication error
-	Authenticate(req *http.Request) (string, error)
+	Authenticate(req *http.Request) (*http.Request, error)
 
 	// Verify that a specific payload complies with
 	// the expected format and has the authentication data required
-	Verify(req AuthRequest, expected string) error
+	Verify(ctx context.Context, req AuthRequest) error
 
 	// Sets the logger for the authentication plugin.
 	SetLogger(log.Logger)
@@ -45,10 +41,10 @@ func (NilAuth) Name() string {
 func (NilAuth) Stats() stats.Metrics {
 	return nil
 }
-func (NilAuth) Authenticate(req *http.Request) (string, error) {
-	return "", nil
+func (NilAuth) Authenticate(req *http.Request) (*http.Request, error) {
+	return req, nil
 }
-func (NilAuth) Verify(req AuthRequest, expected string) error {
+func (NilAuth) Verify(ctx context.Context, req AuthRequest) error {
 	return nil
 }
 

@@ -1,6 +1,7 @@
 package insecure
 
 import (
+	"context"
 	"errors"
 	"net/http"
 
@@ -26,16 +27,17 @@ func (a InsecureAuth) Stats() stats.Metrics {
 	return nil
 }
 
-func (a InsecureAuth) Authenticate(req *http.Request) (string, error) {
+func (a InsecureAuth) Authenticate(req *http.Request) (*http.Request, error) {
 	value := req.Header.Get(HeaderKey)
 	if len(value) == 0 {
-		return "", ErrDataTooShort
+		return req, ErrDataTooShort
 	}
 
-	return value, nil
+	ctx := context.WithValue(req.Context(), core.AAD{}, value)
+	return req.WithContext(ctx), nil
 }
 
-func (InsecureAuth) Verify(req core.AuthRequest, expectedAAD string) error {
+func (InsecureAuth) Verify(ctx context.Context, req core.AuthRequest) error {
 	if len(req.Data) == 0 {
 		return ErrDataTooShort
 	}

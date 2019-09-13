@@ -78,10 +78,8 @@ func createEventHandler() EventHandler {
 }
 
 func TestSubscribeErrNoEvents(t *testing.T) {
-	ctx := context.WithValue(Context, auth.ContextAuthDataKey, auth.AuthData{
-		ExpectedAAD: "",
-		SessionKey:  "sessionKey",
-	})
+	ctx := context.WithValue(Context, auth.AAD{}, "aad")
+	ctx = context.WithValue(ctx, auth.Session{}, "sessionKey")
 
 	handler := createEventHandler()
 
@@ -94,10 +92,8 @@ func TestSubscribeErrNoEvents(t *testing.T) {
 }
 
 func TestSubscribeErrTooManyEvents(t *testing.T) {
-	ctx := context.WithValue(Context, auth.ContextAuthDataKey, auth.AuthData{
-		ExpectedAAD: "",
-		SessionKey:  "sessionKey",
-	})
+	ctx := context.WithValue(Context, auth.AAD{}, "aad")
+	ctx = context.WithValue(ctx, auth.Session{}, "sessionKey")
 
 	handler := createEventHandler()
 
@@ -110,10 +106,8 @@ func TestSubscribeErrTooManyEvents(t *testing.T) {
 }
 
 func TestSubscribeErrInvalidQueryParams(t *testing.T) {
-	ctx := context.WithValue(Context, auth.ContextAuthDataKey, auth.AuthData{
-		ExpectedAAD: "",
-		SessionKey:  "sessionKey",
-	})
+	ctx := context.WithValue(Context, auth.AAD{}, "aad")
+	ctx = context.WithValue(ctx, auth.Session{}, "sessionKey")
 
 	handler := createEventHandler()
 
@@ -126,10 +120,8 @@ func TestSubscribeErrInvalidQueryParams(t *testing.T) {
 }
 
 func TestSubscribeErrReturn(t *testing.T) {
-	ctx := context.WithValue(Context, auth.ContextAuthDataKey, auth.AuthData{
-		ExpectedAAD: "",
-		SessionKey:  "sessionKey",
-	})
+	ctx := context.WithValue(Context, auth.AAD{}, "aad")
+	ctx = context.WithValue(ctx, auth.Session{}, "sessionKey")
 
 	handler := createEventHandler()
 
@@ -147,10 +139,8 @@ func TestSubscribeErrReturn(t *testing.T) {
 }
 
 func TestSubscribeOKWithTopics(t *testing.T) {
-	ctx := context.WithValue(Context, auth.ContextAuthDataKey, auth.AuthData{
-		ExpectedAAD: "",
-		SessionKey:  "sessionKey",
-	})
+	ctx := context.WithValue(Context, auth.AAD{}, "aad")
+	ctx = context.WithValue(ctx, auth.Session{}, "sessionKey")
 
 	handler := createEventHandler()
 
@@ -175,10 +165,8 @@ func TestSubscribeOKWithTopics(t *testing.T) {
 }
 
 func TestSubscribeOKNoTopic(t *testing.T) {
-	ctx := context.WithValue(Context, auth.ContextAuthDataKey, auth.AuthData{
-		ExpectedAAD: "",
-		SessionKey:  "sessionKey",
-	})
+	ctx := context.WithValue(Context, auth.AAD{}, "aad")
+	ctx = context.WithValue(ctx, auth.Session{}, "sessionKey")
 
 	handler := createEventHandler()
 
@@ -203,10 +191,8 @@ func TestSubscribeOKNoTopic(t *testing.T) {
 }
 
 func TestUnsubscribeOK(t *testing.T) {
-	ctx := context.WithValue(Context, auth.ContextAuthDataKey, auth.AuthData{
-		ExpectedAAD: "",
-		SessionKey:  "sessionKey",
-	})
+	ctx := context.WithValue(Context, auth.AAD{}, "aad")
+	ctx = context.WithValue(ctx, auth.Session{}, "sessionKey")
 
 	handler := createEventHandler()
 
@@ -222,10 +208,8 @@ func TestUnsubscribeOK(t *testing.T) {
 }
 
 func TestUnsubscribeErrReturn(t *testing.T) {
-	ctx := context.WithValue(Context, auth.ContextAuthDataKey, auth.AuthData{
-		ExpectedAAD: "",
-		SessionKey:  "sessionKey",
-	})
+	ctx := context.WithValue(Context, auth.AAD{}, "aad")
+	ctx = context.WithValue(ctx, auth.Session{}, "sessionKey")
 
 	handler := createEventHandler()
 
@@ -240,10 +224,8 @@ func TestUnsubscribeErrReturn(t *testing.T) {
 }
 
 func TestPollEventOKEmpty(t *testing.T) {
-	ctx := context.WithValue(Context, auth.ContextAuthDataKey, auth.AuthData{
-		ExpectedAAD: "",
-		SessionKey:  "sessionKey",
-	})
+	ctx := context.WithValue(Context, auth.AAD{}, "aad")
+	ctx = context.WithValue(ctx, auth.Session{}, "sessionKey")
 
 	handler := createEventHandler()
 
@@ -262,10 +244,8 @@ func TestPollEventOKEmpty(t *testing.T) {
 }
 
 func TestPollEventOKMultiple(t *testing.T) {
-	ctx := context.WithValue(Context, auth.ContextAuthDataKey, auth.AuthData{
-		ExpectedAAD: "",
-		SessionKey:  "sessionKey",
-	})
+	ctx := context.WithValue(Context, auth.AAD{}, "aad")
+	ctx = context.WithValue(ctx, auth.Session{}, "sessionKey")
 
 	handler := createEventHandler()
 
@@ -302,10 +282,8 @@ func TestPollEventOKMultiple(t *testing.T) {
 }
 
 func TestPollEventErrUnknown(t *testing.T) {
-	ctx := context.WithValue(Context, auth.ContextAuthDataKey, auth.AuthData{
-		ExpectedAAD: "",
-		SessionKey:  "sessionKey",
-	})
+	ctx := context.WithValue(Context, auth.AAD{}, "aad")
+	ctx = context.WithValue(ctx, auth.Session{}, "sessionKey")
 
 	handler := createEventHandler()
 
@@ -322,10 +300,8 @@ func TestPollEventErrUnknown(t *testing.T) {
 }
 
 func TestPollEventErrReturn(t *testing.T) {
-	ctx := context.WithValue(Context, auth.ContextAuthDataKey, auth.AuthData{
-		ExpectedAAD: "",
-		SessionKey:  "sessionKey",
-	})
+	ctx := context.WithValue(Context, auth.AAD{}, "aad")
+	ctx = context.WithValue(ctx, auth.Session{}, "sessionKey")
 
 	handler := createEventHandler()
 

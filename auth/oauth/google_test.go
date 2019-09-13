@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"testing"
 
+	"github.com/oasislabs/developer-gateway/auth/core"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -36,9 +37,9 @@ func TestAuthenticateSuccess(t *testing.T) {
 	req.Header.Add(ID_TOKEN_KEY, string(jsonStr))
 
 	auth := NewGoogleOauth(&MockIDTokenVerifier{})
-	email, err := auth.Authenticate(req)
+	req, err = auth.Authenticate(req)
 	assert.Nil(t, err)
-	assert.Equal(t, "test@email.com", email)
+	assert.Equal(t, "test@email.com", req.Context().Value(core.AAD{}))
 }
 
 func TestAuthenticateUnverified(t *testing.T) {
@@ -54,8 +55,9 @@ func TestAuthenticateUnverified(t *testing.T) {
 	req.Header.Add(ID_TOKEN_KEY, string(jsonStr))
 
 	auth := NewGoogleOauth(&MockIDTokenVerifier{})
-	email, err := auth.Authenticate(req)
+	req, err = auth.Authenticate(req)
 	assert.NotNil(t, err)
+	assert.Equal(t, req, req)
 	assert.Equal(t, "Email is unverified", err.Error())
-	assert.Equal(t, "", email)
+	assert.Nil(t, req.Context().Value(core.AAD{}))
 }

@@ -105,10 +105,9 @@ func createServiceHandler() ServiceHandler {
 }
 
 func TestDeployServiceEmptyData(t *testing.T) {
-	ctx := context.WithValue(Context, auth.ContextAuthDataKey, auth.AuthData{
-		ExpectedAAD: "",
-		SessionKey:  "sessionKey",
-	})
+	ctx := context.WithValue(Context, auth.AAD{}, "")
+	ctx = context.WithValue(ctx, auth.Session{}, "sessionKey")
+
 	handler := createServiceHandler()
 
 	handler.client.(*MockClient).On("DeployServiceAsync",
@@ -124,9 +123,9 @@ func TestDeployServiceEmptyData(t *testing.T) {
 }
 
 func TestDeployServiceErr(t *testing.T) {
-	ctx := context.WithValue(Context, auth.ContextAuthDataKey, auth.AuthData{
-		SessionKey: "sessionKey",
-	})
+	ctx := context.WithValue(Context, auth.AAD{}, "aad")
+	ctx = context.WithValue(ctx, auth.Session{}, "sessionKey")
+
 	handler := createServiceHandler()
 
 	handler.client.(*MockClient).On("DeployServiceAsync",
@@ -147,9 +146,9 @@ func TestDeployServiceErr(t *testing.T) {
 }
 
 func TestDeployServiceOK(t *testing.T) {
-	ctx := context.WithValue(Context, auth.ContextAuthDataKey, auth.AuthData{
-		SessionKey: "sessionKey",
-	})
+	ctx := context.WithValue(Context, auth.AAD{}, "aad")
+	ctx = context.WithValue(ctx, auth.Session{}, "sessionKey")
+
 	handler := createServiceHandler()
 
 	handler.client.(*MockClient).On("DeployServiceAsync",
@@ -165,10 +164,9 @@ func TestDeployServiceOK(t *testing.T) {
 }
 
 func TestExecuteServiceEmptyData(t *testing.T) {
-	ctx := context.WithValue(Context, auth.ContextAuthDataKey, auth.AuthData{
-		ExpectedAAD: "",
-		SessionKey:  "sessionKey",
-	})
+	ctx := context.WithValue(Context, auth.AAD{}, "aad")
+	ctx = context.WithValue(ctx, auth.Session{}, "sessionKey")
+
 	handler := createServiceHandler()
 
 	handler.client.(*MockClient).On("ExecuteServiceAsync",
@@ -187,10 +185,9 @@ func TestExecuteServiceEmptyData(t *testing.T) {
 }
 
 func TestExecuteServiceEmptyAddress(t *testing.T) {
-	ctx := context.WithValue(Context, auth.ContextAuthDataKey, auth.AuthData{
-		ExpectedAAD: "",
-		SessionKey:  "sessionKey",
-	})
+	ctx := context.WithValue(Context, auth.AAD{}, "aad")
+	ctx = context.WithValue(ctx, auth.Session{}, "sessionKey")
+
 	handler := createServiceHandler()
 
 	handler.client.(*MockClient).On("ExecuteServiceAsync",
@@ -210,9 +207,9 @@ func TestExecuteServiceEmptyAddress(t *testing.T) {
 }
 
 func TestExecuteServiceErr(t *testing.T) {
-	ctx := context.WithValue(Context, auth.ContextAuthDataKey, auth.AuthData{
-		SessionKey: "sessionKey",
-	})
+	ctx := context.WithValue(Context, auth.AAD{}, "aad")
+	ctx = context.WithValue(ctx, auth.Session{}, "sessionKey")
+
 	handler := createServiceHandler()
 
 	handler.client.(*MockClient).On("ExecuteServiceAsync",
@@ -235,9 +232,9 @@ func TestExecuteServiceErr(t *testing.T) {
 }
 
 func TestExecuteServiceOK(t *testing.T) {
-	ctx := context.WithValue(Context, auth.ContextAuthDataKey, auth.AuthData{
-		SessionKey: "sessionKey",
-	})
+	ctx := context.WithValue(Context, auth.AAD{}, "aad")
+	ctx = context.WithValue(ctx, auth.Session{}, "sessionKey")
+
 	handler := createServiceHandler()
 
 	handler.client.(*MockClient).On("ExecuteServiceAsync",
@@ -257,9 +254,9 @@ func TestExecuteServiceOK(t *testing.T) {
 }
 
 func TestPollServiceErr(t *testing.T) {
-	ctx := context.WithValue(Context, auth.ContextAuthDataKey, auth.AuthData{
-		SessionKey: "sessionKey",
-	})
+	ctx := context.WithValue(Context, auth.AAD{}, "aad")
+	ctx = context.WithValue(ctx, auth.Session{}, "sessionKey")
+
 	handler := createServiceHandler()
 
 	handler.client.(*MockClient).On("PollService",
@@ -285,9 +282,9 @@ func TestPollServiceErr(t *testing.T) {
 }
 
 func TestPollServiceDeployOK(t *testing.T) {
-	ctx := context.WithValue(Context, auth.ContextAuthDataKey, auth.AuthData{
-		SessionKey: "sessionKey",
-	})
+	ctx := context.WithValue(Context, auth.AAD{}, "aad")
+	ctx = context.WithValue(ctx, auth.Session{}, "sessionKey")
+
 	handler := createServiceHandler()
 
 	handler.client.(*MockClient).On("PollService",
@@ -318,9 +315,9 @@ func TestPollServiceDeployOK(t *testing.T) {
 }
 
 func TestPollServiceExecuteOK(t *testing.T) {
-	ctx := context.WithValue(Context, auth.ContextAuthDataKey, auth.AuthData{
-		SessionKey: "sessionKey",
-	})
+	ctx := context.WithValue(Context, auth.AAD{}, "aad")
+	ctx = context.WithValue(ctx, auth.Session{}, "sessionKey")
+
 	handler := createServiceHandler()
 
 	handler.client.(*MockClient).On("PollService",
@@ -352,9 +349,9 @@ func TestPollServiceExecuteOK(t *testing.T) {
 }
 
 func TestPollServiceErrorOK(t *testing.T) {
-	ctx := context.WithValue(Context, auth.ContextAuthDataKey, auth.AuthData{
-		SessionKey: "sessionKey",
-	})
+	ctx := context.WithValue(Context, auth.AAD{}, "aad")
+	ctx = context.WithValue(ctx, auth.Session{}, "sessionKey")
+
 	handler := createServiceHandler()
 
 	handler.client.(*MockClient).On("PollService",
@@ -385,9 +382,9 @@ func TestPollServiceErrorOK(t *testing.T) {
 }
 
 func TestGetCodeEmptyAddress(t *testing.T) {
-	ctx := context.WithValue(Context, auth.ContextAuthDataKey, auth.AuthData{
-		SessionKey: "sessionKey",
-	})
+	ctx := context.WithValue(Context, auth.AAD{}, "aad")
+	ctx = context.WithValue(ctx, auth.Session{}, "sessionKey")
+
 	handler := createServiceHandler()
 
 	handler.client.(*MockClient).On("GetCode",
@@ -408,9 +405,9 @@ func TestGetCodeEmptyAddress(t *testing.T) {
 }
 
 func TestGetCodeEmptyErr(t *testing.T) {
-	ctx := context.WithValue(Context, auth.ContextAuthDataKey, auth.AuthData{
-		SessionKey: "sessionKey",
-	})
+	ctx := context.WithValue(Context, auth.AAD{}, "aad")
+	ctx = context.WithValue(ctx, auth.Session{}, "sessionKey")
+
 	handler := createServiceHandler()
 
 	handler.client.(*MockClient).On("GetCode",
@@ -431,9 +428,9 @@ func TestGetCodeEmptyErr(t *testing.T) {
 }
 
 func TestGetCodeEmptyOK(t *testing.T) {
-	ctx := context.WithValue(Context, auth.ContextAuthDataKey, auth.AuthData{
-		SessionKey: "sessionKey",
-	})
+	ctx := context.WithValue(Context, auth.AAD{}, "aad")
+	ctx = context.WithValue(ctx, auth.Session{}, "sessionKey")
+
 	handler := createServiceHandler()
 
 	handler.client.(*MockClient).On("GetCode",
@@ -456,9 +453,9 @@ func TestGetCodeEmptyOK(t *testing.T) {
 }
 
 func TestGetPublicKeyEmptyAddress(t *testing.T) {
-	ctx := context.WithValue(Context, auth.ContextAuthDataKey, auth.AuthData{
-		SessionKey: "sessionKey",
-	})
+	ctx := context.WithValue(Context, auth.AAD{}, "aad")
+	ctx = context.WithValue(ctx, auth.Session{}, "sessionKey")
+
 	handler := createServiceHandler()
 
 	handler.client.(*MockClient).On("GetPublicKey",
@@ -479,9 +476,9 @@ func TestGetPublicKeyEmptyAddress(t *testing.T) {
 }
 
 func TestGetPublicKeyEmptyErr(t *testing.T) {
-	ctx := context.WithValue(Context, auth.ContextAuthDataKey, auth.AuthData{
-		SessionKey: "sessionKey",
-	})
+	ctx := context.WithValue(Context, auth.AAD{}, "aad")
+	ctx = context.WithValue(ctx, auth.Session{}, "sessionKey")
+
 	handler := createServiceHandler()
 
 	handler.client.(*MockClient).On("GetPublicKey",
@@ -502,9 +499,9 @@ func TestGetPublicKeyEmptyErr(t *testing.T) {
 }
 
 func TestGetPublicKeyEmptyOK(t *testing.T) {
-	ctx := context.WithValue(Context, auth.ContextAuthDataKey, auth.AuthData{
-		SessionKey: "sessionKey",
-	})
+	ctx := context.WithValue(Context, auth.AAD{}, "aad")
+	ctx = context.WithValue(ctx, auth.Session{}, "sessionKey")
+
 	handler := createServiceHandler()
 
 	handler.client.(*MockClient).On("GetPublicKey",

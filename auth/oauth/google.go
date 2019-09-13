@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	oidc "github.com/coreos/go-oidc"
+	"github.com/oasislabs/developer-gateway/auth/core"
 	auth "github.com/oasislabs/developer-gateway/auth/core"
 	"github.com/oasislabs/developer-gateway/log"
 	"github.com/oasislabs/developer-gateway/stats"
@@ -56,7 +57,7 @@ func (g GoogleOauth) Stats() stats.Metrics {
 }
 
 // Authenticates the user using the ID Token receieved from Google.
-func (g GoogleOauth) Authenticate(req *http.Request) (string, error) {
+func (g GoogleOauth) Authenticate(req *http.Request) (*http.Request, error) {
 	rawIDToken := req.Header.Get(ID_TOKEN_KEY)
 	verifier := g.verifier
 	if verifier == nil {
@@ -68,17 +69,18 @@ func (g GoogleOauth) Authenticate(req *http.Request) (string, error) {
 
 	idToken, err := verifier.Verify(req.Context(), rawIDToken)
 	if err != nil {
-		return "", err
+		return req, err
 	}
 	var claims OpenIDClaims
 	if err = idToken.Claims(&claims); err != nil {
-		return "", err
+		return req, err
 	}
 	if !claims.EmailVerified {
-		return "", errors.New("Email is unverified")
+		return req, errors.New("Email is unverified")
 	}
 
-	return claims.Email, nil
+	ctx := context.WithValue(req.Context(), core.AAD{}, claims.Email)
+	return req.WithContext(ctx), nil
 }
 
 // Verify the provided AAD in the transaction data with the expected AAD
@@ -87,7 +89,8 @@ func (g GoogleOauth) Authenticate(req *http.Request) (string, error) {
 //   - pk is expected to be 16 bytes
 //   - cipher length and aad length are uint64 encoded in big endian
 //   - nonce is expected to be 5 bytes
-func (GoogleOauth) Verify(data auth.AuthRequest, expectedAAD string) error {
+func (GoogleOauth) Verify(ctx context.Context, data auth.AuthRequest) error {
+	expectedAAD := core.MustGetAAD(ctx)
 	if string(data.AAD) != expectedAAD {
 		return errors.New("AAD does not match")
 	}

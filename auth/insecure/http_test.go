@@ -1,6 +1,7 @@
 package insecure
 
 import (
+	"context"
 	"net/http"
 	"testing"
 
@@ -13,7 +14,7 @@ import (
 type MockHTTPMiddleware struct{}
 
 func (h *MockHTTPMiddleware) ServeHTTP(req *http.Request) (interface{}, error) {
-	return req.Context().Value(core.ContextAuthDataKey), nil
+	return req.Context(), nil
 }
 
 func TestServeHTTP(t *testing.T) {
@@ -27,12 +28,14 @@ func TestServeHTTP(t *testing.T) {
 	req.Header.Add(HeaderKey, "insecure-key")
 	req.Header.Add(core.RequestHeaderSessionKey, "session-key")
 
-	response, err := httpMiddlewareAuth.ServeHTTP(req)
+	v, err := httpMiddlewareAuth.ServeHTTP(req)
 	assert.Nil(t, err)
-	authData := response.(core.AuthData)
-	assert.Equal(t, "017fdef9eeec58e0ad6b94721a2eb52a9bd96dddd9aa2f1e058153568f4ed42d:session-key", authData.SessionKey)
-	assert.Equal(t, "insecure-key", authData.ExpectedAAD)
-	assert.NotNil(t, authData.SessionKey)
+
+	ctx := v.(context.Context)
+	aad := ctx.Value(core.AAD{})
+	session := ctx.Value(core.Session{})
+	assert.Equal(t, "017fdef9eeec58e0ad6b94721a2eb52a9bd96dddd9aa2f1e058153568f4ed42d:session-key", session)
+	assert.Equal(t, "insecure-key", aad)
 }
 
 func TestServeHTTPInvalidSessionKey(t *testing.T) {
@@ -62,18 +65,22 @@ func TestServeHTTPNonMatchingSessionKeys(t *testing.T) {
 	req1.Header.Add(HeaderKey, "user-1")
 	req1.Header.Add(core.RequestHeaderSessionKey, "session-key")
 
-	response1, err := httpMiddlewareAuth.ServeHTTP(req1)
+	v, err := httpMiddlewareAuth.ServeHTTP(req1)
 	assert.Nil(t, err)
-	authData1 := response1.(core.AuthData)
+
+	ctx := v.(context.Context)
+	session1 := ctx.Value(core.Session{})
 
 	req2, err := http.NewRequest("POST", "gateway.oasiscloud.io", nil)
 	assert.Nil(t, err)
 	req2.Header.Add(HeaderKey, "user-2")
 	req2.Header.Add(core.RequestHeaderSessionKey, "session-key")
 
-	response2, err := httpMiddlewareAuth.ServeHTTP(req2)
+	v, err = httpMiddlewareAuth.ServeHTTP(req2)
 	assert.Nil(t, err)
-	authData2 := response2.(core.AuthData)
 
-	assert.NotEqual(t, authData1.SessionKey, authData2.SessionKey)
+	ctx = v.(context.Context)
+	session2 := ctx.Value(core.Session{})
+
+	assert.NotEqual(t, session1, session2)
 }

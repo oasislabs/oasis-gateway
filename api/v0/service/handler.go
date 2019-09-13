@@ -52,7 +52,7 @@ type ServiceHandler struct {
 
 // DeployService handles the deployment of new services
 func (h ServiceHandler) DeployService(ctx context.Context, v interface{}) (interface{}, error) {
-	authData := ctx.Value(auth.ContextAuthDataKey).(auth.AuthData)
+	session := ctx.Value(auth.Session{}).(string)
 	req := v.(*DeployServiceRequest)
 
 	authReq := auth.AuthRequest{
@@ -60,12 +60,12 @@ func (h ServiceHandler) DeployService(ctx context.Context, v interface{}) (inter
 		Data: req.Data,
 	}
 
-	if err := h.verifier.Verify(authReq, authData.ExpectedAAD); err != nil {
+	if err := h.verifier.Verify(ctx, authReq); err != nil {
 		e := errors.New(errors.ErrFailedAADVerification, err)
 		h.logger.Debug(ctx, "failed to verify AAD", log.MapFields{
-			"call_type":   "DeployServiceFailure",
-			"expectedAAD": authData.ExpectedAAD,
-			"err":         e,
+			"call_type": "DeployServiceFailure",
+			"session":   session,
+			"err":       e,
 		})
 		return nil, e
 	}
@@ -74,11 +74,12 @@ func (h ServiceHandler) DeployService(ctx context.Context, v interface{}) (inter
 	// so a new context is needed to handle the asynchronous request
 	id, err := h.client.DeployServiceAsync(context.Background(), backend.DeployServiceRequest{
 		Data:       req.Data,
-		SessionKey: authData.SessionKey,
+		SessionKey: session,
 	})
 	if err != nil {
 		h.logger.Debug(ctx, "failed to start request", log.MapFields{
 			"call_type": "DeployServiceFailure",
+			"session":   session,
 		}, err)
 		return nil, err
 	}
@@ -118,24 +119,26 @@ func (h ServiceHandler) parseExecuteMessage(v *ExecuteServiceRequest) (authReq a
 
 // ExecuteService handle the execution of deployed services
 func (h ServiceHandler) ExecuteService(ctx context.Context, v interface{}) (interface{}, error) {
-	authData := ctx.Value(auth.ContextAuthDataKey).(auth.AuthData)
+	session := ctx.Value(auth.Session{}).(string)
+
 	req := v.(*ExecuteServiceRequest)
 
 	if len(req.Address) == 0 {
 		e := errors.New(errors.ErrInvalidAddress, nil)
 		h.logger.Debug(ctx, "received empty address", log.MapFields{
 			"call_type": "ExecuteServiceFailure",
+			"session":   session,
 		}, e)
 		return nil, e
 	}
 
 	authReq := h.parseExecuteMessage(req)
-	if err := h.verifier.Verify(authReq, authData.ExpectedAAD); err != nil {
+	if err := h.verifier.Verify(ctx, authReq); err != nil {
 		e := errors.New(errors.ErrFailedAADVerification, err)
 		h.logger.Debug(ctx, "failed to verify AAD", log.MapFields{
-			"call_type":   "ExecuteServiceFailure",
-			"expectedAAD": authData.ExpectedAAD,
-			"err":         e,
+			"call_type": "ExecuteServiceFailure",
+			"session":   session,
+			"err":       e,
 		})
 		return nil, e
 	}
@@ -145,12 +148,13 @@ func (h ServiceHandler) ExecuteService(ctx context.Context, v interface{}) (inte
 	id, err := h.client.ExecuteServiceAsync(context.Background(), backend.ExecuteServiceRequest{
 		Address:    req.Address,
 		Data:       req.Data,
-		SessionKey: authData.SessionKey,
+		SessionKey: session,
 	})
 	if err != nil {
 		h.logger.Debug(ctx, "failed to start request", log.MapFields{
 			"call_type": "ExecuteServiceFailure",
 			"address":   req.Address,
+			"session":   session,
 		}, err)
 		return nil, err
 	}
@@ -183,7 +187,7 @@ func (h ServiceHandler) mapEvent(event backend.Event) Event {
 
 // PollService polls the service response queue to retrieve available responses
 func (h ServiceHandler) PollService(ctx context.Context, v interface{}) (interface{}, error) {
-	authData := ctx.Value(auth.ContextAuthDataKey).(auth.AuthData)
+	session := ctx.Value(auth.Session{}).(string)
 	req := v.(*PollServiceRequest)
 	if req.Count == 0 {
 		req.Count = 10
@@ -193,7 +197,7 @@ func (h ServiceHandler) PollService(ctx context.Context, v interface{}) (interfa
 		Offset:          req.Offset,
 		Count:           req.Count,
 		DiscardPrevious: req.DiscardPrevious,
-		SessionKey:      authData.SessionKey,
+		SessionKey:      session,
 	})
 	if err != nil {
 		return nil, err
