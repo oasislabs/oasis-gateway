@@ -90,6 +90,10 @@ func (g GoogleOauth) Authenticate(req *http.Request) (*http.Request, error) {
 //   - cipher length and aad length are uint64 encoded in big endian
 //   - nonce is expected to be 5 bytes
 func (GoogleOauth) Verify(ctx context.Context, data auth.AuthRequest) error {
+	if data.API == "Deploy" {
+		return errors.New("GoogleOauth cannot authorize a user to deploy a service")
+	}
+
 	expectedAAD := core.MustGetAAD(ctx)
 	if string(data.AAD) != expectedAAD {
 		return errors.New("AAD does not match")

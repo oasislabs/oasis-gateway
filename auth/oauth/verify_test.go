@@ -78,3 +78,18 @@ func TestVerifyMismatchedAAD(t *testing.T) {
 	assert.Error(t, err)
 	assert.Equal(t, "AAD does not match", err.Error())
 }
+
+func TestVerifyErrDeployNotAuthorized(t *testing.T) {
+	data, err := generateData(pk, cipertext, expectedAAD, nonce)
+	assert.Nil(t, err)
+	ctx := context.WithValue(context.Background(), core.AAD{}, "wrongAAD")
+
+	err = GoogleOauth{}.Verify(ctx, auth.AuthRequest{
+		API:  "Deploy",
+		Data: data,
+		PK:   []byte(pk),
+		AAD:  []byte(expectedAAD),
+	})
+	assert.Error(t, err)
+	assert.Equal(t, "GoogleOauth cannot authorize a user to deploy a service", err.Error())
+}
