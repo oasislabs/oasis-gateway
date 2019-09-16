@@ -40,7 +40,7 @@ func (m *MultiAuth) Authenticate(req *http.Request) (*http.Request, error) {
 			continue
 		}
 
-		ctx := context.WithValue(req.Context(), MultiAuth{}, auth)
+		ctx := context.WithValue(req.Context(), m, auth)
 		req = req.WithContext(ctx)
 		return req, nil
 	}
@@ -49,7 +49,7 @@ func (m *MultiAuth) Authenticate(req *http.Request) (*http.Request, error) {
 }
 
 func (m *MultiAuth) Verify(ctx context.Context, data AuthRequest) error {
-	auth := ctx.Value(MultiAuth{})
+	auth := ctx.Value(m)
 	if auth == nil {
 		return stderr.New("request without auth cannot be verified")
 	}
