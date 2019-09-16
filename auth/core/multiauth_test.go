@@ -8,7 +8,7 @@ import (
 )
 
 func TestAuthenticateOK(t *testing.T) {
-	auth := NilAuth{}
+	auth := &NilAuth{}
 	multi := &MultiAuth{}
 	multi.Add(auth)
 

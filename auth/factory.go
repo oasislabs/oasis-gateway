@@ -18,7 +18,7 @@ func (f FactoryFunc) New(config *Config) (core.Auth, error) {
 
 var NewAuth = FactoryFunc(func(config *Config) (core.Auth, error) {
 	if len(config.Providers) == 0 {
-		return core.NilAuth{}, nil
+		return &core.NilAuth{}, nil
 	} else if len(config.Providers) == 1 {
 		return config.Providers[0], nil
 	}

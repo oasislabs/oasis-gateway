@@ -37,6 +37,13 @@ type HttpMiddleware interface {
 	ServeHTTP(req *http.Request) (interface{}, error)
 }
 
+// HttpMiddlewareFunc allows functions to implement the HttpMiddleware interface
+type HttpMiddlewareFunc func(req *http.Request) (interface{}, error)
+
+func (f HttpMiddlewareFunc) ServeHTTP(req *http.Request) (interface{}, error) {
+	return f(req)
+}
+
 // HttpError holds the necessary information to return an error when
 // using the http protocol
 type HttpError struct {

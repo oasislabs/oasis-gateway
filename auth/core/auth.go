@@ -2,6 +2,7 @@ package core
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 
 	"github.com/oasislabs/developer-gateway/log"
@@ -35,18 +36,24 @@ type Auth interface {
 
 type NilAuth struct{}
 
-func (NilAuth) Name() string {
+func (a *NilAuth) Name() string {
 	return "auth.nil"
 }
-func (NilAuth) Stats() stats.Metrics {
+func (a *NilAuth) Stats() stats.Metrics {
 	return nil
 }
-func (NilAuth) Authenticate(req *http.Request) (*http.Request, error) {
-	return req, nil
+func (a *NilAuth) Authenticate(req *http.Request) (*http.Request, error) {
+	ctx := context.WithValue(req.Context(), AAD{}, "nil")
+	return req.WithContext(ctx), nil
 }
-func (NilAuth) Verify(ctx context.Context, req AuthRequest) error {
-	return nil
+func (a *NilAuth) Verify(ctx context.Context, req AuthRequest) error {
+	fmt.Println(ctx, ctx.Value(AAD{}))
+	if "nil" == ctx.Value(AAD{}).(string) {
+		return nil
+	}
+
+	panic("request authenticated by NilAuth does not have nil as AAD")
 }
 
-func (NilAuth) SetLogger(log.Logger) {
+func (a *NilAuth) SetLogger(log.Logger) {
 }
