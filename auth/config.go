@@ -2,6 +2,7 @@ package auth
 
 import (
 	"plugin"
+	"strings"
 
 	"github.com/oasislabs/developer-gateway/auth/core"
 	"github.com/oasislabs/developer-gateway/config"
@@ -24,7 +25,13 @@ type Config struct {
 }
 
 func (c *Config) Log(fields log.Fields) {
-	fields.Add("auth.provider", c.Providers)
+	var names []string
+
+	for _, provider := range c.Providers {
+		names = append(names, provider.Name())
+	}
+
+	fields.Add("auth.provider", strings.Join(names, ", "))
 }
 
 func (c *Config) Configure(v *viper.Viper) error {

@@ -34,7 +34,7 @@ func TestAuthenticateSuccess(t *testing.T) {
 
 	req, err := http.NewRequest("POST", "gateway.oasiscloud.io", nil)
 	assert.Nil(t, err)
-	req.Header.Add(ID_TOKEN_KEY, string(jsonStr))
+	req.Header.Add(GOOGLE_ID_TOKEN_KEY, string(jsonStr))
 
 	auth := NewGoogleOauth(&MockIDTokenVerifier{})
 	req, err = auth.Authenticate(req)
@@ -52,7 +52,7 @@ func TestAuthenticateUnverified(t *testing.T) {
 
 	req, err := http.NewRequest("POST", "gateway.oasiscloud.io", nil)
 	assert.Nil(t, err)
-	req.Header.Add(ID_TOKEN_KEY, string(jsonStr))
+	req.Header.Add(GOOGLE_ID_TOKEN_KEY, string(jsonStr))
 
 	auth := NewGoogleOauth(&MockIDTokenVerifier{})
 	req, err = auth.Authenticate(req)
