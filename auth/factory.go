@@ -32,7 +32,7 @@ var NewAuth = FactoryFunc(func(config *Config) (core.Auth, error) {
 func newAuthSingle(provider AuthProvider) core.Auth {
 	switch provider {
 	case AuthOauth:
-		return oauth.GoogleOauth{}
+		return oauth.NewGoogleOauth(oauth.NewGoogleIDTokenVerifier())
 	case AuthInsecure:
 		return insecure.InsecureAuth{}
 	default:

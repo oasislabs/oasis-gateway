@@ -3,6 +3,7 @@ package oauth
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 
 	oidc "github.com/coreos/go-oidc"
@@ -13,9 +14,9 @@ import (
 )
 
 const (
-	ID_TOKEN_KEY      string = "X-ID-TOKEN"
-	googleTokenIssuer string = "https://accounts.google.com"
-	googleKeySet      string = "https://www.googleapis.com/oauth2/v3/certs"
+	GOOGLE_ID_TOKEN_KEY string = "X-GOOGLE-ID-TOKEN"
+	googleTokenIssuer   string = "https://accounts.google.com"
+	googleKeySet        string = "https://www.googleapis.com/oauth2/v3/certs"
 )
 
 type IDToken interface {
@@ -28,6 +29,13 @@ type IDTokenVerifier interface {
 
 type GoogleIDTokenVerifier struct {
 	verifier *oidc.IDTokenVerifier
+}
+
+func NewGoogleIDTokenVerifier() *GoogleIDTokenVerifier {
+	keySet := oidc.NewRemoteKeySet(context.Background(), googleKeySet)
+	return &GoogleIDTokenVerifier{
+		verifier: oidc.NewVerifier(googleTokenIssuer, keySet, &oidc.Config{SkipClientIDCheck: true}),
+	}
 }
 
 func (g *GoogleIDTokenVerifier) Verify(ctx context.Context, rawIDToken string) (IDToken, error) {
@@ -58,19 +66,16 @@ func (g GoogleOauth) Stats() stats.Metrics {
 
 // Authenticates the user using the ID Token receieved from Google.
 func (g GoogleOauth) Authenticate(req *http.Request) (*http.Request, error) {
-	rawIDToken := req.Header.Get(ID_TOKEN_KEY)
-	verifier := g.verifier
-	if verifier == nil {
-		keySet := oidc.NewRemoteKeySet(req.Context(), googleKeySet)
-		verifier = &GoogleIDTokenVerifier{
-			verifier: oidc.NewVerifier(googleTokenIssuer, keySet, &oidc.Config{SkipClientIDCheck: true}),
-		}
+	rawIDToken := req.Header.Get(GOOGLE_ID_TOKEN_KEY)
+	if len(rawIDToken) == 0 {
+		return req, fmt.Errorf("%s header not set", GOOGLE_ID_TOKEN_KEY)
 	}
 
-	idToken, err := verifier.Verify(req.Context(), rawIDToken)
+	idToken, err := g.verifier.Verify(req.Context(), rawIDToken)
 	if err != nil {
 		return req, err
 	}
+
 	var claims OpenIDClaims
 	if err = idToken.Claims(&claims); err != nil {
 		return req, err
