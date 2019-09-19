@@ -33,6 +33,7 @@ const (
 const StatusOK = 1
 
 type executeTransactionRequest struct {
+	AAD     string
 	ID      uint64
 	Address string
 	Data    []byte
@@ -209,6 +210,7 @@ func (c *Client) deployService(
 	}
 
 	res, err := c.executeTransaction(ctx, executeTransactionRequest{
+		AAD:     req.AAD,
 		ID:      id,
 		Address: "",
 		Data:    data,
@@ -253,6 +255,7 @@ func (c *Client) executeService(
 	}
 
 	res, err := c.executeTransaction(ctx, executeTransactionRequest{
+		AAD:     req.AAD,
 		ID:      id,
 		Address: req.Address,
 		Data:    data,
@@ -359,6 +362,7 @@ func (c *Client) executeTransaction(
 	})
 
 	res, err := c.executor.Execute(ctx, tx.ExecuteRequest{
+		AAD:     req.AAD,
 		ID:      req.ID,
 		Address: req.Address,
 		Data:    req.Data,

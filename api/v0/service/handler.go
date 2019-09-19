@@ -52,6 +52,7 @@ type ServiceHandler struct {
 
 // DeployService handles the deployment of new services
 func (h ServiceHandler) DeployService(ctx context.Context, v interface{}) (interface{}, error) {
+	aad := ctx.Value(auth.AAD{}).(string)
 	session := ctx.Value(auth.Session{}).(string)
 	req := v.(*DeployServiceRequest)
 
@@ -73,6 +74,7 @@ func (h ServiceHandler) DeployService(ctx context.Context, v interface{}) (inter
 	// a context from an http request is cancelled after the response to the request is returned,
 	// so a new context is needed to handle the asynchronous request
 	id, err := h.client.DeployServiceAsync(context.Background(), backend.DeployServiceRequest{
+		AAD:        aad,
 		Data:       req.Data,
 		SessionKey: session,
 	})
@@ -119,6 +121,7 @@ func (h ServiceHandler) parseExecuteMessage(v *ExecuteServiceRequest) (authReq a
 
 // ExecuteService handle the execution of deployed services
 func (h ServiceHandler) ExecuteService(ctx context.Context, v interface{}) (interface{}, error) {
+	aad := ctx.Value(auth.AAD{}).(string)
 	session := ctx.Value(auth.Session{}).(string)
 
 	req := v.(*ExecuteServiceRequest)
@@ -146,6 +149,7 @@ func (h ServiceHandler) ExecuteService(ctx context.Context, v interface{}) (inte
 	// a context from an http request is cancelled after the response to the request is returned,
 	// so a new context is needed to handle the asynchronous request
 	id, err := h.client.ExecuteServiceAsync(context.Background(), backend.ExecuteServiceRequest{
+		AAD:        aad,
 		Address:    req.Address,
 		Data:       req.Data,
 		SessionKey: session,

@@ -23,6 +23,10 @@ import (
 
 // Callbacks implemented by the WalletOwner
 type Callbacks interface {
+	// TransactionCommitted is called when the owner has successfully committed a
+	// transaction
+	TransactionCommitted(ctx context.Context, body callback.TransactionCommittedBody)
+
 	// WalletOutOfFunds is called when the wallet owned by the
 	// WalletOwner does not have enough funds for a transaction
 	WalletOutOfFunds(ctx context.Context, body callback.WalletOutOfFundsBody)
@@ -296,6 +300,7 @@ func (e *WalletOwner) generateAndSignTransaction(ctx context.Context, req sendTr
 }
 
 type sendTransactionRequest struct {
+	AAD     string
 	ID      uint64
 	Address string
 	Gas     uint64
@@ -353,7 +358,14 @@ func (e *WalletOwner) sendTransaction(
 		return eth.SendTransactionResponse{}, errors.New(errors.ErrSendTransaction, err)
 	}
 
-	return v.(eth.SendTransactionResponse), nil
+	res := v.(eth.SendTransactionResponse)
+	e.callbacks.TransactionCommitted(ctx, callback.TransactionCommittedBody{
+		AAD:     req.AAD,
+		Address: e.wallet.Address().Hex(),
+		Hash:    res.Hash,
+	})
+
+	return res, nil
 }
 
 func (e *WalletOwner) executeTransaction(ctx context.Context, req ExecuteRequest) (ExecuteResponse, errors.Err) {
@@ -370,6 +382,7 @@ func (e *WalletOwner) executeTransaction(ctx context.Context, req ExecuteRequest
 	}
 
 	res, err := e.sendTransaction(ctx, sendTransactionRequest{
+		AAD:     req.AAD,
 		ID:      req.ID,
 		Address: req.Address,
 		Data:    req.Data,

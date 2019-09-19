@@ -48,7 +48,7 @@ type Callback struct {
 }
 
 // WalletOutOfFundsBody is the body sent on a WalletOutOfFunds
-// to the required endpoint
+// callback to the required endpoint
 type WalletOutOfFundsBody struct {
 	// Address is the address of the wallet that is out of funds
 	Address string
@@ -74,4 +74,18 @@ type WalletReachedFundsThresholdRequest struct {
 	Before    string
 	After     string
 	Threshold string
+}
+
+// TransactionCommittedBody is the body sent on a TransactionCommitted
+// callback to the required endpoint
+type TransactionCommittedBody struct {
+	// AAD is the unique identifier of the issuer of the data for the
+	// transaction
+	AAD string
+
+	// Address is the wallet address that acted as a sender for the transaction
+	Address string
+
+	// Hash is the hash of the transaction that was committed
+	Hash string
 }

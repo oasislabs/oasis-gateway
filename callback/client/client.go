@@ -28,6 +28,7 @@ type CallbackProps struct {
 
 // Calls are all the callbacks that the client implements
 type Calls interface {
+	TransactionCommitted(ctx context.Context, body TransactionCommittedBody)
 	WalletOutOfFunds(ctx context.Context, body WalletOutOfFundsBody)
 	WalletReachedFundsThreshold(ctx context.Context, body WalletReachedFundsThresholdBody)
 }
@@ -47,6 +48,7 @@ type WalletReachedFundsThresholdCallback struct {
 // client supports and the behaviour that the client
 // should have on those callbacks
 type Callbacks struct {
+	TransactionCommitted        Callback
 	WalletOutOfFunds            Callback
 	WalletReachedFundsThreshold WalletReachedFundsThresholdCallback
 }
@@ -286,4 +288,12 @@ func (c *Client) WalletReachedFundsThreshold(ctx context.Context, body WalletRea
 			},
 		})
 	}
+}
+
+// TransactionCommitted sends a callback that is triggered when a
+// transaction has been committed to the blockchain
+func (c *Client) TransactionCommitted(ctx context.Context, body TransactionCommittedBody) {
+	_ = c.Callback(ctx, &c.callbacks.TransactionCommitted, &CallbackProps{
+		Body: body,
+	})
 }

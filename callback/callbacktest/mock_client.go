@@ -11,6 +11,13 @@ type MockClient struct {
 	mock.Mock
 }
 
+func (c *MockClient) TransactionCommitted(
+	ctx context.Context,
+	body callback.TransactionCommittedBody,
+) {
+	_ = c.Called(ctx, body)
+}
+
 func (c *MockClient) WalletOutOfFunds(
 	ctx context.Context,
 	body callback.WalletOutOfFundsBody,
@@ -26,6 +33,7 @@ func (c *MockClient) WalletReachedFundsThreshold(
 }
 
 func ImplementMock(client *MockClient) {
+	client.On("TransactionCommitted", mock.Anything, mock.Anything).Return()
 	client.On("WalletOutOfFunds", mock.Anything, mock.Anything).Return()
 	client.On("WalletReachedFundsThreshold", mock.Anything, mock.Anything).Return()
 }
