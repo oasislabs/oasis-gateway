@@ -131,6 +131,7 @@ func TestDeployServiceErr(t *testing.T) {
 	handler.client.(*MockClient).On("DeployServiceAsync",
 		mock.Anything,
 		backend.DeployServiceRequest{
+			AAD:        "aad",
 			Data:       "0x00",
 			SessionKey: "sessionKey",
 		}).Return(0, errors.New(errors.ErrInternalError, stderr.New("made up error")))
@@ -154,6 +155,7 @@ func TestDeployServiceOK(t *testing.T) {
 	handler.client.(*MockClient).On("DeployServiceAsync",
 		mock.Anything,
 		backend.DeployServiceRequest{
+			AAD:        "aad",
 			Data:       "0x00",
 			SessionKey: "sessionKey",
 		}).Return(0, nil)
@@ -215,6 +217,7 @@ func TestExecuteServiceErr(t *testing.T) {
 	handler.client.(*MockClient).On("ExecuteServiceAsync",
 		mock.Anything,
 		backend.ExecuteServiceRequest{
+			AAD:        "aad",
 			Data:       "0x00",
 			Address:    "0x00",
 			SessionKey: "sessionKey",
@@ -240,6 +243,7 @@ func TestExecuteServiceOK(t *testing.T) {
 	handler.client.(*MockClient).On("ExecuteServiceAsync",
 		mock.Anything,
 		backend.ExecuteServiceRequest{
+			AAD:        "aad",
 			Data:       "0x00",
 			Address:    "0x00",
 			SessionKey: "sessionKey",

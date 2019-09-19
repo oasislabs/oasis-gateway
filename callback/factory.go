@@ -87,6 +87,11 @@ func parseWalletReachedFundsThresholdCallback(config WalletReachedFundsThreshold
 }
 
 func NewClientWithDeps(ctx context.Context, deps *client.Deps, config *Config) (*client.Client, error) {
+	transactionCommitted, err := parseCallback("TransactionCommitted", config.TransactionCommitted.Callback)
+	if err != nil {
+		return nil, err
+	}
+
 	walletOutOfFunds, err := parseCallback("WalletOutOfFundsBody", config.WalletOutOfFunds.Callback)
 	if err != nil {
 		return nil, err
@@ -99,6 +104,7 @@ func NewClientWithDeps(ctx context.Context, deps *client.Deps, config *Config) (
 
 	return client.NewClientWithDeps(deps, &client.Props{
 		Callbacks: client.Callbacks{
+			TransactionCommitted:        transactionCommitted,
 			WalletOutOfFunds:            walletOutOfFunds,
 			WalletReachedFundsThreshold: walletReachedFundsThreshold,
 		},

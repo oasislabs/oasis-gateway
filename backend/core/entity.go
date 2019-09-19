@@ -97,6 +97,9 @@ func SubinfoID(key string) string {
 // topic "service" from which the client can retrieve the asynchronous
 // results to this request
 type ExecuteServiceRequest struct {
+	// AAD is the identifier of the issuer of the transaction data
+	AAD string
+
 	// Data is a blob of data that the user wants to pass to the service
 	// as argument
 	Data string
@@ -113,6 +116,9 @@ type ExecuteServiceRequest struct {
 // topic "service" from which the client can retrieve the asynchronous
 // results to this request
 type DeployServiceRequest struct {
+	// AAD is the identifier of the issuer of the transaction data
+	AAD string
+
 	// Data is a blob of data that the user wants to pass as argument for
 	// the deployment of a service
 	Data string

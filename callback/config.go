@@ -67,6 +67,63 @@ func (c *WalletOutOfFunds) Log(fields log.Fields) {
 	fields.Add("callback.wallet_out_of_funds.sync", c.Sync)
 }
 
+type TransactionCommitted struct {
+	Callback
+}
+
+func (c *TransactionCommitted) Configure(v *viper.Viper) error {
+	c.Enabled = v.GetBool("callback.transaction_committed.enabled")
+	if !c.Enabled {
+		return nil
+	}
+
+	c.Method = v.GetString("callback.transaction_committed.method")
+	if len(c.Method) == 0 {
+		return config.ErrKeyNotSet{Key: "callback.transaction_committed.method"}
+	}
+
+	c.URL = v.GetString("callback.transaction_committed.url")
+	if len(c.URL) == 0 {
+		return config.ErrKeyNotSet{Key: "callback.transaction_committed.url"}
+	}
+
+	c.Body = v.GetString("callback.transaction_committed.body")
+	c.QueryURL = v.GetString("callback.transaction_committed.queryurl")
+	c.Headers = v.GetStringSlice("callback.transaction_committed.headers")
+	c.Sync = v.GetBool("callback.transaction_committed.sync")
+	return nil
+}
+
+func (c *TransactionCommitted) Bind(v *viper.Viper, cmd *cobra.Command) error {
+	cmd.PersistentFlags().Bool("callback.transaction_committed.enabled", false,
+		"enables the transaction_committed callback. This callback will be sent by the"+
+			"gateway when the provided wallet has run out of funds to execute a transaction.")
+	cmd.PersistentFlags().String("callback.transaction_committed.method", "",
+		"http method on the request for the callback.")
+	cmd.PersistentFlags().String("callback.transaction_committed.url", "",
+		"http url for the callback.")
+	cmd.PersistentFlags().String("callback.transaction_committed.body", "",
+		"http body for the callback.")
+	cmd.PersistentFlags().String("callback.transaction_committed.queryurl", "",
+		"http query url for the callback.")
+	cmd.PersistentFlags().StringSlice("callback.transaction_committed.headers", nil,
+		"http headers for the callback.")
+	cmd.PersistentFlags().Bool("callback.transaction_committed.sync", false,
+		"whether to send the callback synchronously.")
+
+	return nil
+}
+
+func (c *TransactionCommitted) Log(fields log.Fields) {
+	fields.Add("callback.transaction_committed.enabled", c.Enabled)
+	fields.Add("callback.transaction_committed.method", c.Method)
+	fields.Add("callback.transaction_committed.url", c.URL)
+	fields.Add("callback.transaction_committed.body", c.Body)
+	fields.Add("callback.transaction_committed.queryurl", c.QueryURL)
+	fields.Add("callback.transaction_committed.headers", strings.Join(c.Headers, ","))
+	fields.Add("callback.transaction_committed.sync", c.Sync)
+}
+
 type WalletReachedFundsThreshold struct {
 	Enabled   bool
 	Sync      bool
@@ -155,11 +212,15 @@ type Callback struct {
 }
 
 type Config struct {
+	TransactionCommitted        TransactionCommitted
 	WalletOutOfFunds            WalletOutOfFunds
 	WalletReachedFundsThreshold WalletReachedFundsThreshold
 }
 
 func (c *Config) Configure(v *viper.Viper) error {
+	if err := c.TransactionCommitted.Configure(v); err != nil {
+		return err
+	}
 	if err := c.WalletOutOfFunds.Configure(v); err != nil {
 		return err
 	}
@@ -170,6 +231,9 @@ func (c *Config) Configure(v *viper.Viper) error {
 }
 
 func (c *Config) Bind(v *viper.Viper, cmd *cobra.Command) error {
+	if err := c.TransactionCommitted.Bind(v, cmd); err != nil {
+		return err
+	}
 	if err := c.WalletOutOfFunds.Bind(v, cmd); err != nil {
 		return err
 	}
@@ -180,6 +244,7 @@ func (c *Config) Bind(v *viper.Viper, cmd *cobra.Command) error {
 }
 
 func (c *Config) Log(fields log.Fields) {
+	c.TransactionCommitted.Log(fields)
 	c.WalletOutOfFunds.Log(fields)
 	c.WalletReachedFundsThreshold.Log(fields)
 }
