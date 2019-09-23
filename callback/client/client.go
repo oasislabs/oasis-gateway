@@ -161,6 +161,9 @@ func (c *Client) createRequest(
 			return nil, err
 		}
 
+		s := strings.Replace(buffer.String(), "'", "\"", -1)
+		buffer.Reset()
+		buffer.WriteString(s)
 		return http.NewRequest(callback.Method, url, buffer)
 	}
 
