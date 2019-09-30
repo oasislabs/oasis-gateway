@@ -114,6 +114,11 @@ func (c *Client) instrumentedRequest(ctx context.Context, method string, req *ht
 	code, err := c.tracker.Instrument(method, func() (interface{}, error) {
 		return c.request(ctx, req)
 	})
+
+	if err != nil {
+		return 0, err
+	}
+
 	return code.(int), err
 }
 
@@ -131,6 +136,10 @@ func (c *Client) request(ctx context.Context, req *http.Request) (int, error) {
 
 		return res.StatusCode, nil
 	}), c.retryConfig)
+
+	if err != nil {
+		return 0, err
+	}
 
 	return code.(int), err
 }
@@ -213,18 +222,17 @@ func (c *Client) Callback(
 	})
 
 	if callback.Sync {
-		c.deliver(ctx, callback, req)
-
-	} else {
-		go func() {
-			c.deliver(ctx, callback, req)
-		}()
+		return c.deliver(ctx, callback, req)
 	}
+
+	go func() {
+		_ = c.deliver(ctx, callback, req)
+	}()
 
 	return nil
 }
 
-func (c *Client) deliver(ctx context.Context, callback *Callback, req *http.Request) {
+func (c *Client) deliver(ctx context.Context, callback *Callback, req *http.Request) error {
 	code, err := c.instrumentedRequest(ctx, callback.Method, req)
 	if err != nil {
 		c.logger.Warn(ctx, "failed to deliver http callback", log.MapFields{
@@ -236,7 +244,6 @@ func (c *Client) deliver(ctx context.Context, callback *Callback, req *http.Requ
 			"statusCode": code,
 			"err":        err.Error(),
 		})
-		return
 	}
 
 	c.logger.Debug(ctx, "http callback delivered", log.MapFields{
@@ -247,6 +254,8 @@ func (c *Client) deliver(ctx context.Context, callback *Callback, req *http.Requ
 		"statusCode": code,
 		"sync":       callback.Sync,
 	})
+
+	return err
 }
 
 // WalletOutOfFunds sends a callback that is triggered when a wallet
