@@ -380,7 +380,7 @@ func (h *HttpRouter) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 			// the `err` generated above is an internal error that should not
 			// be exposed to the client. Instead, this we just return a generic
 			// error
-			h.reportAnyError(res, req, stderr.New("unexpected error occurred"))
+			h.reportAnyError(res, req, stderr.New("Unexpected error occurred."))
 		}
 	}()
 
