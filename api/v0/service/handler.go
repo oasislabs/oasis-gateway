@@ -105,8 +105,8 @@ func (h ServiceHandler) parseExecuteMessage(v *ExecuteServiceRequest) (authReq a
 	// PK is 1st 16 bytes.
 	authReq.PK = dst[0:16]
 	// extract msg and aad length after PK
-	cipherLength := binary.BigEndian.Uint64(dst[16:24])
-	aadLength := binary.BigEndian.Uint64(dst[24:32])
+	cipherLength := binary.BigEndian.Uint64([]byte(dst[16:24]))
+	aadLength := binary.BigEndian.Uint64([]byte(dst[24:32]))
 
 	if len(dst) < int(cipherLength+aadLength+32) {
 		return
