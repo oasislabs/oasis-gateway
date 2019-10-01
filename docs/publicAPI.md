@@ -6,7 +6,7 @@ PolicyAPI.md).
 One particularity about the public API is the managemnet of sessions. The
 developer-gateway currently exposes an HTTP endpoint for the public API.
 However, the nature of some of the exposed APIs is asynchronous, that is, it's
-unclear when a response will be ready. So, we chose an asynchronous model for
+unclear when a response will be ready. We chose an asynchronous model for
 the asynchronous APIs (Service Execute, Service Deploy). In this model, a
 mailbox of messages is allocated per session and the client can poll that
 mailbox to receive new notifications on the successes and failures of the
@@ -22,8 +22,8 @@ secure service function, with the user provided arguments. A request to execute
 a service is implemented as
 
 ```go
-// ExecuteServiceRequest is is used by the user to trigger a service
-// execution. A client is always subscribed to a subcription with
+// ExecuteServiceRequest is used by the user to trigger a service
+// execution. A client is always subscribed to a subscription with
 // topic "service" from which the client can retrieve the asynchronous
 // results to this request
 type ExecuteServiceRequest struct {
@@ -87,28 +87,28 @@ curl -X POST https://developer-gateway/v0/api/service/execute \
 ```
 
 ## Service Poll
-Service polling allows clients to poll for events triggered by the submission to
-requests. The requests that are asynchronous, Service Execute and Service
-Deploy, return an ID that can later be polled with the Service Poll API. `For
-example, an `ExecuteServiceRequest` triggers a `ExecuteServiceEvent` on
+Service polling allows clients to poll for events triggered by submission of
+requests. The requests that are asynchronous, namely, Service Execute and Service
+Deploy, return an ID that can later be polled with the Service Poll API. For
+example, an `ExecuteServiceRequest` triggers an `ExecuteServiceEvent` on
 successful execution of the request. This event is stored in a session mailbox
-that the client polls with a request
+that the client polls with a request.
 
 ```go
 // PollServiceRequest is a request that allows the user to
-// poll for events either from asynchronous responses
+// poll for asynchronous responses
 type PollServiceRequest struct {
 	// Offset at which events need to be provided. Events are all ordered
 	// with sequence numbers and it is up to the client to specify which
 	// events it wants to receive from an offset in the sequence
 	Offset uint64 `json:"offset"`
 
-	// Count for the number of items the client would prefer to receive
-	// at most from a single response
+	// The maximum number of items the client would prefer to receive
+	// from a single response
 	Count uint `json:"count"`
 
 	// DiscardPrevious allows the client to define whether the server should
-	// discard all the events that have a sequence number lower than the offer
+	// discard all the events that have a sequence number lower than the Offset
 	DiscardPrevious bool `json:"discardPrevious"`
 }
 ```
@@ -122,7 +122,7 @@ request, the client would receive an error event with the ID of the `AsyncRespon
 // ErrorEvent is the event that can be polled by the user
 // as a result to a request that failed
 type ErrorEvent struct {
-	// ID to identifiy an asynchronous response. It uniquely identifies the
+	// ID to identify an asynchronous response. It uniquely identifies the
 	// event and orders it in the sequence of events expected by the user
 	ID uint64 `json:"id"`
 
@@ -150,7 +150,7 @@ event generated to the request.
 
 ```go
 // DeployServiceRequest is issued by the user to trigger a service
-// execution. A client is always subscribed to a subcription with
+// execution. A client is always subscribed to a subscription with
 // topic "service" from which the client can retrieve the asynchronous
 // results to this request
 type DeployServiceRequest struct {
@@ -178,7 +178,7 @@ The triggered event as a success response to the request is
 // DeployServiceEvent is the event that can be polled by the user
 // as a result to a ServiceExecutionRequest
 type DeployServiceEvent struct {
-	// ID to identifiy an asynchronous response. It uniquely identifies the
+	// ID to identify an asynchronous response. It uniquely identifies the
 	// event and orders it in the sequence of events expected by the user
 	ID uint64 `json:"id"`
 
@@ -311,7 +311,7 @@ type PollEventRequest struct {
 	ID uint64 `json:"id"`
 
 	// Offset at which events need to be provided. Events are all ordered
-	// with sequence numbers and it is up to the client to specifiy which
+	// with sequence numbers and it is up to the client to specify which
 	// events it wants to receive from an offset in the sequence
 	Offset uint64 `json:"offset"`
 

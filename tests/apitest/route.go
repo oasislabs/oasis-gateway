@@ -1,7 +1,7 @@
 package apitest
 
 // Route defines how a request will be multiplexed. A request
-// endpoint should be uniquely idenfied by a route
+// endpoint should be uniquely identified by a route
 type Route struct {
 	// Method that will be executed on the resource
 	Method string

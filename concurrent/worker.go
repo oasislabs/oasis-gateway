@@ -62,7 +62,7 @@ type ErrorWorkerEvent struct {
 	Error  error
 }
 
-// GetWorker implementation of WorkerEvent for ErrorWorkervent
+// GetWorker implementation of WorkerEvent for ErrorWorkerEvent
 func (e ErrorWorkerEvent) GetWorker() *Worker {
 	return e.Worker
 }
@@ -182,7 +182,7 @@ type workerDestroyed struct {
 	// Key uniquely identifies a worker
 	Key string
 
-	// Cause may be set by the worker if the condititions in
+	// Cause may be set by the worker if the conditions in
 	// which it terminated were abnormal
 	Cause error
 }

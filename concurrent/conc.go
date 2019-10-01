@@ -28,7 +28,7 @@ func (e ErrCannotRecover) Error() string {
 	return e.Cause.Error()
 }
 
-// ErrMaxAttemptsReached is an error that is returned after attemping
+// ErrMaxAttemptsReached is an error that is returned after attempting
 // an action multiple times with failures
 type ErrMaxAttemptsReached struct {
 	Causes []error

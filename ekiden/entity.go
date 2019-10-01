@@ -14,7 +14,7 @@ type SubmitRequest struct {
 	Data []byte
 }
 
-// SubmitResponse is the runtime's response to a successully
+// SubmitResponse is the runtime's response to a successfully
 // processed request
 type SubmitResponse struct {
 	// Result contains the resulting value of a successful response
@@ -32,7 +32,7 @@ type EthereumTransactionRequest struct {
 	Data []byte
 }
 
-// EthereumTransactionResponse is the runtime's response to a successully
+// EthereumTransactionResponse is the runtime's response to a successfully
 // processed request
 type EthereumTransactionResponse struct {
 	// Result contains the resulting value of a successful response

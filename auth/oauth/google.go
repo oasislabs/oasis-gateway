@@ -64,7 +64,7 @@ func (g GoogleOauth) Stats() stats.Metrics {
 	return nil
 }
 
-// Authenticates the user using the ID Token receieved from Google.
+// Authenticates the user using the ID Token received from Google.
 func (g GoogleOauth) Authenticate(req *http.Request) (*http.Request, error) {
 	rawIDToken := req.Header.Get(GOOGLE_ID_TOKEN_KEY)
 	if len(rawIDToken) == 0 {
