@@ -68,7 +68,6 @@ steps:
       GOPROXY: https://proxy.golang.org/
     command: >
       .buildkite/common/pipelines/generic_docker_build_publish_and_deploy.sh
-      --docker-build-arg BUILDKITE_ACCESS_TOKEN=$BUILDKITE_ACCESS_TOKEN
       --docker-build-arg GOPROXY=$$GOPROXY
       oasislabs/developer-gateway
       developer-gateway
