@@ -19,7 +19,7 @@ steps:
       - .buildkite/scripts/docker_build.sh
       - buildkite-agent artifact upload developer-gateway
     env:
-      GOPROXY: https://athens.ops.oasiscloud.io/
+      GOPROXY: https://proxy.golang.org/
     timeout_in_minutes: 20
     retry:
       automatic:
@@ -35,7 +35,7 @@ steps:
     command:
       - .buildkite/scripts/docker_run_component_tests.sh
     env:
-      GOPROXY: https://athens.ops.oasiscloud.io/
+      GOPROXY: https://proxy.golang.org/
     timeout_in_minutes: 20
     retry:
       automatic:
@@ -51,7 +51,7 @@ steps:
     command:
       - .buildkite/scripts/docker_update_build_image.sh
     env:
-      GOPROXY: https://athens.ops.oasiscloud.io/
+      GOPROXY: https://proxy.golang.org/
     timeout_in_minutes: 20
     retry:
       automatic:
@@ -65,10 +65,9 @@ steps:
   - label: Generate steps for generic docker pipeline
     branches: master
     env:
-      GOPROXY: https://athens.ops.oasiscloud.io/
+      GOPROXY: https://proxy.golang.org/
     command: >
       .buildkite/common/pipelines/generic_docker_build_publish_and_deploy.sh
-      --docker-build-arg BUILDKITE_ACCESS_TOKEN=$BUILDKITE_ACCESS_TOKEN
       --docker-build-arg GOPROXY=$$GOPROXY
       oasislabs/developer-gateway
       developer-gateway
