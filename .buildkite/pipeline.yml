@@ -17,7 +17,7 @@ steps:
     branches: "*"
     command:
       - .buildkite/scripts/docker_build.sh
-      - buildkite-agent artifact upload developer-gateway
+      - buildkite-agent artifact upload oasis-gateway
     env:
       GOPROXY: https://proxy.golang.org/
     timeout_in_minutes: 20
@@ -46,10 +46,12 @@ steps:
         - exit_status: 255
           limit: 3
 
-  - label: Update build container
+  - label: Build context
     branches: master
     command:
-      - .buildkite/scripts/docker_update_build_image.sh
+      - .buildkite/scripts/build_context.sh
+    artifact_paths:
+      - /tmp/context.tar.gz
     env:
       GOPROXY: https://proxy.golang.org/
     timeout_in_minutes: 20
@@ -62,15 +64,15 @@ steps:
         - exit_status: 255
           limit: 3
 
-  - label: Generate steps for generic docker pipeline
+  - wait
+
+  - label: ":rocket: Publish docker image"
+    trigger: private-ops-oasis-gateway-publish-image
+    async: true
     branches: master
-    env:
-      GOPROXY: https://proxy.golang.org/
-    command: >
-      .buildkite/common/pipelines/generic_docker_build_publish_and_deploy.sh
-      --docker-build-arg GOPROXY=$$GOPROXY
-      oasislabs/developer-gateway
-      developer-gateway
-      .buildkite/Dockerfile
-    plugins:
-      - *common_tools_plugin
+    build:
+      message: "${BUILDKITE_MESSAGE}"
+      env:
+        OASIS_GATEWAY_JOB_ID: "${BUILDKITE_JOB_ID}"
+        OASIS_GATEWAY_COMMIT: "${BUILDKITE_COMMIT}"
+        OASIS_GATEWAY_BRANCH: "${BUILDKITE_BRANCH}"

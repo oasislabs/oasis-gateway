@@ -7,8 +7,8 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/oasislabs/developer-gateway/auth/core"
-	auth "github.com/oasislabs/developer-gateway/auth/core"
+	"github.com/oasislabs/oasis-gateway/auth/core"
+	auth "github.com/oasislabs/oasis-gateway/auth/core"
 	"github.com/stretchr/testify/assert"
 )
 

@@ -5,7 +5,7 @@ import (
 	"errors"
 	"io"
 
-	"github.com/oasislabs/developer-gateway/rw"
+	"github.com/oasislabs/oasis-gateway/rw"
 	"github.com/ugorji/go/codec"
 )
 

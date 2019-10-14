@@ -3,8 +3,8 @@ package core
 import (
 	"testing"
 
-	mqueue "github.com/oasislabs/developer-gateway/mqueue/core"
-	"github.com/oasislabs/developer-gateway/rpc"
+	mqueue "github.com/oasislabs/oasis-gateway/mqueue/core"
+	"github.com/oasislabs/oasis-gateway/rpc"
 	"github.com/stretchr/testify/assert"
 )
 

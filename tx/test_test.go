@@ -6,7 +6,7 @@ import (
 	"io/ioutil"
 
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/oasislabs/developer-gateway/log"
+	"github.com/oasislabs/oasis-gateway/log"
 	"github.com/sirupsen/logrus"
 )
 

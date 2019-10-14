@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/oasislabs/developer-gateway/auth/core"
+	"github.com/oasislabs/oasis-gateway/auth/core"
 	"github.com/stretchr/testify/assert"
 )
 

@@ -18,6 +18,6 @@
 *.rdb
 
 # Binaries generated
-developer-gateway
+oasis-gateway
 ekiden-client
 eth-client

@@ -3,8 +3,8 @@ package mem
 import (
 	"fmt"
 
-	"github.com/oasislabs/developer-gateway/errors"
-	"github.com/oasislabs/developer-gateway/mqueue/core"
+	"github.com/oasislabs/oasis-gateway/errors"
+	"github.com/oasislabs/oasis-gateway/mqueue/core"
 	stderr "github.com/pkg/errors"
 )
 

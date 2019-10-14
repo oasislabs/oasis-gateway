@@ -3,8 +3,8 @@ package mem
 import (
 	"context"
 
-	"github.com/oasislabs/developer-gateway/concurrent"
-	"github.com/oasislabs/developer-gateway/mqueue/core"
+	"github.com/oasislabs/oasis-gateway/concurrent"
+	"github.com/oasislabs/oasis-gateway/mqueue/core"
 )
 
 const (

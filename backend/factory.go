@@ -6,11 +6,11 @@ import (
 	"fmt"
 
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/oasislabs/developer-gateway/backend/core"
-	"github.com/oasislabs/developer-gateway/backend/eth"
-	callback "github.com/oasislabs/developer-gateway/callback/client"
-	"github.com/oasislabs/developer-gateway/log"
-	mqueue "github.com/oasislabs/developer-gateway/mqueue/core"
+	"github.com/oasislabs/oasis-gateway/backend/core"
+	"github.com/oasislabs/oasis-gateway/backend/eth"
+	callback "github.com/oasislabs/oasis-gateway/callback/client"
+	"github.com/oasislabs/oasis-gateway/log"
+	mqueue "github.com/oasislabs/oasis-gateway/mqueue/core"
 )
 
 type Deps struct {

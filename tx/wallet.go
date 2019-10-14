@@ -7,7 +7,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 
-	"github.com/oasislabs/developer-gateway/errors"
+	"github.com/oasislabs/oasis-gateway/errors"
 )
 
 // Wallet is an interface for any type that signs transactions

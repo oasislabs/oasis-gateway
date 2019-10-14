@@ -5,11 +5,11 @@ import (
 	stderr "errors"
 	"fmt"
 
-	"github.com/oasislabs/developer-gateway/errors"
-	"github.com/oasislabs/developer-gateway/log"
-	mqueue "github.com/oasislabs/developer-gateway/mqueue/core"
-	"github.com/oasislabs/developer-gateway/rpc"
-	"github.com/oasislabs/developer-gateway/stats"
+	"github.com/oasislabs/oasis-gateway/errors"
+	"github.com/oasislabs/oasis-gateway/log"
+	mqueue "github.com/oasislabs/oasis-gateway/mqueue/core"
+	"github.com/oasislabs/oasis-gateway/rpc"
+	"github.com/oasislabs/oasis-gateway/stats"
 )
 
 // Client is an interface for any type that sends requests and

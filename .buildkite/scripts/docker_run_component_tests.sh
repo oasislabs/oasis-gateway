@@ -10,7 +10,7 @@ function run_dev_tests() {
     docker run \
            --rm \
 	         --volume="$(pwd)":/app \
-	         oasislabs/developer-gateway:build \
+	         oasislabs/oasis-gateway:build \
 	         /bin/sh -c 'cd /app && make test-component-dev' || EXIT_CODE=$? ;
 }
 
@@ -39,7 +39,7 @@ function run_redis_cluster_tests() {
            --net="$NETWORK"\
            --env OASIS_DG_CONFIG_PATH=/app/redis_cluster.toml \
 	         --volume="$(pwd)":/app \
-	         oasislabs/developer-gateway:build \
+	         oasislabs/oasis-gateway:build \
            make test-component || EXIT_CODE=$?;
 
     # stop and remove the redis container
@@ -68,7 +68,7 @@ function run_redis_single_tests() {
            --net="$NETWORK"\
            --env OASIS_DG_CONFIG_PATH=/app/redis_single.toml \
 	         --volume="$(pwd)":/app \
-	         oasislabs/developer-gateway:build \
+	         oasislabs/oasis-gateway:build \
 	         make test-component || EXIT_CODE=$? ;
 
     # stop and remove the redis container
@@ -78,7 +78,7 @@ function run_redis_single_tests() {
 mkdir -p output
 
 # create the network used for the tests
-NETWORK_NAME="developer-gateway-network-$BUILDKITE_PULL_REQUEST"
+NETWORK_NAME="oasis-gateway-network-$BUILDKITE_PULL_REQUEST"
 NETWORK=$(docker network ls 2> /dev/null | (grep "$NETWORK_NAME" || true) | cut -d ' ' -f 1)
 
 if [ ! -z "$NETWORK" ]; then

@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/oasislabs/developer-gateway/stats"
+	"github.com/oasislabs/oasis-gateway/stats"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )

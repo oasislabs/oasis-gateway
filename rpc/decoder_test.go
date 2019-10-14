@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/oasislabs/developer-gateway/rw"
+	"github.com/oasislabs/oasis-gateway/rw"
 	"github.com/stretchr/testify/assert"
 )
 

@@ -1,4 +1,4 @@
-module github.com/oasislabs/developer-gateway
+module github.com/oasislabs/oasis-gateway
 
 go 1.12
 
@@ -13,7 +13,7 @@ require (
 	github.com/flynn/noise v0.0.0-20180327030543-2492fe189ae6
 	github.com/go-redis/redis v6.15.2+incompatible
 	github.com/go-stack/stack v1.8.0 // indirect
-	github.com/golang/protobuf v1.3.1
+	github.com/golang/protobuf v1.3.2
 	github.com/google/uuid v1.1.1
 	github.com/pkg/errors v0.8.1
 	github.com/pquerna/cachecontrol v0.0.0-20180517163645-1555304b9b35 // indirect

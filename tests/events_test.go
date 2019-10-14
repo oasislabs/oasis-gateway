@@ -8,15 +8,15 @@ import (
 	ethereum "github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/oasislabs/developer-gateway/api/v0/event"
-	backend "github.com/oasislabs/developer-gateway/backend/core"
-	"github.com/oasislabs/developer-gateway/concurrent"
-	"github.com/oasislabs/developer-gateway/eth"
-	"github.com/oasislabs/developer-gateway/eth/ethtest"
-	"github.com/oasislabs/developer-gateway/rpc"
-	"github.com/oasislabs/developer-gateway/stats"
-	"github.com/oasislabs/developer-gateway/tests/apitest"
-	"github.com/oasislabs/developer-gateway/tests/gatewaytest"
+	"github.com/oasislabs/oasis-gateway/api/v0/event"
+	backend "github.com/oasislabs/oasis-gateway/backend/core"
+	"github.com/oasislabs/oasis-gateway/concurrent"
+	"github.com/oasislabs/oasis-gateway/eth"
+	"github.com/oasislabs/oasis-gateway/eth/ethtest"
+	"github.com/oasislabs/oasis-gateway/rpc"
+	"github.com/oasislabs/oasis-gateway/stats"
+	"github.com/oasislabs/oasis-gateway/tests/apitest"
+	"github.com/oasislabs/oasis-gateway/tests/gatewaytest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
@@ -90,8 +90,8 @@ func (s *EventsTestSuite) TestSubscribeOK() {
 		mock.Anything, ethereum.FilterQuery{
 			Addresses: []common.Address{common.HexToAddress("address")},
 			Topics: [][]common.Hash{
-				[]common.Hash{common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000000")},
-				[]common.Hash{common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000001")},
+				{common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000000")},
+				{common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000001")},
 			},
 		}, mock.Anything)
 

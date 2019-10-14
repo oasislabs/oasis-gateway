@@ -4,13 +4,13 @@ import (
 	"errors"
 	"math"
 
-	"github.com/oasislabs/developer-gateway/auth"
-	"github.com/oasislabs/developer-gateway/backend"
-	"github.com/oasislabs/developer-gateway/callback"
-	"github.com/oasislabs/developer-gateway/config"
-	"github.com/oasislabs/developer-gateway/log"
-	"github.com/oasislabs/developer-gateway/mqueue"
-	"github.com/oasislabs/developer-gateway/rpc"
+	"github.com/oasislabs/oasis-gateway/auth"
+	"github.com/oasislabs/oasis-gateway/backend"
+	"github.com/oasislabs/oasis-gateway/callback"
+	"github.com/oasislabs/oasis-gateway/config"
+	"github.com/oasislabs/oasis-gateway/log"
+	"github.com/oasislabs/oasis-gateway/mqueue"
+	"github.com/oasislabs/oasis-gateway/rpc"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -27,7 +27,7 @@ type Config struct {
 }
 
 func (c *Config) Use() string {
-	return "developer-gateway"
+	return "oasis-gateway"
 }
 
 func (c *Config) EnvPrefix() string {

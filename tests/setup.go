@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/oasislabs/developer-gateway/config"
-	"github.com/oasislabs/developer-gateway/gateway"
-	"github.com/oasislabs/developer-gateway/log"
+	"github.com/oasislabs/oasis-gateway/config"
+	"github.com/oasislabs/oasis-gateway/gateway"
+	"github.com/oasislabs/oasis-gateway/log"
 )
 
 var Config *gateway.Config

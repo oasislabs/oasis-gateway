@@ -15,7 +15,7 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/rlp"
 	rpc "github.com/ethereum/go-ethereum/rpc"
-	"github.com/oasislabs/developer-gateway/concurrent"
+	"github.com/oasislabs/oasis-gateway/concurrent"
 )
 
 var (

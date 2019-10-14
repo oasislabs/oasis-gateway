@@ -7,7 +7,7 @@ import (
 	ethereum "github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/oasislabs/developer-gateway/eth"
+	"github.com/oasislabs/oasis-gateway/eth"
 	"github.com/stretchr/testify/mock"
 )
 
@@ -20,23 +20,23 @@ type MockMethod struct {
 type MockMethods map[string]MockMethod
 
 var DefaultMockMethods = map[string]MockMethod{
-	"EstimateGas": MockMethod{
+	"EstimateGas": {
 		Arguments: []interface{}{mock.Anything, mock.Anything},
 		Return:    []interface{}{uint64(0), nil},
 	},
-	"NonceAt": MockMethod{
+	"NonceAt": {
 		Arguments: []interface{}{mock.Anything, mock.Anything},
 		Return:    []interface{}{uint64(1), nil},
 	},
-	"GetCode": MockMethod{
+	"GetCode": {
 		Arguments: []interface{}{mock.Anything, mock.Anything},
 		Return:    []interface{}{"0x0000000000000000000000000000000000000000", nil},
 	},
-	"BalanceAt": MockMethod{
+	"BalanceAt": {
 		Arguments: []interface{}{mock.Anything, mock.Anything, mock.Anything},
 		Return:    []interface{}{big.NewInt(1), nil},
 	},
-	"TransactionReceipt": MockMethod{
+	"TransactionReceipt": {
 		Arguments: []interface{}{mock.Anything, mock.Anything},
 		Return: []interface{}{
 			&types.Receipt{
@@ -45,7 +45,7 @@ var DefaultMockMethods = map[string]MockMethod{
 			}, nil,
 		},
 	},
-	"GetPublicKey": MockMethod{
+	"GetPublicKey": {
 		Arguments: []interface{}{mock.Anything, mock.Anything},
 		Return: []interface{}{
 			eth.PublicKey{
@@ -55,7 +55,7 @@ var DefaultMockMethods = map[string]MockMethod{
 			}, nil,
 		},
 	},
-	"SendTransaction": MockMethod{
+	"SendTransaction": {
 		Arguments: []interface{}{mock.Anything, mock.Anything},
 		Return: []interface{}{
 			eth.SendTransactionResponse{
@@ -65,7 +65,7 @@ var DefaultMockMethods = map[string]MockMethod{
 			}, nil,
 		},
 	},
-	"SubscribeFilterLogs": MockMethod{
+	"SubscribeFilterLogs": {
 		Arguments: []interface{}{mock.Anything, mock.Anything, mock.Anything},
 		Return: []interface{}{
 			&MockSubscription{ErrC: make(chan error)}, nil,

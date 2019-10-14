@@ -5,8 +5,8 @@ import (
 	"io/ioutil"
 	"testing"
 
-	"github.com/oasislabs/developer-gateway/log"
-	"github.com/oasislabs/developer-gateway/mqueue/core"
+	"github.com/oasislabs/oasis-gateway/log"
+	"github.com/oasislabs/oasis-gateway/mqueue/core"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 )
@@ -57,7 +57,7 @@ func TestServerRetrieve(t *testing.T) {
 	assert.Equal(t, core.Elements{
 		Offset: offset,
 		Elements: []core.Element{
-			core.Element{
+			{
 				Offset: uint64(0),
 				Value:  "value",
 			},
@@ -90,11 +90,11 @@ func TestServerDiscardKeepPreviousFalse(t *testing.T) {
 	assert.Equal(t, core.Elements{
 		Offset: uint64(1),
 		Elements: []core.Element{
-			core.Element{
+			{
 				Offset: uint64(1),
 				Value:  "value",
 			},
-			core.Element{
+			{
 				Offset: uint64(2),
 				Value:  "value",
 			},
@@ -132,11 +132,11 @@ func TestServerDiscardKeepPreviousTrue(t *testing.T) {
 	assert.Equal(t, core.Elements{
 		Offset: uint64(0),
 		Elements: []core.Element{
-			core.Element{
+			{
 				Offset: uint64(0),
 				Value:  "value",
 			},
-			core.Element{
+			{
 				Offset: uint64(2),
 				Value:  "value",
 			},

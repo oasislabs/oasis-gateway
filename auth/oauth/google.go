@@ -7,10 +7,10 @@ import (
 	"net/http"
 
 	oidc "github.com/coreos/go-oidc"
-	"github.com/oasislabs/developer-gateway/auth/core"
-	auth "github.com/oasislabs/developer-gateway/auth/core"
-	"github.com/oasislabs/developer-gateway/log"
-	"github.com/oasislabs/developer-gateway/stats"
+	"github.com/oasislabs/oasis-gateway/auth/core"
+	auth "github.com/oasislabs/oasis-gateway/auth/core"
+	"github.com/oasislabs/oasis-gateway/log"
+	"github.com/oasislabs/oasis-gateway/stats"
 )
 
 const (

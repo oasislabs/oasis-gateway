@@ -7,8 +7,8 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/oasislabs/developer-gateway/callback/client"
-	"github.com/oasislabs/developer-gateway/log"
+	"github.com/oasislabs/oasis-gateway/callback/client"
+	"github.com/oasislabs/oasis-gateway/log"
 )
 
 type ClientDeps struct {

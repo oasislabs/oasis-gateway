@@ -3,7 +3,7 @@ package callbacktest
 import (
 	"context"
 
-	callback "github.com/oasislabs/developer-gateway/callback/client"
+	callback "github.com/oasislabs/oasis-gateway/callback/client"
 	"github.com/stretchr/testify/mock"
 )
 

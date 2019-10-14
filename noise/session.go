@@ -8,7 +8,7 @@ import (
 	"io"
 
 	"github.com/flynn/noise"
-	"github.com/oasislabs/developer-gateway/rw"
+	"github.com/oasislabs/oasis-gateway/rw"
 )
 
 var (

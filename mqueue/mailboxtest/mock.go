@@ -3,8 +3,8 @@ package mailboxtest
 import (
 	"context"
 
-	"github.com/oasislabs/developer-gateway/mqueue/core"
-	"github.com/oasislabs/developer-gateway/stats"
+	"github.com/oasislabs/oasis-gateway/mqueue/core"
+	"github.com/oasislabs/oasis-gateway/stats"
 	"github.com/stretchr/testify/mock"
 )
 

@@ -3,7 +3,7 @@ package gateway
 import (
 	"runtime"
 
-	"github.com/oasislabs/developer-gateway/stats"
+	"github.com/oasislabs/oasis-gateway/stats"
 )
 
 // RuntimeService is an abstraction of the go runtime

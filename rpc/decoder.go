@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"io"
 
-	"github.com/oasislabs/developer-gateway/rw"
+	"github.com/oasislabs/oasis-gateway/rw"
 )
 
 // SimpleJsonDeserializer deserializes a json payload
