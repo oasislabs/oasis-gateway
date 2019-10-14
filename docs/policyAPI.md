@@ -150,7 +150,7 @@ func (v *JwtVerifier) Stats() stats.Metrics {
 	}
 }
 
-// JwtData represens the relevant authentication data
+// JwtData represents the relevant authentication data
 // from the *http.Request that needs to be verified
 type JwtData struct {
 	// Scope is the scope defined as part of the
@@ -196,7 +196,7 @@ func (v *JwtVerifier) Authenticate(req *http.Request) (string, error) {
 }
 
 // Verify that the data in an encoded JwtData matches the
-// verifier expectatations and the request can proceed the
+// verifier expectations and the request can proceed the
 // normal flow
 func (v *JwtVerifier) Verify(req AuthRequest, encoded string) error {
 	var data JwtData
@@ -232,7 +232,7 @@ implement a verifier by making requests to the authentication server and allow
 the requests to move forward on success. A simple implementation of this
 approach could look like:
 
-```
+```go
 import (
 	"bytes"
 	"encoding/json"
@@ -304,7 +304,7 @@ func (v *ExtAuthVerifier) Authenticate(req *http.Request) (string, error) {
 }
 
 // Verify makes a request to the external authentication server. This
-// method succeeds based on the resposne
+// method succeeds based on the response
 func (v *ExtAuthVerifier) Verify(req AuthRequest, token string) error {
 	buffer := bytes.NewBuffer(nil)
 	if err := json.NewEncoder(buffer).Encode(ExtAuthPayload{

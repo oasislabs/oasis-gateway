@@ -31,7 +31,7 @@ type AsyncResponse struct {
 }
 
 // ExecuteServiceRequest is is used by the user to trigger a service
-// execution. A client is always subscribed to a subcription with
+// execution. A client is always subscribed to a subscription with
 // topic "service" from which the client can retrieve the asynchronous
 // results to this request
 type ExecuteServiceRequest struct {
@@ -49,11 +49,11 @@ func (r ExecuteServiceRequest) Type() RequestType {
 }
 
 // ExecuteServiceResponse is an asynchronous response that will be obtained
-// using the polling mechanims
+// using the polling mechanisms
 type ExecuteServiceResponse AsyncResponse
 
 // DeployServiceRequest is issued by the user to trigger a service
-// execution. A client is always subscribed to a subcription with
+// execution. A client is always subscribed to a subscription with
 // topic "service" from which the client can retrieve the asynchronous
 // results to this request
 type DeployServiceRequest struct {
@@ -189,7 +189,7 @@ type ExecuteServiceEvent struct {
 // DeployServiceEvent is the event that can be polled by the user
 // as a result to a ServiceExecutionRequest
 type DeployServiceEvent struct {
-	// ID to identifiy an asynchronous response. It uniquely identifies the
+	// ID to identify an asynchronous response. It uniquely identifies the
 	// event and orders it in the sequence of events expected by the user
 	ID uint64 `json:"id"`
 
@@ -202,7 +202,7 @@ type DeployServiceEvent struct {
 // ErrorEvent is the event that can be polled by the user
 // as a result to a request that failed
 type ErrorEvent struct {
-	// ID to identifiy an asynchronous response. It uniquely identifies the
+	// ID to identify an asynchronous response. It uniquely identifies the
 	// event and orders it in the sequence of events expected by the user
 	ID uint64 `json:"id"`
 

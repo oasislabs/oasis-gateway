@@ -25,7 +25,7 @@ type SubscribeRequest struct {
 	// to be created for
 	Events []string `json:"events"`
 
-	// Filter is a url encoded list of query parameters that specifiy
+	// Filter is a url encoded list of query parameters that specify
 	// filters to be applied to the subscribed topic
 	Filter string `json:"filter"`
 }
@@ -42,7 +42,7 @@ type PollEventRequest struct {
 	ID uint64 `json:"id"`
 
 	// Offset at which events need to be provided. Events are all ordered
-	// with sequence numbers and it is up to the client to specifiy which
+	// with sequence numbers and it is up to the client to specify which
 	// events it wants to receive from an offset in the sequence
 	Offset uint64 `json:"offset"`
 
@@ -70,7 +70,7 @@ type PollEventResponse struct {
 // Event is the interface that all events that can be returned from an
 // EventPollingResponse need to return
 type Event interface {
-	// EventID to identifiy an asynchronous response. It uniquely identifies the
+	// EventID to identify an asynchronous response. It uniquely identifies the
 	// event and orders it in the sequence of events expected by the user
 	EventID() uint64
 }
@@ -79,7 +79,7 @@ type Event interface {
 // for service logs for example, which they are a blob of data that the
 // client knows how to manipulate
 type DataEvent struct {
-	// ID to identify the event itself withint the sequence of events.
+	// ID to identify the event itself within the sequence of events.
 	ID uint64 `json:"id"`
 
 	// Data is the blob of data related to this event
@@ -92,7 +92,7 @@ type DataEvent struct {
 // ErrorEvent is the event that can be polled by the user
 // as a result to a a request that failed
 type ErrorEvent struct {
-	// ID to identifiy an asynchronous response. It uniquely identifies the
+	// ID to identify an asynchronous response. It uniquely identifies the
 	// event and orders it in the sequence of events expected by the user
 	ID uint64 `json:"id"`
 

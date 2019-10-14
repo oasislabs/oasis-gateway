@@ -71,7 +71,7 @@ func (v *ExtAuthVerifier) Authenticate(req *http.Request) (string, error) {
 }
 
 // Verify makes a request to the external authentication server. This
-// method succeeds based on the resposne
+// method succeeds based on the response
 func (v *ExtAuthVerifier) Verify(req AuthRequest, token string) error {
 	buffer := bytes.NewBuffer(nil)
 	if err := json.NewEncoder(buffer).Encode(ExtAuthPayload{

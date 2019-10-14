@@ -54,7 +54,7 @@ func (p *Parser) Usage() error {
 
 func Generate(config Config) (*Parser, error) {
 	v := viper.New()
-	// all enviroment variables start with prefix OASIS_DG and are set
+	// all environment variables start with prefix OASIS_DG and are set
 	// by replacing `.` to _.
 	// For example, key wallet.private_key can be set from an environment
 	// variable with OASIS_DG_WALLET_PRIVATE_KEY

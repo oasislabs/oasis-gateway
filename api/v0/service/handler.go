@@ -31,7 +31,7 @@ type Client interface {
 	GetCode(context.Context, backend.GetCodeRequest) (backend.GetCodeResponse, errors.Err)
 
 	// GetPublicKey retrieves the public key associated with a service
-	// so that the client can encrypt and format the input data in a confidental
+	// so that the client can encrypt and format the input data in a confidential
 	// and privacy preserving manner.
 	GetPublicKey(context.Context, backend.GetPublicKeyRequest) (backend.GetPublicKeyResponse, errors.Err)
 }
@@ -215,7 +215,7 @@ func (h ServiceHandler) PollService(ctx context.Context, v interface{}) (interfa
 	return PollServiceResponse{Offset: res.Offset, Events: events}, nil
 }
 
-// GetCode retrives the source code associated with a service.
+// GetCode retrieves the source code associated with a service.
 func (h ServiceHandler) GetCode(ctx context.Context, v interface{}) (interface{}, error) {
 	req := v.(*GetCodeRequest)
 
@@ -246,7 +246,7 @@ func (h ServiceHandler) GetCode(ctx context.Context, v interface{}) (interface{}
 	}, nil
 }
 
-// GetPublicKey retrives the public key associated with a service
+// GetPublicKey retrieves the public key associated with a service
 // to allow the client to encrypt the data that serves as argument for
 // a service deployment or service execution.
 func (h ServiceHandler) GetPublicKey(ctx context.Context, v interface{}) (interface{}, error) {

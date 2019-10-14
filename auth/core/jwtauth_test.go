@@ -36,7 +36,7 @@ func (v *JwtVerifier) Stats() stats.Metrics {
 	}
 }
 
-// JwtData represens the relevant authentication data
+// JwtData represents the relevant authentication data
 // from the *http.Request that needs to be verified
 type JwtData struct {
 	// Scope is the scope defined as part of the
@@ -82,7 +82,7 @@ func (v *JwtVerifier) Authenticate(req *http.Request) (string, error) {
 }
 
 // Verify that the data in an encoded JwtData matches the
-// verifier expectatations and the request can proceed the
+// verifier expectations and the request can proceed the
 // normal flow
 func (v *JwtVerifier) Verify(req AuthRequest, encoded string) error {
 	var data JwtData
