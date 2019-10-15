@@ -4,10 +4,10 @@ import (
 	"context"
 	"time"
 
-	"github.com/oasislabs/developer-gateway/concurrent"
-	"github.com/oasislabs/developer-gateway/log"
-	"github.com/oasislabs/developer-gateway/mqueue/core"
-	"github.com/oasislabs/developer-gateway/stats"
+	"github.com/oasislabs/oasis-gateway/concurrent"
+	"github.com/oasislabs/oasis-gateway/log"
+	"github.com/oasislabs/oasis-gateway/mqueue/core"
+	"github.com/oasislabs/oasis-gateway/stats"
 )
 
 const maxInactivityTimeout = time.Duration(10) * time.Minute

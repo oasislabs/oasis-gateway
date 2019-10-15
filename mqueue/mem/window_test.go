@@ -4,7 +4,7 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/oasislabs/developer-gateway/mqueue/core"
+	"github.com/oasislabs/oasis-gateway/mqueue/core"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -27,7 +27,7 @@ func TestSlidingWindowSet(t *testing.T) {
 	assert.Nil(t, err)
 
 	assert.Equal(t, core.Elements{Offset: 0, Elements: []core.Element{
-		core.Element{Offset: uint64(0), Value: "value"},
+		{Offset: uint64(0), Value: "value"},
 	}}, els)
 }
 
@@ -249,9 +249,9 @@ func TestGetDiscarded(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, uint64(0), els.Offset)
 	assert.Equal(t, []core.Element{
-		core.Element{Offset: 0x0, Value: "0", Type: ""},
-		core.Element{Offset: 0x1, Value: "1", Type: ""},
-		core.Element{Offset: 0x7, Value: "7", Type: ""},
-		core.Element{Offset: 0x8, Value: "8", Type: ""},
-		core.Element{Offset: 0x9, Value: "9", Type: ""}}, els.Elements)
+		{Offset: 0x0, Value: "0", Type: ""},
+		{Offset: 0x1, Value: "1", Type: ""},
+		{Offset: 0x7, Value: "7", Type: ""},
+		{Offset: 0x8, Value: "8", Type: ""},
+		{Offset: 0x9, Value: "9", Type: ""}}, els.Elements)
 }

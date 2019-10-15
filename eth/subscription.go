@@ -8,8 +8,8 @@ import (
 
 	ethereum "github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/oasislabs/developer-gateway/concurrent"
-	"github.com/oasislabs/developer-gateway/log"
+	"github.com/oasislabs/oasis-gateway/concurrent"
+	"github.com/oasislabs/oasis-gateway/log"
 )
 
 // EthSubscription abstracts an ethereum.Subscription to be

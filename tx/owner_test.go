@@ -9,10 +9,10 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 
-	"github.com/oasislabs/developer-gateway/callback/callbacktest"
-	callback "github.com/oasislabs/developer-gateway/callback/client"
-	"github.com/oasislabs/developer-gateway/eth"
-	"github.com/oasislabs/developer-gateway/eth/ethtest"
+	"github.com/oasislabs/oasis-gateway/callback/callbacktest"
+	callback "github.com/oasislabs/oasis-gateway/callback/client"
+	"github.com/oasislabs/oasis-gateway/eth"
+	"github.com/oasislabs/oasis-gateway/eth/ethtest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )

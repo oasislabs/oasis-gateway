@@ -9,9 +9,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/oasislabs/developer-gateway/concurrent"
-	"github.com/oasislabs/developer-gateway/log"
-	"github.com/oasislabs/developer-gateway/stats"
+	"github.com/oasislabs/oasis-gateway/concurrent"
+	"github.com/oasislabs/oasis-gateway/log"
+	"github.com/oasislabs/oasis-gateway/stats"
 )
 
 const walletOutOfFunds string = "WalletOutOfFunds"

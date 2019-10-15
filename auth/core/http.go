@@ -7,9 +7,9 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/oasislabs/developer-gateway/errors"
-	"github.com/oasislabs/developer-gateway/log"
-	"github.com/oasislabs/developer-gateway/rpc"
+	"github.com/oasislabs/oasis-gateway/errors"
+	"github.com/oasislabs/oasis-gateway/log"
+	"github.com/oasislabs/oasis-gateway/rpc"
 )
 
 type AAD struct{}

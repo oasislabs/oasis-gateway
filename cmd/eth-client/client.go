@@ -7,8 +7,8 @@ import (
 
 	"github.com/ethereum/go-ethereum/crypto"
 
-	"github.com/oasislabs/developer-gateway/backend/eth"
-	"github.com/oasislabs/developer-gateway/log"
+	"github.com/oasislabs/oasis-gateway/backend/eth"
+	"github.com/oasislabs/oasis-gateway/log"
 )
 
 type ClientProps struct {

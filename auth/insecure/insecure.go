@@ -5,9 +5,9 @@ import (
 	"errors"
 	"net/http"
 
-	"github.com/oasislabs/developer-gateway/auth/core"
-	"github.com/oasislabs/developer-gateway/log"
-	"github.com/oasislabs/developer-gateway/stats"
+	"github.com/oasislabs/oasis-gateway/auth/core"
+	"github.com/oasislabs/oasis-gateway/log"
+	"github.com/oasislabs/oasis-gateway/stats"
 )
 
 const HeaderKey string = "X-OASIS-INSECURE-AUTH"

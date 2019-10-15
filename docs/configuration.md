@@ -1,5 +1,5 @@
 # Configuration
-The developer-gateway allows to be configured using command line parameters,
+The oasis-gateway allows to be configured using command line parameters,
 a configuration file and environment variables. The order of precedence for
 these are:
  1. CLI parameters overwrite
@@ -11,7 +11,7 @@ is calling the help option. All the parameters can be configured using either of
 the above mechanisms.
 
 ```
-$ ./developer-gateway --help
+$ ./oasis-gateway --help
 
 Flags:
       --auth.plugin strings                             plugins for request authentication

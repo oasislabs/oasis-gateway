@@ -5,8 +5,8 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/oasislabs/developer-gateway/log"
-	"github.com/oasislabs/developer-gateway/rpc"
+	"github.com/oasislabs/oasis-gateway/log"
+	"github.com/oasislabs/oasis-gateway/rpc"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 )

@@ -4,9 +4,9 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/oasislabs/developer-gateway/errors"
-	mqueue "github.com/oasislabs/developer-gateway/mqueue/core"
-	"github.com/oasislabs/developer-gateway/rpc"
+	"github.com/oasislabs/oasis-gateway/errors"
+	mqueue "github.com/oasislabs/oasis-gateway/mqueue/core"
+	"github.com/oasislabs/oasis-gateway/rpc"
 )
 
 type Event interface {

@@ -1,4 +1,4 @@
-FROM golang:1.11-stretch
+FROM golang:1.12-stretch
 
 ENV BUILDKITE_BUILD_NUMBER ""
 ENV BUILDKITE_PULL_REQUEST ""
@@ -8,8 +8,8 @@ ENV BUILDKITE_BRANCH ""
 # variable. By default this value is empty and not use a go proxy.
 ARG GOPROXY=
 
-RUN apt update && apt install -y git build-essential gcc binutils curl
-RUN curl -sfL https://install.goreleaser.com/github.com/golangci/golangci-lint.sh | bash -s -- -b /tmp/bin v1.11.2
+RUN apt update && apt install -y git build-essential gcc binutils curl protobuf-compiler golang-goprotobuf-dev
+RUN curl -sfL https://install.goreleaser.com/github.com/golangci/golangci-lint.sh | bash -s -- -b /tmp/bin v1.20.1
 
 # Prepare for coverage
 RUN go get golang.org/x/tools/cmd/cover

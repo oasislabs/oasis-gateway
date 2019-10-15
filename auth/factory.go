@@ -1,9 +1,9 @@
 package auth
 
 import (
-	"github.com/oasislabs/developer-gateway/auth/core"
-	"github.com/oasislabs/developer-gateway/auth/insecure"
-	"github.com/oasislabs/developer-gateway/auth/oauth"
+	"github.com/oasislabs/oasis-gateway/auth/core"
+	"github.com/oasislabs/oasis-gateway/auth/insecure"
+	"github.com/oasislabs/oasis-gateway/auth/oauth"
 )
 
 type Factory interface {

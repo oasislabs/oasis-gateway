@@ -4,9 +4,9 @@ import (
 	"plugin"
 	"strings"
 
-	"github.com/oasislabs/developer-gateway/auth/core"
-	"github.com/oasislabs/developer-gateway/config"
-	"github.com/oasislabs/developer-gateway/log"
+	"github.com/oasislabs/oasis-gateway/auth/core"
+	"github.com/oasislabs/oasis-gateway/config"
+	"github.com/oasislabs/oasis-gateway/log"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )

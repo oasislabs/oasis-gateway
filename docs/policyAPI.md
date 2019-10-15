@@ -1,8 +1,8 @@
 # Policy API
-In the developer-gateway there's an API defined to customize the definition and
-management of policies. Service providers that depend on the developer-gateway
+In the oasis-gateway there's an API defined to customize the definition and
+management of policies. Service providers that depend on the oasis-gateway
 to provide a service may have their own users and their own authentication and
-authorization mechanisms that want to also implement in the developer-gateway
+authorization mechanisms that want to also implement in the oasis-gateway
 itself. The Policy API should be the standard mechanism to apply any type of
 restriction to a user request. Either because the user does not exist, or it
 does not have permissions to execute a specific API, these are restrictions that
@@ -11,8 +11,8 @@ policies.
 
 ## Policy Definition
 A policy is defined by the interface in  `auth.core.Auth`. All policies executed
-against a request in the developer-gateway need to implement that interface. The
-developer-gateway is in charge of executing all the policies and running the
+against a request in the oasis-gateway need to implement that interface. The
+oasis-gateway is in charge of executing all the policies and running the
 verifications to ensure the validity and legitimacy of the request. An important
 point to keep in mind is that the policies that implement `auth.core.Auth`
 should be kept stateless or at least immutable. The same instance is used to
@@ -25,7 +25,7 @@ lead to race conditions.
 // and decide whether to allow the request to proceed
 type AuthRequest struct {
     // API is a human readable identifier for an API. It is unique
-    // for each API provided by the developer-gateway
+    // for each API provided by the oasis-gateway
 	API     string
     
     // Address is the address of the contract that is targeted by the
@@ -41,13 +41,13 @@ type AuthRequest struct {
 	Data    string
 }
 
-// Auth defines an interface for the policies defined in the developer-gateway
+// Auth defines an interface for the policies defined in the oasis-gateway
 // and the policies that can be provided as external plugins. It allows a custom
 // definition of how to authenticate the issuer of a request and how to authorize
 // the action that the user intends with the request
 type Auth interface {
     // Name is a human readable string that uniquely identifies
-    // the policy amongst all the services provided by the developer-gateway
+    // the policy amongst all the services provided by the oasis-gateway
 	Name() string
     
     // Stats returns a set of metrics to be presented to the client
@@ -76,20 +76,20 @@ type Auth interface {
 
 ## Policy loading and configuration
 In terms of how to implement a policy, there are two approaches. In the
-developer-gateway repository there are some implementations of Auth.
+oasis-gateway repository there are some implementations of Auth.
 The `auth.oauth.GoogleOauth` implementation enables Google OAUTH allows
 providers to use Google OAUTH for clients. Another implementation
 `auth.insecure.InsecureAuth` can be used for testing but should never be enabled
-in production. These implementations are in the developer-gateway. If an
+in production. These implementations are in the oasis-gateway. If an
 approach can be generic enough for multiple parties to be used, it can be added
 to the codebase.
 
-For custom policies, the developer-gateway can load Go plugins that contain an
+For custom policies, the oasis-gateway can load Go plugins that contain an
 implementation of the `auth.core.Auth` interface. In order to build a plugin,
 the [plugin](https://golang.org/pkg/plugin/)'s package has good documentation on
-how to compile a module and load it to the developer-gateway.
+how to compile a module and load it to the oasis-gateway.
 
-In order to tell the developer-gateway to load the policies, the option
+In order to tell the oasis-gateway to load the policies, the option
 `--auth.provider` accepts a list of providers, that will be loaded and executed
 in order. For instance, `--auth.provider mypolicy1,mypolicy2` would load
 `mypolicy1`, would later load `policy2`. Then, for each request, the call
@@ -124,7 +124,7 @@ import (
 	"testing"
 
 	jwt "github.com/dgrijalva/jwt-go"
-	"github.com/oasislabs/developer-gateway/stats"
+	"github.com/oasislabs/oasis-gateway/stats"
 )
 
 // JwtHeader is the header in the *http.Request that contains
@@ -241,7 +241,7 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/oasislabs/developer-gateway/stats"
+	"github.com/oasislabs/oasis-gateway/stats"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )

@@ -7,11 +7,11 @@ import (
 
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/oasislabs/developer-gateway/concurrent"
-	"github.com/oasislabs/developer-gateway/errors"
-	"github.com/oasislabs/developer-gateway/eth"
-	"github.com/oasislabs/developer-gateway/log"
-	"github.com/oasislabs/developer-gateway/stats"
+	"github.com/oasislabs/oasis-gateway/concurrent"
+	"github.com/oasislabs/oasis-gateway/errors"
+	"github.com/oasislabs/oasis-gateway/eth"
+	"github.com/oasislabs/oasis-gateway/log"
+	"github.com/oasislabs/oasis-gateway/stats"
 )
 
 const maxInactivityTimeout = time.Duration(10) * time.Minute

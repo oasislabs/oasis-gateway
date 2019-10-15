@@ -10,9 +10,9 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/oasislabs/developer-gateway/api/v0/service"
-	"github.com/oasislabs/developer-gateway/concurrent"
-	"github.com/oasislabs/developer-gateway/rpc"
+	"github.com/oasislabs/oasis-gateway/api/v0/service"
+	"github.com/oasislabs/oasis-gateway/concurrent"
+	"github.com/oasislabs/oasis-gateway/rpc"
 )
 
 // ServiceClient is the client implementation for the

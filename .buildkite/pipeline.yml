@@ -17,7 +17,7 @@ steps:
     branches: "*"
     command:
       - .buildkite/scripts/docker_build.sh
-      - buildkite-agent artifact upload developer-gateway
+      - buildkite-agent artifact upload oasis-gateway
     env:
       GOPROXY: https://proxy.golang.org/
     timeout_in_minutes: 20

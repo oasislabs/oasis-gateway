@@ -13,12 +13,12 @@ import (
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/types"
 
-	callback "github.com/oasislabs/developer-gateway/callback/client"
-	"github.com/oasislabs/developer-gateway/concurrent"
-	"github.com/oasislabs/developer-gateway/errors"
-	"github.com/oasislabs/developer-gateway/eth"
-	"github.com/oasislabs/developer-gateway/log"
-	"github.com/oasislabs/developer-gateway/stats"
+	callback "github.com/oasislabs/oasis-gateway/callback/client"
+	"github.com/oasislabs/oasis-gateway/concurrent"
+	"github.com/oasislabs/oasis-gateway/errors"
+	"github.com/oasislabs/oasis-gateway/eth"
+	"github.com/oasislabs/oasis-gateway/log"
+	"github.com/oasislabs/oasis-gateway/stats"
 )
 
 // Callbacks implemented by the WalletOwner

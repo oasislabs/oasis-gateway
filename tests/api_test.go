@@ -6,12 +6,12 @@ import (
 	"reflect"
 	"testing"
 
-	auth "github.com/oasislabs/developer-gateway/auth/core"
-	"github.com/oasislabs/developer-gateway/auth/insecure"
-	"github.com/oasislabs/developer-gateway/eth"
-	"github.com/oasislabs/developer-gateway/eth/ethtest"
-	"github.com/oasislabs/developer-gateway/tests/apitest"
-	"github.com/oasislabs/developer-gateway/tests/gatewaytest"
+	auth "github.com/oasislabs/oasis-gateway/auth/core"
+	"github.com/oasislabs/oasis-gateway/auth/insecure"
+	"github.com/oasislabs/oasis-gateway/eth"
+	"github.com/oasislabs/oasis-gateway/eth/ethtest"
+	"github.com/oasislabs/oasis-gateway/tests/apitest"
+	"github.com/oasislabs/oasis-gateway/tests/gatewaytest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 )

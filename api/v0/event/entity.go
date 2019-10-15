@@ -1,6 +1,6 @@
 package event
 
-import "github.com/oasislabs/developer-gateway/rpc"
+import "github.com/oasislabs/oasis-gateway/rpc"
 
 // AsyncResponse is the response returned by APIs that are asynchronous
 // that return an ID that can be used by the user to receive and identify

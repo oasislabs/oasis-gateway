@@ -1,6 +1,6 @@
 package service
 
-import "github.com/oasislabs/developer-gateway/rpc"
+import "github.com/oasislabs/oasis-gateway/rpc"
 
 // RequestType defines the type of the request. May be
 // useful for serialization and deserialization

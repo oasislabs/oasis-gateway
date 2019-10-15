@@ -62,7 +62,7 @@ func Generate(config Config) (*Parser, error) {
 	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	v.AutomaticEnv()
 
-	cmd := &cobra.Command{Use: "developer-gateway"}
+	cmd := &cobra.Command{Use: "oasis-gateway"}
 	file := ConfigFile{}
 	var binders []Binder
 	binders = append(binders, &file)

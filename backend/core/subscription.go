@@ -8,10 +8,10 @@ import (
 
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/oasislabs/developer-gateway/errors"
-	"github.com/oasislabs/developer-gateway/log"
-	mqueue "github.com/oasislabs/developer-gateway/mqueue/core"
-	"github.com/oasislabs/developer-gateway/stats"
+	"github.com/oasislabs/oasis-gateway/errors"
+	"github.com/oasislabs/oasis-gateway/log"
+	mqueue "github.com/oasislabs/oasis-gateway/mqueue/core"
+	"github.com/oasislabs/oasis-gateway/stats"
 )
 
 type subscription struct {

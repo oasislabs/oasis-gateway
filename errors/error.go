@@ -3,7 +3,7 @@ package errors
 import (
 	"fmt"
 
-	"github.com/oasislabs/developer-gateway/log"
+	"github.com/oasislabs/oasis-gateway/log"
 )
 
 type Err interface {

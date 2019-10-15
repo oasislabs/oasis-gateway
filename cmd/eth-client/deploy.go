@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"os"
 
-	backend "github.com/oasislabs/developer-gateway/backend/core"
+	backend "github.com/oasislabs/oasis-gateway/backend/core"
 	"github.com/spf13/cobra"
 )
 

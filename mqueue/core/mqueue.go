@@ -3,7 +3,7 @@ package core
 import (
 	"context"
 
-	"github.com/oasislabs/developer-gateway/stats"
+	"github.com/oasislabs/oasis-gateway/stats"
 )
 
 // Element represents an element of the OrderedQueue

@@ -3,7 +3,7 @@ package version
 import (
 	"context"
 
-	"github.com/oasislabs/developer-gateway/rpc"
+	"github.com/oasislabs/oasis-gateway/rpc"
 )
 
 // Deps are the dependencies expected by the VersionHandler

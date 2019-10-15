@@ -5,12 +5,12 @@ import (
 	"io/ioutil"
 	"testing"
 
-	"github.com/oasislabs/developer-gateway/errors"
-	"github.com/oasislabs/developer-gateway/log"
-	"github.com/oasislabs/developer-gateway/mqueue/core"
-	mqueue "github.com/oasislabs/developer-gateway/mqueue/core"
-	"github.com/oasislabs/developer-gateway/mqueue/mailboxtest"
-	"github.com/oasislabs/developer-gateway/stats"
+	"github.com/oasislabs/oasis-gateway/errors"
+	"github.com/oasislabs/oasis-gateway/log"
+	"github.com/oasislabs/oasis-gateway/mqueue/core"
+	mqueue "github.com/oasislabs/oasis-gateway/mqueue/core"
+	"github.com/oasislabs/oasis-gateway/mqueue/mailboxtest"
+	"github.com/oasislabs/oasis-gateway/stats"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
@@ -172,7 +172,7 @@ func TestPollEventOKNoDiscard(t *testing.T) {
 		}).Return(mqueue.Elements{
 		Offset: 0,
 		Elements: []core.Element{
-			core.Element{
+			{
 				Offset: 0,
 				Value:  "{\"ID\": 1, \"Data\": \"value\"}",
 				Type:   DataEventType.String(),

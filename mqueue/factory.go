@@ -4,10 +4,10 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/oasislabs/developer-gateway/log"
-	"github.com/oasislabs/developer-gateway/mqueue/core"
-	"github.com/oasislabs/developer-gateway/mqueue/mem"
-	"github.com/oasislabs/developer-gateway/mqueue/redis"
+	"github.com/oasislabs/oasis-gateway/log"
+	"github.com/oasislabs/oasis-gateway/mqueue/core"
+	"github.com/oasislabs/oasis-gateway/mqueue/mem"
+	"github.com/oasislabs/oasis-gateway/mqueue/redis"
 )
 
 type Services struct {

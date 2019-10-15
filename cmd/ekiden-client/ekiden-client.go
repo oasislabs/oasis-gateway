@@ -8,9 +8,9 @@ import (
 	"os"
 
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/oasislabs/developer-gateway/backend/core"
-	"github.com/oasislabs/developer-gateway/backend/ekiden"
-	"github.com/oasislabs/developer-gateway/log"
+	"github.com/oasislabs/oasis-gateway/backend/core"
+	"github.com/oasislabs/oasis-gateway/backend/ekiden"
+	"github.com/oasislabs/oasis-gateway/log"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/pflag"
 )

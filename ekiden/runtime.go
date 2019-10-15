@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 
-	api "github.com/oasislabs/developer-gateway/ekiden/grpc"
+	api "github.com/oasislabs/oasis-gateway/ekiden/grpc"
 	"google.golang.org/grpc"
 )
 

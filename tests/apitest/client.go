@@ -8,9 +8,9 @@ import (
 	"net/http"
 	"net/http/httptest"
 
-	auth "github.com/oasislabs/developer-gateway/auth/core"
-	"github.com/oasislabs/developer-gateway/auth/insecure"
-	"github.com/oasislabs/developer-gateway/rpc"
+	auth "github.com/oasislabs/oasis-gateway/auth/core"
+	"github.com/oasislabs/oasis-gateway/auth/insecure"
+	"github.com/oasislabs/oasis-gateway/rpc"
 )
 
 // NewClient creates a new client for calling the API

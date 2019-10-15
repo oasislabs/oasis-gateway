@@ -5,8 +5,7 @@ set -euxo pipefail
 echo "---- Build and run unit tests"
 EXIT_CODE=0
 
-# Pull to ensure we're using the latest published image.
-docker pull oasislabs/oasis-gateway:build
+docker build --build-arg GOPROXY="$GOPROXY" -t oasislabs/oasis-gateway:build -f .buildkite/Dockerfile.ci .
 
 docker run \
   --rm \

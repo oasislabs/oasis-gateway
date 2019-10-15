@@ -7,9 +7,9 @@ import (
 	"errors"
 	"io"
 
-	api "github.com/oasislabs/developer-gateway/ekiden/grpc"
-	"github.com/oasislabs/developer-gateway/noise"
-	"github.com/oasislabs/developer-gateway/rw"
+	api "github.com/oasislabs/oasis-gateway/ekiden/grpc"
+	"github.com/oasislabs/oasis-gateway/noise"
+	"github.com/oasislabs/oasis-gateway/rw"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 )

@@ -1,6 +1,6 @@
 package health
 
-import "github.com/oasislabs/developer-gateway/stats"
+import "github.com/oasislabs/oasis-gateway/stats"
 
 // GetHealthRequest is a request to retrieve the health
 // status of the component.

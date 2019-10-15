@@ -7,10 +7,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/oasislabs/developer-gateway/config"
-	"github.com/oasislabs/developer-gateway/gateway"
-	"github.com/oasislabs/developer-gateway/log"
-	"github.com/oasislabs/developer-gateway/rpc"
+	"github.com/oasislabs/oasis-gateway/config"
+	"github.com/oasislabs/oasis-gateway/gateway"
+	"github.com/oasislabs/oasis-gateway/log"
+	"github.com/oasislabs/oasis-gateway/rpc"
 )
 
 func publicServer(config *gateway.BindPublicConfig, router *rpc.HttpRouter) {

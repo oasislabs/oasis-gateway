@@ -6,12 +6,12 @@ import (
 	"io/ioutil"
 	"testing"
 
-	auth "github.com/oasislabs/developer-gateway/auth/core"
-	insecureauth "github.com/oasislabs/developer-gateway/auth/insecure"
-	backend "github.com/oasislabs/developer-gateway/backend/core"
-	"github.com/oasislabs/developer-gateway/errors"
-	"github.com/oasislabs/developer-gateway/log"
-	"github.com/oasislabs/developer-gateway/rpc"
+	auth "github.com/oasislabs/oasis-gateway/auth/core"
+	insecureauth "github.com/oasislabs/oasis-gateway/auth/insecure"
+	backend "github.com/oasislabs/oasis-gateway/backend/core"
+	"github.com/oasislabs/oasis-gateway/errors"
+	"github.com/oasislabs/oasis-gateway/log"
+	"github.com/oasislabs/oasis-gateway/rpc"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )

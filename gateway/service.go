@@ -3,8 +3,8 @@ package gateway
 import (
 	"fmt"
 
-	"github.com/oasislabs/developer-gateway/rpc"
-	"github.com/oasislabs/developer-gateway/stats"
+	"github.com/oasislabs/oasis-gateway/rpc"
+	"github.com/oasislabs/oasis-gateway/stats"
 )
 
 // Service is the interface that should be implemented

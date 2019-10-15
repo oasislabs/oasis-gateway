@@ -3,8 +3,8 @@ package health
 import (
 	"context"
 
-	"github.com/oasislabs/developer-gateway/rpc"
-	"github.com/oasislabs/developer-gateway/stats"
+	"github.com/oasislabs/oasis-gateway/rpc"
+	"github.com/oasislabs/oasis-gateway/stats"
 )
 
 type Deps struct {

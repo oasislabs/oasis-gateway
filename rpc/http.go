@@ -8,10 +8,10 @@ import (
 	"runtime/debug"
 	"strconv"
 
-	"github.com/oasislabs/developer-gateway/errors"
-	"github.com/oasislabs/developer-gateway/log"
-	"github.com/oasislabs/developer-gateway/rw"
-	"github.com/oasislabs/developer-gateway/stats"
+	"github.com/oasislabs/oasis-gateway/errors"
+	"github.com/oasislabs/oasis-gateway/log"
+	"github.com/oasislabs/oasis-gateway/rw"
+	"github.com/oasislabs/oasis-gateway/stats"
 	"github.com/rs/cors"
 )
 

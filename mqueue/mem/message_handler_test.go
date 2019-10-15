@@ -5,7 +5,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/oasislabs/developer-gateway/concurrent"
+	"github.com/oasislabs/oasis-gateway/concurrent"
 	"github.com/stretchr/testify/assert"
 )
 
