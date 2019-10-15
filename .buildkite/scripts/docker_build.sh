@@ -5,13 +5,16 @@ set -euxo pipefail
 echo "---- Build and run unit tests"
 EXIT_CODE=0
 
+# Pull to ensure we're using the latest published image.
+docker pull oasislabs/oasis-gateway:build
+
 docker run \
   --rm \
   --env BUILDKITE_BUILD_NUMBER="$BUILDKITE_BUILD_NUMBER" \
   --env BUILDKITE_PULL_REQUEST="$BUILDKITE_PULL_REQUEST" \
   --env BUILDKITE_BRANCH="$BUILDKITE_BRANCH" \
 	--volume="$(pwd)":/app \
-	oasislabs/developer-gateway:build \
+	oasislabs/oasis-gateway:build \
 	/app/.buildkite/scripts/build.sh || EXIT_CODE=$? ;
 
 # report coverage
