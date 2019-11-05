@@ -6,10 +6,8 @@ http_port = 1234
 http_read_timeout_ms = 10000
 http_write_timeout_ms = 10000
 http_max_header_bytes = 8192
-https_enabled = true
+https_enabled = false
 max_body_bytes = 1048576
-tls_private_key_path = "/config/tls/private.pem"
-tls_certificate_path = "/config/tls/cert.pem"
 
 [bind_public.http_cors]
 enabled = true
@@ -28,8 +26,6 @@ http_write_timeout_ms = 10000
 http_max_header_bytes = 8192
 https_enabled = false
 max_body_bytes = 8192
-tls_private_key_path = "/config/tls/private.pem"
-tls_certificate_path = "/config/tls/cert.pem"
 
 [backend]
 provider = "ethereum"
