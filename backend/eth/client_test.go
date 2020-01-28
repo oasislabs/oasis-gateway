@@ -115,6 +115,54 @@ func TestGetCodeOK(t *testing.T) {
 	}, pk)
 }
 
+func TestGetExpiryInvalidAddress(t *testing.T) {
+	client, err := NewClient()
+	assert.Nil(t, err)
+
+	_, err = client.GetExpiry(Context, backend.GetExpiryRequest{
+		Address: "0x",
+	})
+	assert.Error(t, err)
+	assert.Equal(t, "[2006] error code InputError with desc Provided invalid address.", err.Error())
+}
+
+func TestGetExpiryErr(t *testing.T) {
+	client, err := NewClient()
+	assert.Nil(t, err)
+
+	ethtest.ImplementMockWithOverwrite(client.client.(*ethtest.MockClient),
+		ethtest.MockMethods{
+			"GetExpiry": ethtest.MockMethod{
+				Arguments: []interface{}{mock.Anything, mock.Anything},
+				Return:    []interface{}{uint64(0), errors.New("error")},
+			},
+		})
+
+	_, err = client.GetExpiry(Context, backend.GetExpiryRequest{
+		Address: "0x0000000000000000000000000000000000000000",
+	})
+
+	assert.Error(t, err)
+	assert.Equal(t, "[1000] error code InternalError with desc Internal Error. Please check the status of the service. with cause failed to get expiry error", err.Error())
+}
+
+func TestGetExpiryOK(t *testing.T) {
+	client, err := NewClient()
+	assert.Nil(t, err)
+
+	ethtest.ImplementMock(client.client.(*ethtest.MockClient))
+
+	exp, err := client.GetExpiry(Context, backend.GetExpiryRequest{
+		Address: "0x0000000000000000000000000000000000000000",
+	})
+
+	assert.Nil(t, err)
+	assert.Equal(t, core.GetExpiryResponse{
+		Address: "0x0000000000000000000000000000000000000000",
+		Expiry:  123456789,
+	}, exp)
+}
+
 func TestGetPublicKeyInvalidAddress(t *testing.T) {
 	client, err := NewClient()
 	assert.Nil(t, err)
@@ -181,7 +229,7 @@ func TestDeployServiceErrNoCode(t *testing.T) {
 		Data: "0x0000000000000000000000000000000000000000",
 	})
 
-	assert.Equal(t, "[1041] error code InternalError with desc Internal Error. Please check the status of the service.", err.Error())
+	assert.Equal(t, "[1042] error code InternalError with desc Internal Error. Please check the status of the service.", err.Error())
 }
 
 func TestDeployServiceOK(t *testing.T) {

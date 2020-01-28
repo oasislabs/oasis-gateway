@@ -218,63 +218,69 @@ var (
 		desc:     "Internal Error. Please check the status of the service.",
 	}
 
-	ErrGetPublicKey = ErrorCode{
+	ErrGetExpiry = ErrorCode{
 		category: InternalError,
 		code:     1034,
 		desc:     "Internal Error. Please check the status of the service.",
 	}
 
-	ErrRemoveWallet = ErrorCode{
+	ErrGetPublicKey = ErrorCode{
 		category: InternalError,
 		code:     1035,
 		desc:     "Internal Error. Please check the status of the service.",
 	}
 
-	ErrQueueNext = ErrorCode{
+	ErrRemoveWallet = ErrorCode{
 		category: InternalError,
 		code:     1036,
 		desc:     "Internal Error. Please check the status of the service.",
 	}
 
-	ErrUnkownEventType = ErrorCode{
+	ErrQueueNext = ErrorCode{
 		category: InternalError,
 		code:     1037,
 		desc:     "Internal Error. Please check the status of the service.",
 	}
 
-	ErrDeserializeEvent = ErrorCode{
+	ErrUnkownEventType = ErrorCode{
 		category: InternalError,
 		code:     1038,
 		desc:     "Internal Error. Please check the status of the service.",
 	}
 
-	ErrGetBalance = ErrorCode{
+	ErrDeserializeEvent = ErrorCode{
 		category: InternalError,
 		code:     1039,
 		desc:     "Internal Error. Please check the status of the service.",
 	}
 
-	ErrGetContractCode = ErrorCode{
+	ErrGetBalance = ErrorCode{
 		category: InternalError,
 		code:     1040,
 		desc:     "Internal Error. Please check the status of the service.",
 	}
 
-	ErrContractCodeNotDeployed = ErrorCode{
+	ErrGetServiceCode = ErrorCode{
 		category: InternalError,
 		code:     1041,
 		desc:     "Internal Error. Please check the status of the service.",
 	}
 
-	ErrQueueExists = ErrorCode{
+	ErrServiceCodeNotDeployed = ErrorCode{
 		category: InternalError,
 		code:     1042,
 		desc:     "Internal Error. Please check the status of the service.",
 	}
 
-	ErrEkidenGetCode = ErrorCode{
+	ErrQueueExists = ErrorCode{
 		category: InternalError,
 		code:     1043,
+		desc:     "Internal Error. Please check the status of the service.",
+	}
+
+	ErrEkidenGetCode = ErrorCode{
+		category: InternalError,
+		code:     1044,
 		desc:     "Internal Error. Please check the status of the service.",
 	}
 

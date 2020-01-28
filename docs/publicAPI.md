@@ -139,9 +139,9 @@ curl -X POST https://oasis-gateway/v0/api/service/poll \
 ```
 
 ## Service Deploy
-Allows clients to deploy new contracts. It is possible that service providers
+Allows clients to deploy new services. It is possible that service providers
 want to restrict access to this API to administrators, to have more fine grained
-control on to which contracts normal users have access to.
+control on to which services normal users have access to.
 
 The Service Deploy API works similarly to the Service Execute API. It submits
 the deployment of a service to be executed as soon as possible, receiving an
@@ -200,7 +200,7 @@ curl -X POST https://oasis-gateway/v0/api/service/deploy \
 The oasis-gateway implements secure services. That is, services that have
 guarantees on the privacy and confidentiality that they can offer. The Get
 Public Key request is used to retrieve the public key associated with a
-contract. The client encrypts the arguments that it wants to submit to the
+service. The client encrypts the arguments that it wants to submit to the
 runtime with that key so that the payload is encrypted end-to-end, and no one,
 not even the oasis-gateway, has access to that data.
 
@@ -219,7 +219,7 @@ type GetPublicKeyRequest struct {
 
 ```
 // GetPublicKeyResponse is the response in which the public key
-// associated with the contract is provided
+// associated with the service is provided
 type GetPublicKeyResponse struct {
 	// Timestamp at which the public key expired
 	Timestamp uint64 `json:"timestamp"`

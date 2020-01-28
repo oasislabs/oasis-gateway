@@ -28,7 +28,7 @@ type AuthRequest struct {
     // for each API provided by the oasis-gateway
 	API     string
     
-    // Address is the address of the contract that is targeted by the
+    // Address is the address of the service that is targeted by the
     // request, if any
 	Address string
     

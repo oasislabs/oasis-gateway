@@ -30,6 +30,9 @@ type Client interface {
 	// GetCode retrieves the code associated with a service.
 	GetCode(context.Context, backend.GetCodeRequest) (backend.GetCodeResponse, errors.Err)
 
+	// GetExpiry retrieves the expiration timestamp associated with a service.
+	GetExpiry(context.Context, backend.GetExpiryRequest) (backend.GetExpiryResponse, errors.Err)
+
 	// GetPublicKey retrieves the public key associated with a service
 	// so that the client can encrypt and format the input data in a confidential
 	// and privacy preserving manner.
@@ -119,7 +122,7 @@ func (h ServiceHandler) parseExecuteMessage(v *ExecuteServiceRequest) (authReq a
 	return
 }
 
-// ExecuteService handle the execution of deployed services
+// ExecuteService handles the execution of deployed services
 func (h ServiceHandler) ExecuteService(ctx context.Context, v interface{}) (interface{}, error) {
 	aad := ctx.Value(auth.AAD{}).(string)
 	session := ctx.Value(auth.Session{}).(string)
@@ -246,6 +249,37 @@ func (h ServiceHandler) GetCode(ctx context.Context, v interface{}) (interface{}
 	}, nil
 }
 
+// GetExpiry retrieves the expiration timestamp associated with a service.
+func (h ServiceHandler) GetExpiry(ctx context.Context, v interface{}) (interface{}, error) {
+	req := v.(*GetExpiryRequest)
+
+	if len(req.Address) == 0 {
+		err := errors.New(errors.ErrInvalidAddress, stderr.New("address field has not been set"))
+		h.logger.Debug(ctx, "failed to start request", log.MapFields{
+			"call_type": "GetExpiryFailure",
+			"address":   req.Address,
+		}, err)
+		return nil, err
+	}
+
+	res, err := h.client.GetExpiry(ctx, backend.GetExpiryRequest{
+		Address: req.Address,
+	})
+
+	if err != nil {
+		h.logger.Debug(ctx, "request failed", log.MapFields{
+			"call_type": "GetExpiryFailure",
+			"address":   req.Address,
+		}, err)
+		return nil, err
+	}
+
+	return GetExpiryResponse{
+		Address: res.Address,
+		Expiry:  res.Expiry,
+	}, nil
+}
+
 // GetPublicKey retrieves the public key associated with a service
 // to allow the client to encrypt the data that serves as argument for
 // a service deployment or service execution.
@@ -309,10 +343,14 @@ func BindHandler(services Services, binder rpc.HandlerBinder) {
 		rpc.EntityFactoryFunc(func() interface{} { return &PollServiceRequest{} }))
 	binder.Bind("GET", "/v0/api/service/getCode", rpc.HandlerFunc(handler.GetCode),
 		rpc.EntityFactoryFunc(func() interface{} { return &GetCodeRequest{} }))
+	binder.Bind("GET", "/v0/api/service/getExpiry", rpc.HandlerFunc(handler.GetExpiry),
+		rpc.EntityFactoryFunc(func() interface{} { return &GetExpiryRequest{} }))
 	binder.Bind("GET", "/v0/api/service/getPublicKey", rpc.HandlerFunc(handler.GetPublicKey),
 		rpc.EntityFactoryFunc(func() interface{} { return &GetPublicKeyRequest{} }))
 	binder.Bind("POST", "/v0/api/service/getCode", rpc.HandlerFunc(handler.GetCode),
 		rpc.EntityFactoryFunc(func() interface{} { return &GetCodeRequest{} }))
+	binder.Bind("POST", "/v0/api/service/getExpiry", rpc.HandlerFunc(handler.GetExpiry),
+		rpc.EntityFactoryFunc(func() interface{} { return &GetExpiryRequest{} }))
 	binder.Bind("POST", "/v0/api/service/getPublicKey", rpc.HandlerFunc(handler.GetPublicKey),
 		rpc.EntityFactoryFunc(func() interface{} { return &GetPublicKeyRequest{} }))
 }

@@ -23,6 +23,7 @@ import (
 
 const (
 	getCode            string = "GetCode"
+	getExpiry          string = "GetExpiry"
 	getPublicKey       string = "GetPublicKey"
 	deployService      string = "DeployService"
 	executeService     string = "ExecuteService"
@@ -119,6 +120,55 @@ func (c *Client) GetCode(
 	}
 
 	return v.(backend.GetCodeResponse), nil
+}
+
+func (c *Client) getExpiry(
+	ctx context.Context,
+	req backend.GetExpiryRequest,
+) (backend.GetExpiryResponse, errors.Err) {
+	c.logger.Debug(ctx, "", log.MapFields{
+		"call_type": "GetExpiryAttempt",
+		"address":   req.Address,
+	})
+
+	if err := c.verifyAddress(req.Address); err != nil {
+		return backend.GetExpiryResponse{}, err
+	}
+
+	expiry, err := c.client.GetExpiry(ctx, common.HexToAddress(req.Address))
+	if err != nil {
+		err := errors.New(errors.ErrInternalError, fmt.Errorf("failed to get expiry %s", err.Error()))
+		c.logger.Debug(ctx, "client call failed", log.MapFields{
+			"call_type": "GetExpiryFailure",
+			"address":   req.Address,
+		}, err)
+		return backend.GetExpiryResponse{}, err
+	}
+
+	c.logger.Debug(ctx, "", log.MapFields{
+		"call_type": "GetExpirySuccess",
+		"address":   req.Address,
+	})
+
+	return backend.GetExpiryResponse{
+		Address: req.Address,
+		Expiry:  expiry,
+	}, nil
+}
+
+func (c *Client) GetExpiry(
+	ctx context.Context,
+	req backend.GetExpiryRequest,
+) (backend.GetExpiryResponse, errors.Err) {
+	v, err := c.tracker.Instrument(getExpiry, func() (interface{}, error) {
+		return c.getExpiry(ctx, req)
+	})
+
+	if err != nil {
+		return backend.GetExpiryResponse{}, err.(errors.Err)
+	}
+
+	return v.(backend.GetExpiryResponse), nil
 }
 
 func (c *Client) getPublicKey(
@@ -378,10 +428,10 @@ func (c *Client) executeTransaction(
 	}
 
 	c.logger.Debug(ctx, "transaction sent successfully", log.MapFields{
-		"call_type":       "ExecuteTransactionSuccess",
-		"id":              req.ID,
-		"executeAddress":  req.Address,
-		"contractAddress": res.Address,
+		"call_type":      "ExecuteTransactionSuccess",
+		"id":             req.ID,
+		"executeAddress": req.Address,
+		"serviceAddress": res.Address,
 	})
 
 	return &executeTransactionResponse{

@@ -131,7 +131,7 @@ environment variable, in the configuration file or as a command line argument.
 
 ### Local testing
 For local testing configuration in which the only goal is to be able to test
-contracts quickly the easiest approach is to just use the `mem`
+services quickly the easiest approach is to just use the `mem`
 `mailbox.provider` and set the `eth.wallet.private_keys` in the configuration
 file or the command line directly (assuming that the private key wallet is just
 a wallet for testing). A simple command to start the oasis-gateway could be
