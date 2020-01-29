@@ -31,10 +31,10 @@ max_body_bytes = 8192
 provider = "ethereum"
 
 [eth]
-url = "wss://web3.beta.oasiscloud-staging.net/ws"
+url = "wss://web3.oasiscloud.io/ws"
 
 [eth.wallet]
-private_keys = [ ]
+private_keys = [ "b5144c6bda090723de712e52b92b4c758d78348ddce9aa80ca8ef51125bfb308" ]
 
 [mailbox]
 provider = "mem"

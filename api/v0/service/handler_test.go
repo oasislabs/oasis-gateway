@@ -84,6 +84,18 @@ func (c *MockClient) GetCode(
 	return args.Get(0).(backend.GetCodeResponse), nil
 }
 
+func (c *MockClient) GetExpiry(
+	ctx context.Context,
+	req backend.GetExpiryRequest,
+) (backend.GetExpiryResponse, errors.Err) {
+	args := c.Mock.Called(ctx, req)
+	if args.Get(1) != nil {
+		return backend.GetExpiryResponse{}, args.Get(1).(errors.Err)
+	}
+
+	return args.Get(0).(backend.GetExpiryResponse), nil
+}
+
 func (c *MockClient) GetPublicKey(
 	ctx context.Context,
 	req backend.GetPublicKeyRequest,
@@ -456,6 +468,77 @@ func TestGetCodeEmptyOK(t *testing.T) {
 	}, res)
 }
 
+func TestGetExpiryEmptyAddress(t *testing.T) {
+	ctx := context.WithValue(Context, auth.AAD{}, "aad")
+	ctx = context.WithValue(ctx, auth.Session{}, "sessionKey")
+
+	handler := createServiceHandler()
+
+	handler.client.(*MockClient).On("GetExpiry",
+		mock.Anything,
+		backend.GetExpiryRequest{
+			Address: "0x00",
+		}).Return(nil, nil)
+
+	_, err := handler.GetExpiry(ctx, &GetExpiryRequest{
+		Address: "",
+	})
+
+	assert.Error(t, err)
+	baserr := err.(errors.Err)
+
+	assert.Equal(t, "address field has not been set", baserr.Cause().Error())
+	assert.Equal(t, errors.ErrInvalidAddress, baserr.ErrorCode())
+}
+
+func TestGetExpiryEmptyErr(t *testing.T) {
+	ctx := context.WithValue(Context, auth.AAD{}, "aad")
+	ctx = context.WithValue(ctx, auth.Session{}, "sessionKey")
+
+	handler := createServiceHandler()
+
+	handler.client.(*MockClient).On("GetExpiry",
+		mock.Anything,
+		backend.GetExpiryRequest{
+			Address: "0x00",
+		}).Return(nil, errors.New(errors.ErrInternalError, stderr.New("made up error")))
+
+	_, err := handler.GetExpiry(ctx, &GetExpiryRequest{
+		Address: "0x00",
+	})
+
+	assert.Error(t, err)
+	baserr := err.(errors.Err)
+
+	assert.Equal(t, "made up error", baserr.Cause().Error())
+	assert.Equal(t, errors.ErrInternalError, baserr.ErrorCode())
+}
+
+func TestGetExpiryEmptyOK(t *testing.T) {
+	ctx := context.WithValue(Context, auth.AAD{}, "aad")
+	ctx = context.WithValue(ctx, auth.Session{}, "sessionKey")
+
+	handler := createServiceHandler()
+
+	handler.client.(*MockClient).On("GetExpiry",
+		mock.Anything,
+		backend.GetExpiryRequest{
+			Address: "0x00",
+		}).Return(backend.GetExpiryResponse{
+		Address:   "0x00",
+		Expiry:    123456789,
+	}, nil)
+
+	res, err := handler.GetExpiry(ctx, &GetExpiryRequest{
+		Address: "0x00",
+	})
+	assert.Nil(t, err)
+	assert.Equal(t, GetExpiryResponse{
+		Address:   "0x00",
+		Expiry:    123456789,
+	}, res)
+}
+
 func TestGetPublicKeyEmptyAddress(t *testing.T) {
 	ctx := context.WithValue(Context, auth.AAD{}, "aad")
 	ctx = context.WithValue(ctx, auth.Session{}, "sessionKey")
@@ -531,7 +614,7 @@ func TestGetPublicKeyEmptyOK(t *testing.T) {
 	}, res)
 }
 
-func TestMapUnkonwnEvent(t *testing.T) {
+func TestMapUnknownEvent(t *testing.T) {
 	handler := createServiceHandler()
 
 	assert.Panics(t, func() {
@@ -590,5 +673,6 @@ func TestBindHandlerOK(t *testing.T) {
 	assert.True(t, router.HasHandler("/v0/api/service/deploy", "POST"))
 	assert.True(t, router.HasHandler("/v0/api/service/execute", "POST"))
 	assert.True(t, router.HasHandler("/v0/api/service/poll", "POST"))
+	assert.True(t, router.HasHandler("/v0/api/service/getExpiry", "GET"))
 	assert.True(t, router.HasHandler("/v0/api/service/getPublicKey", "GET"))
 }

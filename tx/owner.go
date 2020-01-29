@@ -221,8 +221,8 @@ func (e *WalletOwner) estimateGas(ctx context.Context, id uint64, address string
 		return e.estimateGasNonConfidential(ctx, id, address, data)
 	}
 
-	// TODO(stan): parse the data to identify whether the contract is confidential.
-	// estimateGas does not work for confidential contracts so in that case we provide a reasonable
+	// TODO(stan): parse the data to identify whether the service is confidential.
+	// estimateGas does not work for confidential services so in that case we provide a reasonable
 	// amount of gas that may work
 	return 15177522, nil
 }
@@ -369,7 +369,7 @@ func (e *WalletOwner) sendTransaction(
 }
 
 func (e *WalletOwner) executeTransaction(ctx context.Context, req ExecuteRequest) (ExecuteResponse, errors.Err) {
-	contractAddress := req.Address
+	serviceAddress := req.Address
 	gas, err := e.estimateGas(ctx, req.ID, req.Address, req.Data)
 	if err != nil {
 		e.logger.Debug(ctx, "failed to estimate gas", log.MapFields{
@@ -430,12 +430,12 @@ func (e *WalletOwner) executeTransaction(ctx context.Context, req ExecuteRequest
 		return ExecuteResponse{}, err
 	}
 
-	if len(contractAddress) == 0 {
-		// retrieve the code for the contract to make sure that it has been deployed
+	if len(serviceAddress) == 0 {
+		// retrieve the code for the service to make sure that it has been deployed
 		// successfully
 		code, err := e.getCode(ctx, receipt.ContractAddress)
 		if err != nil {
-			e.logger.Debug(ctx, "failure to retrieve contract code", log.MapFields{
+			e.logger.Debug(ctx, "failure to retrieve service code", log.MapFields{
 				"call_type": "ExecuteTransactionFailure",
 				"id":        req.ID,
 				"address":   req.Address,
@@ -444,11 +444,11 @@ func (e *WalletOwner) executeTransaction(ctx context.Context, req ExecuteRequest
 			return ExecuteResponse{}, err
 		}
 
-		// if the contract's code is "0x" it means that the contract failed to
+		// if the service's code is "0x" it means that the service failed to
 		// deploy which should be returned as an error
 		if len(code) <= 2 {
-			err := errors.New(errors.ErrContractCodeNotDeployed, nil)
-			e.logger.Debug(ctx, "failure to deploy contract code", log.MapFields{
+			err := errors.New(errors.ErrServiceCodeNotDeployed, nil)
+			e.logger.Debug(ctx, "failure to deploy service code", log.MapFields{
 				"call_type": "ExecuteTransactionFailure",
 				"id":        req.ID,
 				"address":   req.Address,
@@ -456,7 +456,7 @@ func (e *WalletOwner) executeTransaction(ctx context.Context, req ExecuteRequest
 			return ExecuteResponse{}, err
 		}
 
-		contractAddress = receipt.ContractAddress.Hex()
+		serviceAddress = receipt.ContractAddress.Hex()
 	}
 
 	// update the consumed gas
@@ -465,7 +465,7 @@ func (e *WalletOwner) executeTransaction(ctx context.Context, req ExecuteRequest
 	e.consumedBalance = e.consumedBalance.Add(e.consumedBalance, &gasUsed)
 
 	return ExecuteResponse{
-		Address: contractAddress,
+		Address: serviceAddress,
 		Output:  res.Output,
 		Hash:    res.Hash,
 	}, nil
@@ -474,7 +474,7 @@ func (e *WalletOwner) executeTransaction(ctx context.Context, req ExecuteRequest
 func (e *WalletOwner) getCode(ctx context.Context, addr common.Address) (string, errors.Err) {
 	code, err := e.client.GetCode(ctx, addr)
 	if err != nil {
-		return "", errors.New(errors.ErrGetContractCode, err)
+		return "", errors.New(errors.ErrGetServiceCode, err)
 	}
 
 	return code, nil

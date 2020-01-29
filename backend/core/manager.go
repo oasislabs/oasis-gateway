@@ -18,6 +18,7 @@ type Client interface {
 	Name() string
 	Stats() stats.Metrics
 	GetCode(context.Context, GetCodeRequest) (GetCodeResponse, errors.Err)
+	GetExpiry(context.Context, GetExpiryRequest) (GetExpiryResponse, errors.Err)
 	GetPublicKey(context.Context, GetPublicKeyRequest) (GetPublicKeyResponse, errors.Err)
 	ExecuteService(context.Context, uint64, ExecuteServiceRequest) (ExecuteServiceResponse, errors.Err)
 	DeployService(context.Context, uint64, DeployServiceRequest) (DeployServiceResponse, errors.Err)
@@ -88,6 +89,18 @@ func (m *RequestManager) GetCode(
 	}
 
 	return m.client.GetCode(ctx, req)
+}
+
+// GetExpiry retrieves the expiration timestamp for a specific service
+func (m *RequestManager) GetExpiry(
+	ctx context.Context,
+	req GetExpiryRequest,
+) (GetExpiryResponse, errors.Err) {
+	if len(req.Address) == 0 {
+		return GetExpiryResponse{}, errors.New(errors.ErrInvalidAddress, nil)
+	}
+
+	return m.client.GetExpiry(ctx, req)
 }
 
 // GetPublicKey retrieves the public key for a specific service

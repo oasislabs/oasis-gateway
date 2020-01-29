@@ -45,6 +45,10 @@ var DefaultMockMethods = map[string]MockMethod{
 			}, nil,
 		},
 	},
+	"GetExpiry": {
+		Arguments: []interface{}{mock.Anything, mock.Anything},
+		Return:    []interface{}{uint64(123456789), nil},
+	},
 	"GetPublicKey": {
 		Arguments: []interface{}{mock.Anything, mock.Anything},
 		Return: []interface{}{
@@ -129,6 +133,14 @@ func (m *MockClient) EstimateGas(
 	msg ethereum.CallMsg,
 ) (uint64, error) {
 	args := m.Called(ctx, msg)
+	return args.Get(0).(uint64), args.Error(1)
+}
+
+func (m *MockClient) GetExpiry(
+	ctx context.Context,
+	addr common.Address,
+) (uint64, error) {
+	args := m.Called(ctx, addr)
 	return args.Get(0).(uint64), args.Error(1)
 }
 

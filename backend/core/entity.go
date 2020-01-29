@@ -144,8 +144,29 @@ type GetCodeResponse struct {
 	// for service execution
 	Address string
 
-	// Code associated to the service
+	// Code associated with the service
 	Code string
+}
+
+// GetExpiryRequest is a request to retrieve the expiration timestamp
+// associated with a specific service
+type GetExpiryRequest struct {
+	// Address is the unique address that identifies the service,
+	// is generated when a service is deployed and it can be used
+	// for service execution
+	Address string `json:"address"`
+}
+
+// GetExpiryResponse is the response in which the public key
+// associated with the service is provided
+type GetExpiryResponse struct {
+	// Address is the unique address that identifies the service,
+	// is generated when a service is deployed and it can be used
+	// for service execution
+	Address string
+
+	// Expiry associated with the service
+	Expiry uint64
 }
 
 // GetPublicKeyRequest is a request to retrieve the public key
@@ -168,7 +189,7 @@ type GetPublicKeyResponse struct {
 	// for service execution
 	Address string
 
-	// PublicKey associated to the service
+	// PublicKey associated with the service
 	PublicKey string
 
 	// Signature from the key manager to authenticate the public key
@@ -346,7 +367,7 @@ type UnsubscribeRequest struct {
 }
 
 // CreateSubscriptionRequest is the request to subscribe to a specific
-// event type for a contract
+// event type for a service
 type CreateSubscriptionRequest struct {
 	// Event is the subscription event type
 	Event string

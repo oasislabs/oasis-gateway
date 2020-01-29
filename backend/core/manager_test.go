@@ -45,6 +45,18 @@ func (c *MockClient) GetCode(
 	return args.Get(0).(GetCodeResponse), nil
 }
 
+func (c *MockClient) GetExpiry(
+	ctx context.Context,
+	req GetExpiryRequest,
+) (GetExpiryResponse, errors.Err) {
+	args := c.Called(ctx, req)
+	if args.Get(1) != nil {
+		return GetExpiryResponse{}, args.Get(1).(errors.Err)
+	}
+
+	return args.Get(0).(GetExpiryResponse), nil
+}
+
 func (c *MockClient) GetPublicKey(
 	ctx context.Context,
 	req GetPublicKeyRequest,

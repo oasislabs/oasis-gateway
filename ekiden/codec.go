@@ -7,7 +7,7 @@ import (
 	"github.com/ugorji/go/codec"
 )
 
-// Address of a contract
+// Address of a service
 type Address [32]byte
 
 // RequestPayload is the representation of an ekiden
