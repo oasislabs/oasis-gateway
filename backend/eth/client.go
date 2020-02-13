@@ -345,19 +345,19 @@ func (c *Client) subscribeRequest(
 		return errors.New(errors.ErrTopicLogsSupported, nil)
 	}
 
-	if len(req.Address) == 0 {
-		return errors.New(errors.ErrInvalidAddress, nil)
-	}
-
 	var topics [][]common.Hash
 	for _, topic := range req.Topics {
 		topics = append(topics, []common.Hash{common.HexToHash(topic)})
 	}
 
-	address := common.HexToAddress(req.Address)
+	var addresses = []common.Address{}
+	if req.Address != "" {
+		addresses = []common.Address{common.HexToAddress(req.Address)}
+	}
+
 	if err := c.subman.Create(ctx, req.SubID, &eth.LogSubscriber{
 		FilterQuery: ethereum.FilterQuery{
-			Addresses: []common.Address{address},
+			Addresses: addresses,
 			Topics:    topics,
 		},
 	}, ch); err != nil {

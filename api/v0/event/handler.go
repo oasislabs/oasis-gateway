@@ -63,18 +63,9 @@ func (h EventHandler) Subscribe(ctx context.Context, v interface{}) (interface{}
 		return nil, err
 	}
 
-	address := query.Get("address")
-	if len(address) == 0 {
-		err := errors.New(errors.ErrParseQueryParams, nil)
-		h.logger.Debug(ctx, "request does not contain address", log.MapFields{
-			"call_type": "SubscribeFailure",
-		}, err)
-		return nil, err
-	}
-
 	id, err := h.client.Subscribe(ctx, backend.SubscribeRequest{
 		Event:      req.Events[0],
-		Address:    address,
+		Address:    query.Get("address"),
 		SessionKey: session,
 		Topics:     query["topic"],
 	})
