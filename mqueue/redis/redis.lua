@@ -63,16 +63,16 @@ local mqretrieve = function(key, offset, count)
     stop = 0
   end
 
-  if stop >= len then
-    stop = len - 1
+  if stop > len then
+    stop = len
   end
 
   if start < 0  then
     start = 0
   end
 
-  if start >= len then
-    start = len - 1
+  if start > len then
+    start = len
   end
 
   if start > stop then
@@ -180,6 +180,9 @@ local test = function()
     assert(mqnext('example') == i)
     mqinsert('example', i, 'test', cjson.encode({data = i}))
   end
+
+  local t = mqretrieve('example', 11, 11)
+  assert(table.getn(t) == 0)
 
   local t = mqretrieve('example', 0, 10)
   assert(table.getn(t) == 11)
