@@ -145,7 +145,7 @@ func (s *ServicesTestSuite) TestExecuteServiceErrStatus0() {
 		ID: 0,
 		Cause: rpc.Error{
 			ErrorCode:   1000,
-			Description: "transaction receipt has status 0 which indicates a transaction execution failure with error 0x6572726F72",
+			Description: "transaction receipt has status 0 which indicates a transaction execution failure with error 0x6572726F72", // "error"
 		}}, ev)
 }
 
