@@ -10,7 +10,6 @@ import (
 
 	ethereum "github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/types"
 
 	callback "github.com/oasislabs/oasis-gateway/callback/client"
@@ -397,18 +396,7 @@ func (e *WalletOwner) executeTransaction(ctx context.Context, req ExecuteRequest
 	_ = e.updateBalance(ctx)
 
 	if res.Status != StatusOK {
-		p, derr := hexutil.Decode(res.Output)
-		if derr != nil {
-			e.logger.Debug(ctx, "failed to decode the output of the transaction as hex", log.MapFields{
-				"call_type": "DecodeTransactionOutputFailure",
-				"id":        req.ID,
-				"address":   req.Address,
-				"err":       derr.Error(),
-			})
-		}
-
-		output := string(p)
-		msg := fmt.Sprintf("transaction receipt has status %d which indicates a transaction execution failure with error %s", res.Status, output)
+		msg := fmt.Sprintf("transaction receipt has status %d which indicates a transaction execution failure with error %s", res.Status, res.Output)
 		err := errors.New(errors.NewErrorCode(errors.InternalError, 1000, msg), stderr.New(msg))
 		e.logger.Debug(ctx, "transaction execution failed", log.MapFields{
 			"call_type": "ExecuteTransactionFailure",
