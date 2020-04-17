@@ -45,8 +45,8 @@ const gasPrice int64 = 1000000000
 var retryConfig = concurrent.RetryConfig{
 	Random:            false,
 	UnlimitedAttempts: false,
-	Attempts:          2,
-	BaseExp:           1,
+	Attempts:          10,
+	BaseExp:           2,
 	BaseTimeout:       time.Second,
 	MaxRetryTimeout:   5 * time.Second,
 }
