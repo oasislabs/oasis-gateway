@@ -41,10 +41,10 @@ func (e ErrMaxAttemptsReached) Error() string {
 
 const (
 	defaultConcurrency     uint8         = 2
-	defaultBaseTimeout     time.Duration = 10 * time.Millisecond
-	defaultBaseExp         uint8         = 4
+	defaultBaseTimeout     time.Duration = 100 * time.Millisecond
+	defaultBaseExp         uint8         = 2
 	defaultMaxRetryTimeout time.Duration = 10 * time.Second
-	defaultAttempts        uint8         = 5
+	defaultAttempts        uint8         = 10
 )
 
 var RandomConfig = RetryConfig{
