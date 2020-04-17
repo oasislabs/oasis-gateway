@@ -150,10 +150,14 @@ func RetryWithConfig(
 			return nil, ErrMaxAttemptsReached{Causes: errs}
 		}
 
-		// make sure that the timeout is set to at least 1ns
-		timeout = ((timeout * exp) % maxTimeout) + time.Millisecond.Nanoseconds()
+		timeout = (timeout * exp)
+		multiplier := rand.Float64() + 0.5
+		if timeout > maxTimeout {
+			timeout = maxTimeout
+			multiplier = rand.Float64() + 1
+		}
 		if config.Random {
-			timeout = int64(rand.Float64()*float64(timeout)) + 1
+			timeout = int64(multiplier*float64(timeout)) + 1
 		}
 		timer.Reset(time.Duration(timeout))
 	}
