@@ -243,6 +243,7 @@ func (c *Client) DeployService(
 		return c.deployService(ctx, id, req)
 	})
 	if err != nil {
+		c.logger.Warn(ctx, "DeployService failed in backend/eth/client", err)
 		return backend.DeployServiceResponse{}, err.(errors.Err)
 	}
 

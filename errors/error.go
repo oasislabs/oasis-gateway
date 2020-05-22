@@ -4,11 +4,13 @@ import (
 	"fmt"
 
 	"github.com/oasislabs/oasis-gateway/log"
+	"github.com/pkg/errors"
 )
 
 type Err interface {
 	Error() string
 	Cause() error
+	StackTrace() errors.StackTrace
 	ErrorCode() ErrorCode
 	log.Loggable
 }
@@ -465,6 +467,20 @@ const (
 	AuthenticationError Category = "AuthenticationError"
 )
 
+// We have to redefine this interface here because it is private,
+// which seems to be on purpose. Despite being private it is documented
+// as stable interface to use.
+type stackTracer interface {
+	StackTrace() errors.StackTrace
+}
+
+// We have to redefine this interface here because it is private,
+// which seems to be on purpose. Despite being private it is documented
+// as stable interface to use.
+type causer interface {
+	Cause() error
+}
+
 // Error is the implementation of an error for this package. It contains
 // an instance of an ErrorCode which provides information about the error
 // and a cause which might be nil if there's no underlying cause for
@@ -490,8 +506,17 @@ func (e Error) Log(fields log.Fields) {
 	fields.Add("err", e.errorCode.Desc())
 	fields.Add("errorCode", e.errorCode.Code())
 
-	if e.cause != nil {
-		fields.Add("cause", e.Error())
+	var causerErr causer
+	stackErr, ok := e.cause.(stackTracer)
+	if ok {
+		fields.Add("stack", stackErr.StackTrace())
+	}
+
+	causerErr, ok := e.cause.(causer)
+	if ok {
+		causeFields := make(log.MapFields)
+		Error{causerErr.Cause()}.Log(&causeFields)
+		fields.Add("cause", causeFields.fields)
 	}
 }
 
