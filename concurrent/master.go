@@ -2,11 +2,12 @@ package concurrent
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"runtime/debug"
 	"sync"
 	"sync/atomic"
+
+	"github.com/pkg/errors"
 )
 
 const (

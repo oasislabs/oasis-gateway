@@ -4,13 +4,13 @@ import (
 	"fmt"
 
 	"github.com/oasislabs/oasis-gateway/log"
-	"github.com/pkg/errors"
+	stderr "github.com/pkg/errors"
 )
 
 type Err interface {
 	Error() string
 	Cause() error
-	StackTrace() errors.StackTrace
+	StackTrace() stderr.StackTrace
 	ErrorCode() ErrorCode
 	log.Loggable
 }
@@ -471,7 +471,7 @@ const (
 // which seems to be on purpose. Despite being private it is documented
 // as stable interface to use.
 type stackTracer interface {
-	StackTrace() errors.StackTrace
+	StackTrace() stderr.StackTrace
 }
 
 // We have to redefine this interface here because it is private,
@@ -506,7 +506,6 @@ func (e Error) Log(fields log.Fields) {
 	fields.Add("err", e.errorCode.Desc())
 	fields.Add("errorCode", e.errorCode.Code())
 
-	var causerErr causer
 	stackErr, ok := e.cause.(stackTracer)
 	if ok {
 		fields.Add("stack", stackErr.StackTrace())
@@ -514,25 +513,46 @@ func (e Error) Log(fields log.Fields) {
 
 	causerErr, ok := e.cause.(causer)
 	if ok {
-		causeFields := make(log.MapFields)
-		Error{causerErr.Cause()}.Log(&causeFields)
-		fields.Add("cause", causeFields.fields)
+		cause := causerErr.Cause()
+		loggableCause, ok := cause.(Error) // May need to split loggable interface.
+		if ok {
+			loggableCause.Log(fields)
+		}
+		fields.Add("cause", cause)
+	} else {
+		if e.cause != nil {
+			fields.Add("cause", e.cause)
+		}
 	}
 }
 
-// Cause implementation offset Err
+// Cause implementation of Error
 func (e Error) Cause() error {
+	causerErr, ok := e.cause.(causer)
+	if ok {
+		return causerErr.Cause()
+	}
 	return e.cause
 }
 
-// ErrorCode implementation of Err
+// StackTrace implementation of Error
+func (e Error) StackTrace() stderr.StackTrace {
+	stErr, ok := e.cause.(stackTracer)
+	if ok {
+		return stErr.StackTrace()
+	}
+	// This will only happen if the root error is not from github.com/pkg/errors
+	return nil
+}
+
+// ErrorCode implementation of Error
 func (e Error) ErrorCode() ErrorCode {
 	return e.errorCode
 }
 
 // New creates a new instance of an error
 func New(errorCode ErrorCode, cause error) Error {
-	return Error{cause: cause, errorCode: errorCode}
+	return Error{cause: stderr.cause, errorCode: errorCode}
 }
 
 // NewErrorCode to create a new error code dynamically in

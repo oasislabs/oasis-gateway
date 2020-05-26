@@ -3,13 +3,13 @@ package eth
 import (
 	"context"
 	"crypto/ecdsa"
-	stderr "errors"
 	"fmt"
 	"net/url"
 
 	ethereum "github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
+	stderr "github.com/pkg/errors"
 
 	backend "github.com/oasislabs/oasis-gateway/backend/core"
 	callback "github.com/oasislabs/oasis-gateway/callback/client"
@@ -137,7 +137,7 @@ func (c *Client) getExpiry(
 
 	expiry, err := c.client.GetExpiry(ctx, common.HexToAddress(req.Address))
 	if err != nil {
-		err := errors.New(errors.ErrInternalError, fmt.Errorf("failed to get expiry %s", err.Error()))
+		err := errors.New(errors.ErrInternalError, stderr.Wrapf(err, "failed to get expiry %s", err.Error())
 		c.logger.Debug(ctx, "client call failed", log.MapFields{
 			"call_type": "GetExpiryFailure",
 			"address":   req.Address,
@@ -224,11 +224,11 @@ func (c *Client) GetPublicKey(
 
 func (c *Client) verifyAddress(addr string) errors.Err {
 	if len(addr) != 42 {
-		return errors.New(errors.ErrInvalidAddress, nil)
+		return errors.New(errors.ErrInvalidAddress, stderr.New("Invalid address"))
 	}
 
 	if _, err := hexutil.Decode(addr); err != nil {
-		return errors.New(errors.ErrInvalidAddress, err)
+		return errors.New(errors.ErrInvalidAddress, stderr.WithStack(err))
 	}
 
 	return nil

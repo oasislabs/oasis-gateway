@@ -3,7 +3,6 @@ package tx
 import (
 	"context"
 	"crypto/ecdsa"
-	stderr "errors"
 	"fmt"
 	"math/big"
 	"time"
@@ -11,6 +10,7 @@ import (
 	ethereum "github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
+	stderr "github.com/pkg/errors"
 
 	callback "github.com/oasislabs/oasis-gateway/callback/client"
 	"github.com/oasislabs/oasis-gateway/concurrent"
