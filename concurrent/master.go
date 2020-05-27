@@ -3,7 +3,6 @@ package concurrent
 import (
 	"context"
 	"fmt"
-	"runtime/debug"
 	"sync"
 	"sync/atomic"
 
@@ -17,15 +16,13 @@ const (
 )
 
 func errorFromPanic(r interface{}) error {
-	stacktrace := debug.Stack()
-
 	switch x := r.(type) {
 	case string:
-		return fmt.Errorf("panic error %s at %s", x, string(stacktrace))
+		return errors.New(fmt.Sprintf("panic error %s", x))
 	case error:
-		return fmt.Errorf("panic error %s at %s", x.Error(), string(stacktrace))
+		return errors.New(fmt.Sprintf("panic error %s", x.Error()))
 	default:
-		return fmt.Errorf("unknown panic %+v at %s", r, string(stacktrace))
+		return errors.New(fmt.Sprintf("unknown panic %+v", r))
 	}
 }
 

@@ -435,7 +435,7 @@ func (e *WalletOwner) executeTransaction(ctx context.Context, req ExecuteRequest
 		// if the service's code is "0x" it means that the service failed to
 		// deploy which should be returned as an error
 		if len(code) <= 2 {
-			err := errors.New(errors.ErrServiceCodeNotDeployed, nil)
+			err := errors.New(errors.ErrServiceCodeNotDeployed, stderr.New("Service code is 0x"))
 			e.logger.Debug(ctx, "failure to deploy service code", log.MapFields{
 				"call_type": "ExecuteTransactionFailure",
 				"id":        req.ID,

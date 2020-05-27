@@ -7,6 +7,8 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
+	stderr "github.com/pkg/errors"
 )
 
 // ErrNoOccurrence is returned failing to wait for an
@@ -130,7 +132,7 @@ func RetryWithConfig(
 		select {
 		case <-ctx.Done():
 			timer.Stop()
-			return nil, context.Canceled
+			return nil, stderr.WithStack(context.Canceled)
 
 		case <-timer.C:
 			v, err := supplier.Supply()
@@ -139,7 +141,7 @@ func RetryWithConfig(
 			}
 
 			if err, ok := err.(ErrCannotRecover); ok {
-				return nil, err.Cause
+				return nil, stderr.WithStack(err.Cause)
 			}
 
 			errs = append(errs, err)
@@ -147,7 +149,7 @@ func RetryWithConfig(
 
 		attempts++
 		if attempts >= maxAttempts && maxAttempts >= 0 {
-			return nil, ErrMaxAttemptsReached{Causes: errs}
+			return nil, stderr.WithStack(ErrMaxAttemptsReached{Causes: errs})
 		}
 
 		timeout = (timeout * exp)
