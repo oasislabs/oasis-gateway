@@ -75,7 +75,7 @@ func TestGetCodeInvalidAddress(t *testing.T) {
 		Address: "0x",
 	})
 	assert.Error(t, err)
-	assert.Equal(t, "[2006] error code InputError with desc Provided invalid address. with cause invalid address 0x", err.Error())
+	assert.Equal(t, "[2006] error code InputError with desc Provided invalid address. with cause Address hex should be 42 bytes long; got 0x", err.Error())
 }
 
 func TestGetCodeErr(t *testing.T) {
@@ -123,7 +123,7 @@ func TestGetExpiryInvalidAddress(t *testing.T) {
 		Address: "0x",
 	})
 	assert.Error(t, err)
-	assert.Equal(t, "[2006] error code InputError with desc Provided invalid address. with cause invalid address 0x", err.Error())
+	assert.Equal(t, "[2006] error code InputError with desc Provided invalid address. with cause Address hex should be 42 bytes long; got 0x", err.Error())
 }
 
 func TestGetExpiryErr(t *testing.T) {
@@ -171,7 +171,7 @@ func TestGetPublicKeyInvalidAddress(t *testing.T) {
 		Address: "0x",
 	})
 	assert.Error(t, err)
-	assert.Equal(t, "[2006] error code InputError with desc Provided invalid address. with cause invalid address 0x", err.Error())
+	assert.Equal(t, "[2006] error code InputError with desc Provided invalid address. with cause Address hex should be 42 bytes long; got 0x", err.Error())
 }
 
 func TestGetPublicKeyErr(t *testing.T) {
@@ -298,7 +298,7 @@ func TestExecuteServiceEmptyAddressErr(t *testing.T) {
 		Address: "",
 	})
 
-	assert.Equal(t, "[2006] error code InputError with desc Provided invalid address. with cause invalid address ", err.Error())
+	assert.Equal(t, "[2006] error code InputError with desc Provided invalid address. with cause Address hex should be 42 bytes long; got ", err.Error())
 }
 
 func TestExecuteServiceNoHexAddressErr(t *testing.T) {
@@ -312,7 +312,7 @@ func TestExecuteServiceNoHexAddressErr(t *testing.T) {
 		Address: "addressaddressaddressaddressaddressad",
 	})
 
-	assert.Equal(t, "[2006] error code InputError with desc Provided invalid address. with cause invalid address addressaddressaddressaddressaddressad", err.Error())
+	assert.Equal(t, "[2006] error code InputError with desc Provided invalid address. with cause Address hex should be 42 bytes long; got addressaddressaddressaddressaddressad", err.Error())
 }
 
 func TestSubscribeInvalidTopicErr(t *testing.T) {

@@ -224,7 +224,7 @@ func (c *Client) GetPublicKey(
 
 func (c *Client) verifyAddress(addr string) errors.Err {
 	if len(addr) != 42 {
-		return errors.New(errors.ErrInvalidAddress, stderr.New(fmt.Sprintf("invalid address %s", addr)))
+		return errors.New(errors.ErrInvalidAddress, stderr.New(fmt.Sprintf("Address hex should be 42 bytes long; got %s", addr)))
 	}
 
 	if _, err := hexutil.Decode(addr); err != nil {
