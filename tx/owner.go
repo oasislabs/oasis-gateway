@@ -319,7 +319,7 @@ func (e *WalletOwner) sendTransaction(
 		res, err := e.client.SendTransaction(ctx, tx)
 		if err != nil {
 			switch {
-			case err == eth.ErrExceedsBalance:
+			case stderr.Is(err, eth.ErrExceedsBalance):
 				e.callbacks.WalletOutOfFunds(ctx, callback.WalletOutOfFundsBody{
 					Address: e.wallet.Address().Hex(),
 				})
@@ -327,10 +327,10 @@ func (e *WalletOwner) sendTransaction(
 				return eth.SendTransactionResponse{},
 					concurrent.ErrCannotRecover{Cause: errors.New(errors.ErrSendTransaction, err)}
 
-			case err == eth.ErrExceedsBlockLimit:
+			case stderr.Is(err, eth.ErrExceedsBlockLimit):
 				return eth.SendTransactionResponse{},
 					concurrent.ErrCannotRecover{Cause: errors.New(errors.ErrSendTransaction, err)}
-			case err == eth.ErrInvalidNonce:
+			case stderr.Is(err, eth.ErrInvalidNonce):
 				if err := e.updateNonce(ctx); err != nil {
 					// if we fail to update the nonce we cannot proceed
 					return eth.SendTransactionResponse{},

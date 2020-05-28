@@ -88,7 +88,7 @@ func (c *Client) getCode(
 
 	code, err := c.client.GetCode(ctx, common.HexToAddress(req.Address))
 	if err != nil {
-		err := errors.New(errors.ErrInternalError, stderr.Wrapf(err, "failed to get code %s", err.Error()))
+		err := errors.New(errors.ErrInternalError, stderr.Wrapf(err, "failed to get code for address %s", req.Address))
 		c.logger.Debug(ctx, "client call failed", log.MapFields{
 			"call_type": "GetCodeFailure",
 			"address":   req.Address,
@@ -137,7 +137,7 @@ func (c *Client) getExpiry(
 
 	expiry, err := c.client.GetExpiry(ctx, common.HexToAddress(req.Address))
 	if err != nil {
-		err := errors.New(errors.ErrInternalError, stderr.Wrapf(err, "failed to get expiry %s", err.Error()))
+		err := errors.New(errors.ErrInternalError, stderr.Wrapf(err, "failed to get expiry for address %s", req.Address))
 		c.logger.Debug(ctx, "client call failed", log.MapFields{
 			"call_type": "GetExpiryFailure",
 			"address":   req.Address,
@@ -186,7 +186,7 @@ func (c *Client) getPublicKey(
 
 	pk, err := c.client.GetPublicKey(ctx, common.HexToAddress(req.Address))
 	if err != nil {
-		err := errors.New(errors.ErrInternalError, stderr.Wrapf(err, "failed to get public key %s", err.Error()))
+		err := errors.New(errors.ErrInternalError, stderr.Wrapf(err, "failed to get public key for address %s", req.Address))
 		c.logger.Debug(ctx, "client call failed", log.MapFields{
 			"call_type": "GetPublicKeyFailure",
 			"address":   req.Address,
@@ -224,11 +224,11 @@ func (c *Client) GetPublicKey(
 
 func (c *Client) verifyAddress(addr string) errors.Err {
 	if len(addr) != 42 {
-		return errors.New(errors.ErrInvalidAddress, stderr.New("invalid address"))
+		return errors.New(errors.ErrInvalidAddress, stderr.New(fmt.Sprintf("invalid address %s", addr)))
 	}
 
 	if _, err := hexutil.Decode(addr); err != nil {
-		return errors.New(errors.ErrInvalidAddress, stderr.WithStack(err))
+		return errors.New(errors.ErrInvalidAddress, stderr.Wrapf(err, "failed to decode address %s", addr))
 	}
 
 	return nil

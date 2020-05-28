@@ -2,7 +2,6 @@ package eth
 
 import (
 	"context"
-	"fmt"
 	"math/big"
 	"strconv"
 	"strings"
@@ -80,11 +79,11 @@ func (c *PooledClient) inferError(err error) error {
 
 	switch {
 	case strings.Contains(err.Error(), "Cost of transaction exceeds sender balance"):
-		return concurrent.ErrCannotRecover{Cause: ErrExceedsBalance}
+		return concurrent.ErrCannotRecover{Cause: errors.Wrap(ErrExceedsBalance, err.Error())}
 	case strings.Contains(err.Error(), "Requested gas greater than block gas limit"):
-		return concurrent.ErrCannotRecover{Cause: ErrExceedsBlockLimit}
+		return concurrent.ErrCannotRecover{Cause: errors.Wrap(ErrExceedsBlockLimit, err.Error())}
 	case strings.Contains(err.Error(), "Invalid transaction nonce"):
-		return concurrent.ErrCannotRecover{Cause: ErrInvalidNonce}
+		return concurrent.ErrCannotRecover{Cause: errors.Wrap(ErrInvalidNonce, err.Error())}
 	default:
 		return err
 	}
@@ -110,7 +109,7 @@ func (c *PooledClient) request(ctx context.Context, fn func(conn *Conn) (interfa
 		// the last error message to be able to return useful information
 		if errMaxAttemptsReached, ok := err.(concurrent.ErrMaxAttemptsReached); ok {
 			errLast := errMaxAttemptsReached.Causes[len(errMaxAttemptsReached.Causes)-1]
-			return nil, errors.New(fmt.Sprintf("%s with last error %s", errMaxAttemptsReached.Error(), errLast))
+			return nil, errors.Wrapf(errLast, "%s with last error", errMaxAttemptsReached.Error())
 		}
 
 		return nil, err
@@ -348,7 +347,7 @@ func (p *UniDialer) dial(req dialRequest) {
 
 	c, err := rpc.DialWebsocket(req.Context, p.url, "")
 	if err != nil {
-		req.C <- dialResponse{Conn: nil, Error: errors.Wrap(err, "Failed to dial websocket")}
+		req.C <- dialResponse{Conn: nil, Error: errors.Wrapf(err, "Failed to dial websocket at URL %s", p.url)}
 		return
 	}
 
