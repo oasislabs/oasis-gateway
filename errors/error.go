@@ -552,7 +552,7 @@ func (e Error) ErrorCode() ErrorCode {
 
 // New creates a new instance of an error
 func New(errorCode ErrorCode, cause error) Error {
-	return Error{cause: stderr.cause, errorCode: errorCode}
+	return Error{cause: cause, errorCode: errorCode}
 }
 
 // NewErrorCode to create a new error code dynamically in

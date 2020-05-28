@@ -14,7 +14,7 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/rlp"
 	rpc "github.com/ethereum/go-ethereum/rpc"
-	errors "github.com/pkg/errors"
+	"github.com/pkg/errors"
 
 	"github.com/oasislabs/oasis-gateway/concurrent"
 )
@@ -80,13 +80,13 @@ func (c *PooledClient) inferError(err error) error {
 
 	switch {
 	case strings.Contains(err.Error(), "Cost of transaction exceeds sender balance"):
-		return errors.WithStack(concurrent.ErrCannotRecover{Cause: ErrExceedsBalance})
+		return concurrent.ErrCannotRecover{Cause: ErrExceedsBalance}
 	case strings.Contains(err.Error(), "Requested gas greater than block gas limit"):
-		return errors.WithStack(concurrent.ErrCannotRecover{Cause: ErrExceedsBlockLimit})
+		return concurrent.ErrCannotRecover{Cause: ErrExceedsBlockLimit}
 	case strings.Contains(err.Error(), "Invalid transaction nonce"):
-		return errors.WithStack(concurrent.ErrCannotRecover{Cause: ErrInvalidNonce})
+		return concurrent.ErrCannotRecover{Cause: ErrInvalidNonce}
 	default:
-		return errors.WithStack(err)
+		return err
 	}
 }
 

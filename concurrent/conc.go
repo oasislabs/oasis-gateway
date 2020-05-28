@@ -149,7 +149,7 @@ func RetryWithConfig(
 
 		attempts++
 		if attempts >= maxAttempts && maxAttempts >= 0 {
-			return nil, stderr.WithStack(ErrMaxAttemptsReached{Causes: errs})
+			return nil, ErrMaxAttemptsReached{Causes: errs}
 		}
 
 		timeout = (timeout * exp)
