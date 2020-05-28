@@ -528,8 +528,7 @@ func (e Error) Log(fields log.Fields) {
 
 // Cause implementation of Error
 func (e Error) Cause() error {
-	causerErr, ok := e.cause.(causer)
-	if ok {
+	if causerErr, ok := e.cause.(causer); ok {
 		return causerErr.Cause()
 	}
 	return e.cause
@@ -537,8 +536,7 @@ func (e Error) Cause() error {
 
 // StackTrace implementation of Error
 func (e Error) StackTrace() stderr.StackTrace {
-	stErr, ok := e.cause.(stackTracer)
-	if ok {
+	if stErr, ok := e.cause.(stackTracer); ok {
 		return stErr.StackTrace()
 	}
 	// This will only happen if the root error is not from github.com/pkg/errors
