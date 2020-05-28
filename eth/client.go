@@ -13,15 +13,15 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/rlp"
 	rpc "github.com/ethereum/go-ethereum/rpc"
-	"github.com/pkg/errors"
+	stderr "github.com/pkg/errors"
 
 	"github.com/oasislabs/oasis-gateway/concurrent"
 )
 
 var (
-	ErrExceedsBalance    = errors.New("cost of transaction exceeds sender balance")
-	ErrExceedsBlockLimit = errors.New("requested gas greater than block gas limit")
-	ErrInvalidNonce      = errors.New("invalid transaction nonce")
+	ErrExceedsBalance    = stderr.New("cost of transaction exceeds sender balance")
+	ErrExceedsBlockLimit = stderr.New("requested gas greater than block gas limit")
+	ErrInvalidNonce      = stderr.New("invalid transaction nonce")
 )
 
 type Client interface {
@@ -79,11 +79,11 @@ func (c *PooledClient) inferError(err error) error {
 
 	switch {
 	case strings.Contains(err.Error(), "Cost of transaction exceeds sender balance"):
-		return concurrent.ErrCannotRecover{Cause: errors.Wrap(ErrExceedsBalance, err.Error())}
+		return concurrent.ErrCannotRecover{Cause: stderr.Wrap(ErrExceedsBalance, err.Error())}
 	case strings.Contains(err.Error(), "Requested gas greater than block gas limit"):
-		return concurrent.ErrCannotRecover{Cause: errors.Wrap(ErrExceedsBlockLimit, err.Error())}
+		return concurrent.ErrCannotRecover{Cause: stderr.Wrap(ErrExceedsBlockLimit, err.Error())}
 	case strings.Contains(err.Error(), "Invalid transaction nonce"):
-		return concurrent.ErrCannotRecover{Cause: errors.Wrap(ErrInvalidNonce, err.Error())}
+		return concurrent.ErrCannotRecover{Cause: stderr.Wrap(ErrInvalidNonce, err.Error())}
 	default:
 		return err
 	}
@@ -109,7 +109,7 @@ func (c *PooledClient) request(ctx context.Context, fn func(conn *Conn) (interfa
 		// the last error message to be able to return useful information
 		if errMaxAttemptsReached, ok := err.(concurrent.ErrMaxAttemptsReached); ok {
 			errLast := errMaxAttemptsReached.Causes[len(errMaxAttemptsReached.Causes)-1]
-			return nil, errors.Wrapf(errLast, "%s with last error", errMaxAttemptsReached.Error())
+			return nil, stderr.Wrapf(errLast, "%s with last error", errMaxAttemptsReached.Error())
 		}
 
 		return nil, err
@@ -185,7 +185,7 @@ func (c *PooledClient) NonceAt(ctx context.Context, account common.Address) (uin
 func (c *PooledClient) SendTransaction(ctx context.Context, tx *types.Transaction) (SendTransactionResponse, error) {
 	data, err := rlp.EncodeToBytes(tx)
 	if err != nil {
-		return SendTransactionResponse{}, errors.Wrap(err, "Failed to encode transaction")
+		return SendTransactionResponse{}, stderr.Wrap(err, "Failed to encode transaction")
 	}
 
 	v, err := c.request(ctx, func(conn *Conn) (interface{}, error) {
@@ -205,7 +205,7 @@ func (c *PooledClient) SendTransaction(ctx context.Context, tx *types.Transactio
 	res.Status = strings.TrimPrefix(res.Status, "0x")
 	status, err := strconv.ParseUint(res.Status, 16, 64)
 	if err != nil {
-		return SendTransactionResponse{}, errors.Wrap(err, "Failed to parse tx status")
+		return SendTransactionResponse{}, stderr.Wrap(err, "Failed to parse tx status")
 	}
 
 	return SendTransactionResponse{
@@ -347,7 +347,7 @@ func (p *UniDialer) dial(req dialRequest) {
 
 	c, err := rpc.DialWebsocket(req.Context, p.url, "")
 	if err != nil {
-		req.C <- dialResponse{Conn: nil, Error: errors.Wrapf(err, "Failed to dial websocket at URL %s", p.url)}
+		req.C <- dialResponse{Conn: nil, Error: stderr.Wrapf(err, "Failed to dial websocket at URL %s", p.url)}
 		return
 	}
 

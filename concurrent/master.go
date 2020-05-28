@@ -6,7 +6,7 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/pkg/errors"
+	stderr "github.com/pkg/errors"
 )
 
 const (
@@ -18,11 +18,11 @@ const (
 func errorFromPanic(r interface{}) error {
 	switch x := r.(type) {
 	case string:
-		return errors.New(fmt.Sprintf("panic error %s", x))
+		return stderr.New(fmt.Sprintf("panic error %s", x))
 	case error:
-		return errors.New(fmt.Sprintf("panic error %s", x.Error()))
+		return stderr.New(fmt.Sprintf("panic error %s", x.Error()))
 	default:
-		return errors.New(fmt.Sprintf("unknown panic %+v", r))
+		return stderr.New(fmt.Sprintf("unknown panic %+v", r))
 	}
 }
 
@@ -183,7 +183,7 @@ func (m *Master) IsStopped() bool {
 func (m *Master) Start(ctx context.Context) error {
 	ok := atomic.CompareAndSwapUint32(&m.state, 0, 1)
 	if !ok {
-		return errors.New("master is not stopped")
+		return stderr.New("master is not stopped")
 	}
 
 	m.sharedCh = make(chan executeRequest, 64)
@@ -200,7 +200,7 @@ func (m *Master) Start(ctx context.Context) error {
 func (m *Master) Stop() error {
 	ok := atomic.CompareAndSwapUint32(&m.state, started, stopping)
 	if !ok {
-		return errors.New("master is not started")
+		return stderr.New("master is not started")
 	}
 
 	close(m.shutdownCh)
@@ -228,7 +228,7 @@ func (m *Master) Stop() error {
 func (m *Master) Create(ctx context.Context, key string, value interface{}) error {
 	ok := atomic.CompareAndSwapUint32(&m.state, started, started)
 	if !ok {
-		return errors.New("master is not started")
+		return stderr.New("master is not started")
 	}
 
 	out := make(chan error)
@@ -240,7 +240,7 @@ func (m *Master) Create(ctx context.Context, key string, value interface{}) erro
 func (m *Master) Destroy(ctx context.Context, key string) error {
 	ok := atomic.CompareAndSwapUint32(&m.state, started, started)
 	if !ok {
-		return errors.New("master is not started")
+		return stderr.New("master is not started")
 	}
 
 	out := make(chan Response)
@@ -264,7 +264,7 @@ func (m *Master) Destroy(ctx context.Context, key string) error {
 func (m *Master) Exists(ctx context.Context, key string) (bool, error) {
 	ok := atomic.CompareAndSwapUint32(&m.state, started, started)
 	if !ok {
-		return false, errors.New("master is not started")
+		return false, stderr.New("master is not started")
 	}
 
 	out := make(chan bool)
@@ -277,7 +277,7 @@ func (m *Master) Exists(ctx context.Context, key string) (bool, error) {
 func (m *Master) Request(ctx context.Context, key string, req interface{}) (interface{}, error) {
 	ok := atomic.CompareAndSwapUint32(&m.state, started, started)
 	if !ok {
-		return nil, errors.New("master is not started")
+		return nil, stderr.New("master is not started")
 	}
 
 	out := make(chan Response)
@@ -298,7 +298,7 @@ func (m *Master) Request(ctx context.Context, key string, req interface{}) (inte
 func (m *Master) Broadcast(ctx context.Context, req interface{}) ([]Response, error) {
 	ok := atomic.CompareAndSwapUint32(&m.state, started, started)
 	if !ok {
-		return nil, errors.New("master is not started")
+		return nil, stderr.New("master is not started")
 	}
 
 	out := make(chan Response)
@@ -316,7 +316,7 @@ func (m *Master) Broadcast(ctx context.Context, req interface{}) ([]Response, er
 func (m *Master) Execute(ctx context.Context, req interface{}) (interface{}, error) {
 	ok := atomic.CompareAndSwapUint32(&m.state, started, started)
 	if !ok {
-		return nil, errors.New("master is not started")
+		return nil, stderr.New("master is not started")
 	}
 
 	out := make(chan Response)
@@ -416,7 +416,7 @@ func (m *Master) handleRequest(req request) {
 func (m *Master) handleWorkerRequest(req workerRequest) {
 	w, ok := m.workers[req.Key]
 	if !ok && !m.createWorkerOnRequest {
-		req.Out <- Response{Value: nil, Error: errors.New("worker does not exist")}
+		req.Out <- Response{Value: nil, Error: stderr.New("worker does not exist")}
 		close(req.Out)
 		return
 
@@ -438,7 +438,7 @@ func (m *Master) handleWorkerRequest(req workerRequest) {
 
 func (m *Master) handleBroadcastRequest(req broadcastRequest) {
 	if len(m.workers) == 0 {
-		req.Out <- Response{Value: nil, Error: errors.New("no workers available to handle the execute request")}
+		req.Out <- Response{Value: nil, Error: stderr.New("no workers available to handle the execute request")}
 		close(req.Out)
 	}
 
@@ -456,7 +456,7 @@ func (m *Master) handleBroadcastRequest(req broadcastRequest) {
 
 func (m *Master) handleExecuteRequest(req executeRequest) {
 	if len(m.workers) == 0 {
-		req.Out <- Response{Value: nil, Error: errors.New("no workers available to handle the execute request")}
+		req.Out <- Response{Value: nil, Error: stderr.New("no workers available to handle the execute request")}
 		close(req.Out)
 		return
 	}
@@ -473,7 +473,7 @@ func (m *Master) createWorker(ctx context.Context, key string, value interface{}
 
 	_, ok := m.workers[key]
 	if ok {
-		err = errors.New("worker already exists")
+		err = stderr.New("worker already exists")
 		return
 	}
 
@@ -519,7 +519,7 @@ func (m *Master) handleDestroyRequest(req destroyRequest) {
 
 	c, ok := m.shutdownWorker(req.Key)
 	if !ok {
-		req.Out <- Response{Error: errors.New("worker does not exist"), Value: nil}
+		req.Out <- Response{Error: stderr.New("worker does not exist"), Value: nil}
 		close(req.Out)
 		return
 	}
