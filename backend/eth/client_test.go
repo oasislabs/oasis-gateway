@@ -95,7 +95,6 @@ func TestGetCodeErr(t *testing.T) {
 	})
 
 	assert.Error(t, err)
-	t.Logf("%+v\n", err)
 	assert.Equal(t, "[1000] error code InternalError with desc Internal Error. Please check the status of the service. with cause failed to get code error: error", err.Error())
 }
 
