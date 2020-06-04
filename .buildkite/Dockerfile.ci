@@ -20,8 +20,5 @@ COPY . /app
 # make to force pulling all the dependencies
 RUN make
 
-# generate codecov report
-RUN make test-coverage
-
 # remove the contents in /app
 RUN rm -rf /app/*
