@@ -1,4 +1,4 @@
-FROM golang:1.12-alpine AS builder
+FROM golang:1.14-alpine AS builder
 
 # Set GOPROXY to accept go proxy as a build arg and set as an environment
 # variable. By default this value is empty and not use a go proxy.

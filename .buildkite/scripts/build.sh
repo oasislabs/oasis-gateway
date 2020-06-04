@@ -9,7 +9,7 @@ set -euxo pipefail
 
 # golang service backend linting / testing
 echo "--- Installing Dependencies"
-go get -v
+go get -v all
 set -x
 make build
 make build-cmd

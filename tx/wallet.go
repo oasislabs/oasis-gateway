@@ -6,6 +6,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
+	stderr "github.com/pkg/errors"
 
 	"github.com/oasislabs/oasis-gateway/errors"
 )
@@ -42,7 +43,7 @@ func (w *InternalWallet) SignTransaction(tx *types.Transaction) (*types.Transact
 	var err error
 	tx, err = types.SignTx(tx, w.signer, w.privateKey)
 	if err != nil {
-		err := errors.New(errors.ErrSignedTx, err)
+		err := errors.New(errors.ErrSignedTx, stderr.Wrap(err, "Failed to sign transaction"))
 		return nil, err
 	}
 

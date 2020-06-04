@@ -75,7 +75,7 @@ func TestGetCodeInvalidAddress(t *testing.T) {
 		Address: "0x",
 	})
 	assert.Error(t, err)
-	assert.Equal(t, "[2006] error code InputError with desc Provided invalid address.", err.Error())
+	assert.Equal(t, "[2006] error code InputError with desc Provided invalid address. with cause Address hex should be 42 bytes long; got 0x", err.Error())
 }
 
 func TestGetCodeErr(t *testing.T) {
@@ -95,7 +95,7 @@ func TestGetCodeErr(t *testing.T) {
 	})
 
 	assert.Error(t, err)
-	assert.Equal(t, "[1000] error code InternalError with desc Internal Error. Please check the status of the service. with cause failed to get code error", err.Error())
+	assert.Equal(t, "[1000] error code InternalError with desc Internal Error. Please check the status of the service. with cause failed to get code for address 0x0000000000000000000000000000000000000000: error", err.Error())
 }
 
 func TestGetCodeOK(t *testing.T) {
@@ -123,7 +123,7 @@ func TestGetExpiryInvalidAddress(t *testing.T) {
 		Address: "0x",
 	})
 	assert.Error(t, err)
-	assert.Equal(t, "[2006] error code InputError with desc Provided invalid address.", err.Error())
+	assert.Equal(t, "[2006] error code InputError with desc Provided invalid address. with cause Address hex should be 42 bytes long; got 0x", err.Error())
 }
 
 func TestGetExpiryErr(t *testing.T) {
@@ -143,7 +143,7 @@ func TestGetExpiryErr(t *testing.T) {
 	})
 
 	assert.Error(t, err)
-	assert.Equal(t, "[1000] error code InternalError with desc Internal Error. Please check the status of the service. with cause failed to get expiry error", err.Error())
+	assert.Equal(t, "[1000] error code InternalError with desc Internal Error. Please check the status of the service. with cause failed to get expiry for address 0x0000000000000000000000000000000000000000: error", err.Error())
 }
 
 func TestGetExpiryOK(t *testing.T) {
@@ -171,7 +171,7 @@ func TestGetPublicKeyInvalidAddress(t *testing.T) {
 		Address: "0x",
 	})
 	assert.Error(t, err)
-	assert.Equal(t, "[2006] error code InputError with desc Provided invalid address.", err.Error())
+	assert.Equal(t, "[2006] error code InputError with desc Provided invalid address. with cause Address hex should be 42 bytes long; got 0x", err.Error())
 }
 
 func TestGetPublicKeyErr(t *testing.T) {
@@ -191,7 +191,7 @@ func TestGetPublicKeyErr(t *testing.T) {
 	})
 
 	assert.Error(t, err)
-	assert.Equal(t, "[1000] error code InternalError with desc Internal Error. Please check the status of the service. with cause failed to get public key error", err.Error())
+	assert.Equal(t, "[1000] error code InternalError with desc Internal Error. Please check the status of the service. with cause failed to get public key for address 0x0000000000000000000000000000000000000000: error", err.Error())
 }
 
 func TestGetPublicKeyOK(t *testing.T) {
@@ -229,7 +229,7 @@ func TestDeployServiceErrNoCode(t *testing.T) {
 		Data: "0x0000000000000000000000000000000000000000",
 	})
 
-	assert.Equal(t, "[1042] error code InternalError with desc Internal Error. Please check the status of the service.", err.Error())
+	assert.Equal(t, "[1042] error code InternalError with desc Internal Error. Please check the status of the service. with cause service code is 0x", err.Error())
 }
 
 func TestDeployServiceOK(t *testing.T) {
@@ -298,7 +298,7 @@ func TestExecuteServiceEmptyAddressErr(t *testing.T) {
 		Address: "",
 	})
 
-	assert.Equal(t, "[2006] error code InputError with desc Provided invalid address.", err.Error())
+	assert.Equal(t, "[2006] error code InputError with desc Provided invalid address. with cause Address hex should be 42 bytes long; got ", err.Error())
 }
 
 func TestExecuteServiceNoHexAddressErr(t *testing.T) {
@@ -312,7 +312,7 @@ func TestExecuteServiceNoHexAddressErr(t *testing.T) {
 		Address: "addressaddressaddressaddressaddressad",
 	})
 
-	assert.Equal(t, "[2006] error code InputError with desc Provided invalid address.", err.Error())
+	assert.Equal(t, "[2006] error code InputError with desc Provided invalid address. with cause Address hex should be 42 bytes long; got addressaddressaddressaddressaddressad", err.Error())
 }
 
 func TestSubscribeInvalidTopicErr(t *testing.T) {

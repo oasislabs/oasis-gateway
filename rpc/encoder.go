@@ -3,6 +3,8 @@ package rpc
 import (
 	"encoding/json"
 	"io"
+
+	stderr "github.com/pkg/errors"
 )
 
 // SimpleJsonSerializer deserializes a json payload
@@ -44,5 +46,5 @@ type JsonEncoder struct{}
 
 // Encode is the implementation of Encoder for JsonEncoder
 func (e JsonEncoder) Encode(writer io.Writer, v interface{}) error {
-	return json.NewEncoder(writer).Encode(v)
+	return stderr.Wrap(json.NewEncoder(writer).Encode(v), "failed to encode json")
 }

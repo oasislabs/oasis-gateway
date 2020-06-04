@@ -3,13 +3,13 @@ package eth
 import (
 	"context"
 	"crypto/ecdsa"
-	stderr "errors"
 	"fmt"
 	"net/url"
 
 	ethereum "github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
+	stderr "github.com/pkg/errors"
 
 	backend "github.com/oasislabs/oasis-gateway/backend/core"
 	callback "github.com/oasislabs/oasis-gateway/callback/client"
@@ -88,7 +88,7 @@ func (c *Client) getCode(
 
 	code, err := c.client.GetCode(ctx, common.HexToAddress(req.Address))
 	if err != nil {
-		err := errors.New(errors.ErrInternalError, fmt.Errorf("failed to get code %s", err.Error()))
+		err := errors.New(errors.ErrInternalError, stderr.Wrapf(err, "failed to get code for address %s", req.Address))
 		c.logger.Debug(ctx, "client call failed", log.MapFields{
 			"call_type": "GetCodeFailure",
 			"address":   req.Address,
@@ -137,7 +137,7 @@ func (c *Client) getExpiry(
 
 	expiry, err := c.client.GetExpiry(ctx, common.HexToAddress(req.Address))
 	if err != nil {
-		err := errors.New(errors.ErrInternalError, fmt.Errorf("failed to get expiry %s", err.Error()))
+		err := errors.New(errors.ErrInternalError, stderr.Wrapf(err, "failed to get expiry for address %s", req.Address))
 		c.logger.Debug(ctx, "client call failed", log.MapFields{
 			"call_type": "GetExpiryFailure",
 			"address":   req.Address,
@@ -186,7 +186,7 @@ func (c *Client) getPublicKey(
 
 	pk, err := c.client.GetPublicKey(ctx, common.HexToAddress(req.Address))
 	if err != nil {
-		err := errors.New(errors.ErrInternalError, fmt.Errorf("failed to get public key %s", err.Error()))
+		err := errors.New(errors.ErrInternalError, stderr.Wrapf(err, "failed to get public key for address %s", req.Address))
 		c.logger.Debug(ctx, "client call failed", log.MapFields{
 			"call_type": "GetPublicKeyFailure",
 			"address":   req.Address,
@@ -224,11 +224,11 @@ func (c *Client) GetPublicKey(
 
 func (c *Client) verifyAddress(addr string) errors.Err {
 	if len(addr) != 42 {
-		return errors.New(errors.ErrInvalidAddress, nil)
+		return errors.New(errors.ErrInvalidAddress, stderr.New(fmt.Sprintf("Address hex should be 42 bytes long; got %s", addr)))
 	}
 
 	if _, err := hexutil.Decode(addr); err != nil {
-		return errors.New(errors.ErrInvalidAddress, err)
+		return errors.New(errors.ErrInvalidAddress, stderr.Wrapf(err, "failed to decode address %s", addr))
 	}
 
 	return nil
@@ -444,7 +444,7 @@ func (c *Client) executeTransaction(
 func (c *Client) decodeBytes(s string) ([]byte, errors.Err) {
 	data, err := hexutil.Decode(s)
 	if err != nil {
-		return nil, errors.New(errors.ErrStringNotHex, err)
+		return nil, errors.New(errors.ErrStringNotHex, stderr.WithStack(err))
 	}
 
 	return data, nil
@@ -488,7 +488,7 @@ func DialContext(ctx context.Context, services *ClientServices, props *ClientPro
 
 	url, err := url.Parse(props.URL)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to parse url %s", err.Error())
+		return nil, stderr.New(fmt.Sprintf("Failed to parse url %s", err.Error()))
 	}
 
 	if url.Scheme != "wss" && url.Scheme != "ws" {

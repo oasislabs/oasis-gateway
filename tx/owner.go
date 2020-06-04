@@ -3,7 +3,6 @@ package tx
 import (
 	"context"
 	"crypto/ecdsa"
-	stderr "errors"
 	"fmt"
 	"math/big"
 	"time"
@@ -11,6 +10,7 @@ import (
 	ethereum "github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
+	stderr "github.com/pkg/errors"
 
 	callback "github.com/oasislabs/oasis-gateway/callback/client"
 	"github.com/oasislabs/oasis-gateway/concurrent"
@@ -319,7 +319,7 @@ func (e *WalletOwner) sendTransaction(
 		res, err := e.client.SendTransaction(ctx, tx)
 		if err != nil {
 			switch {
-			case err == eth.ErrExceedsBalance:
+			case stderr.Is(err, eth.ErrExceedsBalance):
 				e.callbacks.WalletOutOfFunds(ctx, callback.WalletOutOfFundsBody{
 					Address: e.wallet.Address().Hex(),
 				})
@@ -327,10 +327,10 @@ func (e *WalletOwner) sendTransaction(
 				return eth.SendTransactionResponse{},
 					concurrent.ErrCannotRecover{Cause: errors.New(errors.ErrSendTransaction, err)}
 
-			case err == eth.ErrExceedsBlockLimit:
+			case stderr.Is(err, eth.ErrExceedsBlockLimit):
 				return eth.SendTransactionResponse{},
 					concurrent.ErrCannotRecover{Cause: errors.New(errors.ErrSendTransaction, err)}
-			case err == eth.ErrInvalidNonce:
+			case stderr.Is(err, eth.ErrInvalidNonce):
 				if err := e.updateNonce(ctx); err != nil {
 					// if we fail to update the nonce we cannot proceed
 					return eth.SendTransactionResponse{},
@@ -435,7 +435,7 @@ func (e *WalletOwner) executeTransaction(ctx context.Context, req ExecuteRequest
 		// if the service's code is "0x" it means that the service failed to
 		// deploy which should be returned as an error
 		if len(code) <= 2 {
-			err := errors.New(errors.ErrServiceCodeNotDeployed, nil)
+			err := errors.New(errors.ErrServiceCodeNotDeployed, stderr.New("service code is 0x"))
 			e.logger.Debug(ctx, "failure to deploy service code", log.MapFields{
 				"call_type": "ExecuteTransactionFailure",
 				"id":        req.ID,

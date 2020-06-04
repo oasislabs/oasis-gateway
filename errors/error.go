@@ -4,11 +4,13 @@ import (
 	"fmt"
 
 	"github.com/oasislabs/oasis-gateway/log"
+	stderr "github.com/pkg/errors"
 )
 
 type Err interface {
 	Error() string
 	Cause() error
+	StackTrace() stderr.StackTrace
 	ErrorCode() ErrorCode
 	log.Loggable
 }
@@ -465,6 +467,20 @@ const (
 	AuthenticationError Category = "AuthenticationError"
 )
 
+// We have to redefine this interface here because it is private,
+// which seems to be on purpose. Despite being private it is documented
+// as stable interface to use.
+type stackTracer interface {
+	StackTrace() stderr.StackTrace
+}
+
+// We have to redefine this interface here because it is private,
+// which seems to be on purpose. Despite being private it is documented
+// as stable interface to use.
+type causer interface {
+	Cause() error
+}
+
 // Error is the implementation of an error for this package. It contains
 // an instance of an ErrorCode which provides information about the error
 // and a cause which might be nil if there's no underlying cause for
@@ -490,17 +506,44 @@ func (e Error) Log(fields log.Fields) {
 	fields.Add("err", e.errorCode.Desc())
 	fields.Add("errorCode", e.errorCode.Code())
 
-	if e.cause != nil {
-		fields.Add("cause", e.Error())
+	stackErr, ok := e.cause.(stackTracer)
+	if ok {
+		fields.Add("stack", stackErr.StackTrace())
+	}
+
+	causerErr, ok := e.cause.(causer)
+	if ok {
+		cause := causerErr.Cause()
+		loggableCause, ok := cause.(Error) // May need to split loggable interface.
+		if ok {
+			loggableCause.Log(fields)
+		}
+		fields.Add("cause", cause)
+	} else {
+		if e.cause != nil {
+			fields.Add("cause", e.cause)
+		}
 	}
 }
 
-// Cause implementation offset Err
+// Cause implementation of Error
 func (e Error) Cause() error {
+	if causerErr, ok := e.cause.(causer); ok {
+		return causerErr.Cause()
+	}
 	return e.cause
 }
 
-// ErrorCode implementation of Err
+// StackTrace implementation of Error
+func (e Error) StackTrace() stderr.StackTrace {
+	if stErr, ok := e.cause.(stackTracer); ok {
+		return stErr.StackTrace()
+	}
+	// This will only happen if the root error is not from github.com/pkg/errors
+	return nil
+}
+
+// ErrorCode implementation of Error
 func (e Error) ErrorCode() ErrorCode {
 	return e.errorCode
 }

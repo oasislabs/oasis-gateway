@@ -207,5 +207,5 @@ func TestPooledClientSendTransactionCallErr(t *testing.T) {
 
 	_, err = c.SendTransaction(context.Background(), tx)
 	assert.Error(t, err)
-	assert.Equal(t, "maximum number of attempts 10 reached with last error error", err.Error())
+	assert.Equal(t, "maximum number of attempts 10 reached; see cause for last error: error", err.Error())
 }

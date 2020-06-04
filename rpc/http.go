@@ -2,7 +2,6 @@ package rpc
 
 import (
 	"context"
-	stderr "errors"
 	"fmt"
 	"net/http"
 	"runtime/debug"
@@ -12,6 +11,7 @@ import (
 	"github.com/oasislabs/oasis-gateway/log"
 	"github.com/oasislabs/oasis-gateway/rw"
 	"github.com/oasislabs/oasis-gateway/stats"
+	stderr "github.com/pkg/errors"
 	"github.com/rs/cors"
 )
 
