@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"io"
 
+	stderr "github.com/pkg/errors"
+
 	"github.com/oasislabs/oasis-gateway/rw"
 )
 
@@ -47,7 +49,7 @@ type JsonDecoder struct{}
 
 // Decode is the implementation of Decoder for JsonDecoder
 func (e JsonDecoder) Decode(reader io.Reader, v interface{}) error {
-	return json.NewDecoder(reader).Decode(v)
+	return stderr.Wrap(json.NewDecoder(reader).Decode(v), "failed to decode json")
 }
 
 // DecodeWithLimit decodes the payload in the reader making sure not

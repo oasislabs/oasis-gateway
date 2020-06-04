@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/oasislabs/oasis-gateway/rw"
+	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -46,7 +47,7 @@ func TestJsonDecoderDecodeWithLimitTooSmall(t *testing.T) {
 		Limit:        10,
 	})
 
-	assert.Equal(t, "unexpected EOF", err.Error())
+	assert.Equal(t, "failed to decode json: unexpected EOF", err.Error())
 }
 
 func TestJsonDecoderDecodeWithLimitTooMuchData(t *testing.T) {
@@ -58,5 +59,5 @@ func TestJsonDecoderDecodeWithLimitTooMuchData(t *testing.T) {
 		Limit:        10,
 	})
 
-	assert.Equal(t, rw.ErrLimitExceeded, err)
+	assert.True(t, errors.Is(err, rw.ErrLimitExceeded))
 }

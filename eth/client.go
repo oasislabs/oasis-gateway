@@ -109,7 +109,7 @@ func (c *PooledClient) request(ctx context.Context, fn func(conn *Conn) (interfa
 		// the last error message to be able to return useful information
 		if errMaxAttemptsReached, ok := err.(concurrent.ErrMaxAttemptsReached); ok {
 			errLast := errMaxAttemptsReached.Causes[len(errMaxAttemptsReached.Causes)-1]
-			return nil, stderr.Wrapf(errLast, "%s with last error", errMaxAttemptsReached.Error())
+			return nil, stderr.Wrapf(errLast, "%s; see cause for last error", errMaxAttemptsReached.Error())
 		}
 
 		return nil, err
