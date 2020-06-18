@@ -2,8 +2,6 @@ package core
 
 import (
 	"context"
-
-	"github.com/oasislabs/oasis-gateway/stats"
 )
 
 // Element represents an element of the OrderedQueue
@@ -109,9 +107,6 @@ type ExistsRequest struct {
 type MQueue interface {
 	// Name is a human readable identifier
 	Name() string
-
-	// Stats returns collected health metrics for the queue
-	Stats() stats.Metrics
 
 	// Insert inserts the element to the provided offset.
 	Insert(context.Context, InsertRequest) error
