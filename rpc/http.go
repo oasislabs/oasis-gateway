@@ -133,7 +133,6 @@ type HttpRoute struct {
 	handlers      map[string]HttpMiddleware
 	preProcessors []HttpPreProcessor
 	encoder       Encoder
-	tracker       *stats.MethodTracker
 	metrics       *metrics.ServiceMetrics
 }
 
@@ -159,17 +158,8 @@ func NewHttpRoute(props HttpRouteProps) *HttpRoute {
 		handlers:      props.Handlers,
 		preProcessors: props.PreProcessors,
 		encoder:       props.Encoder,
-		tracker: stats.NewMethodTrackerWithResult(&stats.MethodTrackerProps{
-			Methods:    methods,
-			Results:    []string{"200", "204", "400", "401", "403", "405", "409", "500", "error", "preprocessor"},
-			WindowSize: 64,
-		}),
-		metrics: metrics.NewDefaultServiceMetrics("oasis-gateway-http"), // TODO: replace once you know how it differs from the rpc metrics
+		metrics:       metrics.NewDefaultServiceMetrics("oasis-gateway-http"),
 	}
-}
-
-func (h *HttpRoute) Stats() stats.Metrics {
-	return h.tracker.Stats()
 }
 
 // HasHandler returns true if the route has a handler that
