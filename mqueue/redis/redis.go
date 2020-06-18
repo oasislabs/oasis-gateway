@@ -80,7 +80,7 @@ func NewSingleMQueue(props SingleInstanceProps) (*MQueue, error) {
 	return &MQueue{
 		client:  c,
 		logger:  logger,
-		metrics: metrics.NewDefaultDatabaseMetrics("redis"),
+		metrics: metrics.NewDefaultDatabaseMetrics("oasis-gateway-redis"),
 	}, nil
 }
 
