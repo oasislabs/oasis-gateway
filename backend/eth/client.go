@@ -6,11 +6,10 @@ import (
 	"fmt"
 	"net/url"
 
-	"github.com/oasislabs/oasis-gateway/metrics"
-
 	ethereum "github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/iancoleman/strcase"
 	stderr "github.com/pkg/errors"
 
 	backend "github.com/oasislabs/oasis-gateway/backend/core"
@@ -19,6 +18,7 @@ import (
 	"github.com/oasislabs/oasis-gateway/errors"
 	"github.com/oasislabs/oasis-gateway/eth"
 	"github.com/oasislabs/oasis-gateway/log"
+	"github.com/oasislabs/oasis-gateway/metrics"
 	"github.com/oasislabs/oasis-gateway/stats"
 	"github.com/oasislabs/oasis-gateway/tx"
 )
@@ -111,16 +111,16 @@ func (c *Client) GetCode(
 	ctx context.Context,
 	req backend.GetCodeRequest,
 ) (backend.GetCodeResponse, errors.Err) {
-	timer := c.metrics.RequestTimer(getCode)
+	timer := c.metrics.RequestTimer(strcase.ToSnake(getCode))
 	defer timer.ObserveDuration()
 
 	v, err := c.getCode(ctx, req)
 	if err != nil {
-		c.metrics.RequestCounter(getCode, "fail").Inc()
+		c.metrics.RequestCounter(strcase.ToSnake(getCode), "fail").Inc()
 		return backend.GetCodeResponse{}, err.(errors.Err)
 	}
 
-	c.metrics.RequestCounter(getCode, "success").Inc()
+	c.metrics.RequestCounter(strcase.ToSnake(getCode), "success").Inc()
 	return v, nil
 }
 
@@ -162,16 +162,16 @@ func (c *Client) GetExpiry(
 	ctx context.Context,
 	req backend.GetExpiryRequest,
 ) (backend.GetExpiryResponse, errors.Err) {
-	timer := c.metrics.RequestTimer(getExpiry)
+	timer := c.metrics.RequestTimer(strcase.ToSnake(getExpiry))
 	defer timer.ObserveDuration()
 
 	v, err := c.getExpiry(ctx, req)
 	if err != nil {
-		c.metrics.RequestCounter(getExpiry, "fail").Inc()
+		c.metrics.RequestCounter(strcase.ToSnake(getExpiry), "fail").Inc()
 		return backend.GetExpiryResponse{}, err.(errors.Err)
 	}
 
-	c.metrics.RequestCounter(getExpiry, "success").Inc()
+	c.metrics.RequestCounter(strcase.ToSnake(getExpiry), "success").Inc()
 	return v, nil
 }
 
@@ -215,16 +215,16 @@ func (c *Client) GetPublicKey(
 	ctx context.Context,
 	req backend.GetPublicKeyRequest,
 ) (backend.GetPublicKeyResponse, errors.Err) {
-	timer := c.metrics.RequestTimer(getPublicKey)
+	timer := c.metrics.RequestTimer(strcase.ToSnake(getPublicKey))
 	defer timer.ObserveDuration()
 
 	v, err := c.getPublicKey(ctx, req)
 	if err != nil {
-		c.metrics.RequestCounter(getPublicKey, "fail").Inc()
+		c.metrics.RequestCounter(strcase.ToSnake(getPublicKey), "fail").Inc()
 		return backend.GetPublicKeyResponse{}, err.(errors.Err)
 	}
 
-	c.metrics.RequestCounter(getPublicKey, "success").Inc()
+	c.metrics.RequestCounter(strcase.ToSnake(getPublicKey), "success").Inc()
 	return v, nil
 }
 
@@ -245,16 +245,16 @@ func (c *Client) DeployService(
 	id uint64,
 	req backend.DeployServiceRequest,
 ) (backend.DeployServiceResponse, errors.Err) {
-	timer := c.metrics.RequestTimer(deployService)
+	timer := c.metrics.RequestTimer(strcase.ToSnake(deployService))
 	defer timer.ObserveDuration()
 
 	v, err := c.deployService(ctx, id, req)
 	if err != nil {
-		c.metrics.RequestCounter(deployService, "fail").Inc()
+		c.metrics.RequestCounter(strcase.ToSnake(deployService), "fail").Inc()
 		return backend.DeployServiceResponse{}, err.(errors.Err)
 	}
 
-	c.metrics.RequestCounter(deployService, "success").Inc()
+	c.metrics.RequestCounter(strcase.ToSnake(deployService), "success").Inc()
 	return v, nil
 }
 
@@ -289,16 +289,16 @@ func (c *Client) ExecuteService(
 	id uint64,
 	req backend.ExecuteServiceRequest,
 ) (backend.ExecuteServiceResponse, errors.Err) {
-	timer := c.metrics.RequestTimer(executeService)
+	timer := c.metrics.RequestTimer(strcase.ToSnake(executeService))
 	defer timer.ObserveDuration()
 
 	v, err := c.ExecuteService(ctx, id, req)
 	if err != nil {
-		c.metrics.RequestCounter(executeService, "fail").Inc()
+		c.metrics.RequestCounter(strcase.ToSnake(executeService), "fail").Inc()
 		return backend.ExecuteServiceResponse{}, err.(errors.Err)
 	}
 
-	c.metrics.RequestCounter(executeService, "success").Inc()
+	c.metrics.RequestCounter(strcase.ToSnake(executeService), "success").Inc()
 	return v, nil
 }
 
@@ -338,16 +338,16 @@ func (c *Client) SubscribeRequest(
 	req backend.CreateSubscriptionRequest,
 	ch chan<- interface{},
 ) errors.Err {
-	timer := c.metrics.RequestTimer(subscribeRequest)
+	timer := c.metrics.RequestTimer(strcase.ToSnake(subscribeRequest))
 	defer timer.ObserveDuration()
 
 	err := c.subscribeRequest(ctx, req, ch)
 	if err != nil {
-		c.metrics.RequestCounter(subscribeRequest, "fail").Inc()
+		c.metrics.RequestCounter(strcase.ToSnake(subscribeRequest), "fail").Inc()
 		return err.(errors.Err)
 	}
 
-	c.metrics.RequestCounter(subscribeRequest, "success").Inc()
+	c.metrics.RequestCounter(strcase.ToSnake(subscribeRequest), "success").Inc()
 	return nil
 }
 
@@ -391,16 +391,16 @@ func (c *Client) UnsubscribeRequest(
 	ctx context.Context,
 	req backend.DestroySubscriptionRequest,
 ) errors.Err {
-	timer := c.metrics.RequestTimer(unsubscribeRequest)
+	timer := c.metrics.RequestTimer(strcase.ToSnake(unsubscribeRequest))
 	defer timer.ObserveDuration()
 
 	err := c.unsubscribeRequest(ctx, req)
 	if err != nil {
-		c.metrics.RequestCounter(unsubscribeRequest, "fail").Inc()
+		c.metrics.RequestCounter(strcase.ToSnake(unsubscribeRequest), "fail").Inc()
 		return err.(errors.Err)
 	}
 
-	c.metrics.RequestCounter(unsubscribeRequest, "success").Inc()
+	c.metrics.RequestCounter(strcase.ToSnake(unsubscribeRequest), "success").Inc()
 	return nil
 }
 

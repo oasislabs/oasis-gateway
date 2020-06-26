@@ -9,10 +9,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/oasislabs/oasis-gateway/metrics"
-
 	"github.com/oasislabs/oasis-gateway/concurrent"
 	"github.com/oasislabs/oasis-gateway/log"
+	"github.com/oasislabs/oasis-gateway/metrics"
 	"github.com/oasislabs/oasis-gateway/stats"
 )
 
