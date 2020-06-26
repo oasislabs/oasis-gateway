@@ -120,8 +120,8 @@ func (c *Client) GetCode(
 		return backend.GetCodeResponse{}, err.(errors.Err)
 	}
 
-	c.metrics.RequestCounter(getcode, "success").Inc()
-	return v.(backend.GetCodeResponse), nil
+	c.metrics.RequestCounter(getCode, "success").Inc()
+	return v, nil
 }
 
 func (c *Client) getExpiry(
@@ -165,14 +165,14 @@ func (c *Client) GetExpiry(
 	timer := c.metrics.RequestTimer(getExpiry)
 	defer timer.ObserveDuration()
 
-	v, err = c.getExpiry(ctx, req)
+	v, err := c.getExpiry(ctx, req)
 	if err != nil {
 		c.metrics.RequestCounter(getExpiry, "fail").Inc()
 		return backend.GetExpiryResponse{}, err.(errors.Err)
 	}
 
 	c.metrics.RequestCounter(getExpiry, "success").Inc()
-	return v.(backend.GetExpiryResponse), nil
+	return v, nil
 }
 
 func (c *Client) getPublicKey(
@@ -225,7 +225,7 @@ func (c *Client) GetPublicKey(
 	}
 
 	c.metrics.RequestCounter(getPublicKey, "success").Inc()
-	return v.(backend.GetPublicKeyResponse), nil
+	return v, nil
 }
 
 func (c *Client) verifyAddress(addr string) errors.Err {
@@ -255,7 +255,7 @@ func (c *Client) DeployService(
 	}
 
 	c.metrics.RequestCounter(deployService, "success").Inc()
-	return v.(backend.DeployServiceResponse), nil
+	return v, nil
 }
 
 func (c *Client) deployService(
@@ -299,7 +299,7 @@ func (c *Client) ExecuteService(
 	}
 
 	c.metrics.RequestCounter(executeService, "success").Inc()
-	return v.(backend.ExecuteServiceResponse), nil
+	return v, nil
 }
 
 func (c *Client) executeService(

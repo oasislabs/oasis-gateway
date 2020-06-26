@@ -9,6 +9,7 @@ import (
 	"github.com/oasislabs/oasis-gateway/callback"
 	"github.com/oasislabs/oasis-gateway/config"
 	"github.com/oasislabs/oasis-gateway/log"
+	"github.com/oasislabs/oasis-gateway/metrics"
 	"github.com/oasislabs/oasis-gateway/mqueue"
 	"github.com/oasislabs/oasis-gateway/rpc"
 	"github.com/spf13/cobra"
@@ -24,6 +25,7 @@ type Config struct {
 	AuthConfig        auth.Config
 	CallbackConfig    callback.Config
 	LoggingConfig     LoggingConfig
+	MetricsConfig     metrics.MetricsConfig
 }
 
 func (c *Config) Use() string {
@@ -43,6 +45,7 @@ func (c *Config) Binders() []config.Binder {
 		&c.AuthConfig,
 		&c.CallbackConfig,
 		&c.LoggingConfig,
+		&c.MetricsConfig,
 	}
 }
 
@@ -54,6 +57,7 @@ func (c *Config) Log(fields log.Fields) {
 	c.AuthConfig.Log(fields)
 	c.CallbackConfig.Log(fields)
 	c.LoggingConfig.Log(fields)
+	c.MetricsConfig.Log(fields)
 }
 
 // BindConfig is the configuration for binding the exposed APIs

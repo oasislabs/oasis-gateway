@@ -286,6 +286,12 @@ var (
 		desc:     "Internal Error. Please check the status of the service.",
 	}
 
+	ErrPrometheusPushError = ErrorCode{
+		category: InternalError,
+		code:     1045,
+		desc:     "Error pushing metrics to Prometheus",
+	}
+
 	ErrOutOfRange = ErrorCode{
 		category: InputError,
 		code:     2001,

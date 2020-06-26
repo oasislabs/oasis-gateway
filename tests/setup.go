@@ -56,6 +56,9 @@ func Initialize() error {
 	gateway.RootLogger.Info(gateway.RootContext, "callback config configuration parsed", log.MapFields{
 		"callType": "CallbackConfigParseSuccess",
 	}, &Config.CallbackConfig)
+	gateway.RootLogger.Info(gateway.RootContext, "metrics config configuration parsed", log.MapFields{
+		"callType": "MetricsConfigParseSuccess",
+	}, &Config.MetricsConfig)
 
 	return nil
 }

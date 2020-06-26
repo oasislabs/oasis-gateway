@@ -8,6 +8,7 @@ import (
 	"github.com/oasislabs/oasis-gateway/log"
 	"github.com/oasislabs/oasis-gateway/metrics"
 	"github.com/oasislabs/oasis-gateway/mqueue/core"
+	"github.com/oasislabs/oasis-gateway/stats"
 )
 
 const (
@@ -51,6 +52,7 @@ type SingleInstanceProps struct {
 type MQueue struct {
 	client  Client
 	logger  log.Logger
+	tracker *stats.MethodTracker
 	metrics *metrics.DatabaseMetrics
 }
 
@@ -65,6 +67,7 @@ func NewClusterMQueue(props ClusterProps) (*MQueue, error) {
 	return &MQueue{
 		client:  c,
 		logger:  logger,
+		tracker: stats.NewMethodTracker(insert, retrieve, discard, next, remove, exists),
 		metrics: metrics.NewDefaultDatabaseMetrics("redis"),
 	}, nil
 }
@@ -80,12 +83,17 @@ func NewSingleMQueue(props SingleInstanceProps) (*MQueue, error) {
 	return &MQueue{
 		client:  c,
 		logger:  logger,
+		tracker: stats.NewMethodTracker(insert, retrieve, discard, next, remove),
 		metrics: metrics.NewDefaultDatabaseMetrics("oasis-gateway-redis"),
 	}, nil
 }
 
 func (m *MQueue) Name() string {
 	return "mqueue.redis.MQueue"
+}
+
+func (m *MQueue) Stats() stats.Metrics {
+	return m.tracker.Stats()
 }
 
 func (m *MQueue) exec(ctx context.Context, cmd command) (interface{}, error) {
@@ -141,7 +149,7 @@ func (m *MQueue) Retrieve(ctx context.Context, req core.RetrieveRequest) (core.E
 	}
 
 	m.metrics.DatabaseCounter(retrieve, "success").Inc()
-	return els.(core.Elements), nil
+	return els, nil
 }
 
 func (m *MQueue) retrieve(ctx context.Context, req core.RetrieveRequest) (core.Elements, error) {
@@ -239,7 +247,7 @@ func (m *MQueue) Next(ctx context.Context, req core.NextRequest) (uint64, error)
 		return 0, err
 	}
 	m.metrics.DatabaseCounter(next, "success").Inc()
-	return offset.(uint64), nil
+	return offset, nil
 }
 
 func (m *MQueue) next(ctx context.Context, req core.NextRequest) (uint64, error) {
@@ -277,7 +285,7 @@ func (m *MQueue) Exists(ctx context.Context, req core.ExistsRequest) (bool, erro
 		return false, err
 	}
 	m.metrics.DatabaseCounter(remove, "success").Inc()
-	return b.(bool), nil
+	return b, nil
 }
 
 func (m *MQueue) exists(ctx context.Context, req core.ExistsRequest) (bool, error) {

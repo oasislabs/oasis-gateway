@@ -1,7 +1,6 @@
 package client
 
 import (
-	"github.com/oasislabs/oasis-gateway/metrics"
 	"bytes"
 	"context"
 	"fmt"
@@ -9,6 +8,8 @@ import (
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/oasislabs/oasis-gateway/metrics"
 
 	"github.com/oasislabs/oasis-gateway/concurrent"
 	"github.com/oasislabs/oasis-gateway/log"
@@ -90,7 +91,7 @@ func NewClientWithDeps(deps *Deps, props *Props) *Client {
 		client:      deps.Client,
 		logger:      deps.Logger,
 		tracker:     stats.NewMethodTracker(walletOutOfFunds),
-		metrics: 	 metrics.NewDefaultServiceMetrics("oasis-gateway-callback")
+		metrics:     metrics.NewDefaultServiceMetrics("oasis-gateway-callback"),
 	}
 }
 
@@ -102,7 +103,11 @@ type Client struct {
 	retryConfig concurrent.RetryConfig
 	logger      log.Logger
 	tracker     *stats.MethodTracker
-	metrics 	*metrics.ServiceMetrics
+	metrics     *metrics.ServiceMetrics
+}
+
+func (c *Client) Stats() stats.Metrics {
+	return c.tracker.Stats()
 }
 
 func (c *Client) Name() string {
@@ -114,13 +119,13 @@ func (c *Client) instrumentedRequest(ctx context.Context, method string, req *ht
 	defer timer.ObserveDuration()
 
 	code, err := c.request(ctx, req)
-	if err 1= nil {
+	if err != nil {
 		c.metrics.RequestCounter(method, "fail").Inc()
 		return 0, err
 	}
 
 	c.metrics.RequestCounter(method, "success").Inc()
-	return code.(int), err
+	return code, err
 }
 
 // request sends an http request

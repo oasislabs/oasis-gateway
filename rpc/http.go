@@ -120,12 +120,6 @@ func (h MethodHandlers) Add(method string, middleware HttpMiddleware) {
 	h[method] = middleware
 }
 
-// RouteCounters counts number of requests for routes
-// split by status code
-type RouteCounters map[string]*stats.CounterGroup
-
-type RouteLatencies map[string]*stats.IntWindow
-
 // HttpRoute multiplexes the handling of a request to the handler
 // that expects a particular method
 type HttpRoute struct {
@@ -133,6 +127,7 @@ type HttpRoute struct {
 	handlers      map[string]HttpMiddleware
 	preProcessors []HttpPreProcessor
 	encoder       Encoder
+	tracker       *stats.MethodTracker
 	metrics       *metrics.ServiceMetrics
 }
 
@@ -158,8 +153,17 @@ func NewHttpRoute(props HttpRouteProps) *HttpRoute {
 		handlers:      props.Handlers,
 		preProcessors: props.PreProcessors,
 		encoder:       props.Encoder,
-		metrics:       metrics.NewDefaultServiceMetrics("oasis-gateway-http"),
+		tracker: stats.NewMethodTrackerWithResult(&stats.MethodTrackerProps{
+			Methods:    methods,
+			Results:    []string{"200", "204", "400", "401", "403", "405", "409", "500", "error", "preprocessor"},
+			WindowSize: 64,
+		}),
+		metrics: metrics.NewDefaultServiceMetrics("oasis-gateway-http"),
 	}
+}
+
+func (h *HttpRoute) Stats() stats.Metrics {
+	return h.tracker.Stats()
 }
 
 // HasHandler returns true if the route has a handler that
@@ -227,9 +231,8 @@ func (h *HttpRoute) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 	}
 
 	status, err := h.serveHTTP(res, req)
-	t := fmt.Sprintf("%d", status)
 	if err != nil {
-		h.metrics.RequestCounter(req.Method, "fail", err).Inc()
+		h.metrics.RequestCounter(req.Method, "fail").Inc()
 	} else {
 		h.metrics.RequestCounter(req.Method, "success", fmt.Sprintf("%d", status)).Inc()
 	}
