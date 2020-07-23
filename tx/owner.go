@@ -223,7 +223,7 @@ func (e *WalletOwner) estimateGas(ctx context.Context, id uint64, address string
 	// TODO(stan): parse the data to identify whether the service is confidential.
 	// estimateGas does not work for confidential services so in that case we provide a reasonable
 	// amount of gas that may work
-	return 15177522, nil
+	return 60710088, nil
 }
 
 func (e *WalletOwner) estimateGasNonConfidential(ctx context.Context, id uint64, address string, data []byte) (uint64, errors.Err) {
