@@ -5,6 +5,7 @@ import (
 	"crypto/ecdsa"
 	"time"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/oasislabs/oasis-gateway/concurrent"
@@ -27,17 +28,19 @@ type ExecutorProps struct {
 }
 
 type Executor struct {
-	master    *concurrent.Master
-	client    eth.Client
-	logger    log.Logger
-	callbacks Callbacks
+	WalletAddresses []common.Address
+	master          *concurrent.Master
+	client          eth.Client
+	logger          log.Logger
+	callbacks       Callbacks
 }
 
 func NewExecutor(ctx context.Context, services *ExecutorServices, props *ExecutorProps) (*Executor, error) {
 	s := &Executor{
-		client:    services.Client,
-		callbacks: services.Callbacks,
-		logger:    services.Logger.ForClass("tx/wallet", "Executor"),
+		WalletAddresses: make([]common.Address, 0, len(props.PrivateKeys)),
+		client:          services.Client,
+		callbacks:       services.Callbacks,
+		logger:          services.Logger.ForClass("tx/wallet", "Executor"),
 	}
 
 	s.master = concurrent.NewMaster(concurrent.MasterProps{
@@ -51,9 +54,10 @@ func NewExecutor(ctx context.Context, services *ExecutorServices, props *Executo
 
 	// Create a worker for each provided private key
 	for _, pk := range props.PrivateKeys {
-		address := crypto.PubkeyToAddress(pk.PublicKey).Hex()
+		address := crypto.PubkeyToAddress(pk.PublicKey)
+		s.WalletAddresses = append(s.WalletAddresses, address)
 		req := createOwnerRequest{PrivateKey: pk}
-		if err := s.master.Create(ctx, address, &req); err != nil {
+		if err := s.master.Create(ctx, address.Hex(), &req); err != nil {
 			if err := s.master.Stop(); err != nil {
 				return nil, err
 			}

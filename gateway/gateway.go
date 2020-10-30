@@ -5,6 +5,7 @@ import (
 
 	"github.com/oasislabs/oasis-gateway/api/v0/event"
 	"github.com/oasislabs/oasis-gateway/api/v0/health"
+	"github.com/oasislabs/oasis-gateway/api/v0/info"
 	"github.com/oasislabs/oasis-gateway/api/v0/service"
 	"github.com/oasislabs/oasis-gateway/auth"
 	authcore "github.com/oasislabs/oasis-gateway/auth/core"
@@ -218,6 +219,7 @@ func NewPublicRouter(config *Config, group *ServiceGroup) *rpc.HttpRouter {
 		Logger: RootLogger,
 		Client: group.Request,
 	}, binder)
+	info.BindHandler(info.Services{Logger: RootLogger, Client: group.Request}, binder)
 
 	return binder.Build()
 }

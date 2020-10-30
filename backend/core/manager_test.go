@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"testing"
 
+	ethereum "github.com/ethereum/go-ethereum/common"
 	"github.com/oasislabs/oasis-gateway/errors"
 	"github.com/oasislabs/oasis-gateway/log"
 	"github.com/oasislabs/oasis-gateway/mqueue/core"
@@ -31,6 +32,13 @@ func (c *MockClient) Name() string {
 
 func (c *MockClient) Stats() stats.Metrics {
 	return nil
+}
+
+func (c *MockClient) Senders() []ethereum.Address {
+	return []ethereum.Address{
+		ethereum.HexToAddress("0x01234567890abcdefa17a5dAfF8dC9b86eE04773"),
+		ethereum.HexToAddress("0x0a51514857B379A521C580a10822Fd8A7aC491A0"),
+	}
 }
 
 func (c *MockClient) GetCode(
