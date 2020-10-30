@@ -19,9 +19,15 @@ func NewHandler() Handler {
 
 // GetVersion returns the version of the component
 func (h Handler) GetVersion(ctx context.Context, v interface{}) (interface{}, error) {
-	_ = v.(*GetVersionRequest)
 	return &GetVersionResponse{
 		Version: 0,
+	}, nil
+}
+
+// GetVersion returns the version of the component
+func (h Handler) GetSenders(ctx context.Context, v interface{}) (interface{}, error) {
+	return &GetSendersResponse{
+		Senders: make([]string, 0), // TODO
 	}, nil
 }
 
@@ -30,5 +36,8 @@ func BindHandler(deps *Deps, binder rpc.HandlerBinder) {
 	handler := NewHandler()
 
 	binder.Bind("GET", "/v0/api/version", rpc.HandlerFunc(handler.GetVersion),
+		rpc.EntityFactoryFunc(func() interface{} { return nil }))
+
+	binder.Bind("GET", "/v0/api/getSenders", rpc.HandlerFunc(handler.GetSenders),
 		rpc.EntityFactoryFunc(func() interface{} { return nil }))
 }
