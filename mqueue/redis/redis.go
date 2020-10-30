@@ -6,6 +6,7 @@ import (
 
 	"github.com/go-redis/redis"
 	"github.com/oasislabs/oasis-gateway/log"
+	"github.com/oasislabs/oasis-gateway/metrics"
 	"github.com/oasislabs/oasis-gateway/mqueue/core"
 	"github.com/oasislabs/oasis-gateway/stats"
 )
@@ -52,6 +53,7 @@ type MQueue struct {
 	client  Client
 	logger  log.Logger
 	tracker *stats.MethodTracker
+	metrics *metrics.DatabaseMetrics
 }
 
 // NewClusterMQueue creates a new instance of a redis client
@@ -66,6 +68,7 @@ func NewClusterMQueue(props ClusterProps) (*MQueue, error) {
 		client:  c,
 		logger:  logger,
 		tracker: stats.NewMethodTracker(insert, retrieve, discard, next, remove, exists),
+		metrics: metrics.NewDefaultDatabaseMetrics("redis"),
 	}, nil
 }
 
@@ -81,6 +84,7 @@ func NewSingleMQueue(props SingleInstanceProps) (*MQueue, error) {
 		client:  c,
 		logger:  logger,
 		tracker: stats.NewMethodTracker(insert, retrieve, discard, next, remove),
+		metrics: metrics.NewDefaultDatabaseMetrics("oasis-gateway-redis"),
 	}, nil
 }
 
@@ -97,9 +101,15 @@ func (m *MQueue) exec(ctx context.Context, cmd command) (interface{}, error) {
 }
 
 func (m *MQueue) Insert(ctx context.Context, req core.InsertRequest) error {
-	_, err := m.tracker.Instrument(insert, func() (interface{}, error) {
-		return nil, m.insert(ctx, req)
-	})
+	timer := m.metrics.DatabaseTimer(insert)
+	defer timer.ObserveDuration()
+
+	err := m.insert(ctx, req)
+	if err != nil {
+		m.metrics.DatabaseCounter(insert, "fail").Inc()
+	} else {
+		m.metrics.DatabaseCounter(insert, "success").Inc()
+	}
 
 	return err
 }
@@ -129,14 +139,17 @@ func (m *MQueue) insert(ctx context.Context, req core.InsertRequest) error {
 }
 
 func (m *MQueue) Retrieve(ctx context.Context, req core.RetrieveRequest) (core.Elements, error) {
-	els, err := m.tracker.Instrument(retrieve, func() (interface{}, error) {
-		return m.retrieve(ctx, req)
-	})
+	timer := m.metrics.DatabaseTimer(retrieve)
+	defer timer.ObserveDuration()
+
+	els, err := m.retrieve(ctx, req)
 	if err != nil {
+		m.metrics.DatabaseCounter(retrieve, "fail").Inc()
 		return core.Elements{}, err
 	}
 
-	return els.(core.Elements), nil
+	m.metrics.DatabaseCounter(retrieve, "success").Inc()
+	return els, nil
 }
 
 func (m *MQueue) retrieve(ctx context.Context, req core.RetrieveRequest) (core.Elements, error) {
@@ -193,9 +206,15 @@ func (m *MQueue) retrieve(ctx context.Context, req core.RetrieveRequest) (core.E
 }
 
 func (m *MQueue) Discard(ctx context.Context, req core.DiscardRequest) error {
-	_, err := m.tracker.Instrument(discard, func() (interface{}, error) {
-		return nil, m.discard(ctx, req)
-	})
+	timer := m.metrics.DatabaseTimer(discard)
+	defer timer.ObserveDuration()
+
+	err := m.discard(ctx, req)
+	if err != nil {
+		m.metrics.DatabaseCounter(discard, "fail").Inc()
+	} else {
+		m.metrics.DatabaseCounter(discard, "success").Inc()
+	}
 
 	return err
 }
@@ -219,14 +238,16 @@ func (m *MQueue) discard(ctx context.Context, req core.DiscardRequest) error {
 }
 
 func (m *MQueue) Next(ctx context.Context, req core.NextRequest) (uint64, error) {
-	offset, err := m.tracker.Instrument(next, func() (interface{}, error) {
-		return m.next(ctx, req)
-	})
+	timer := m.metrics.DatabaseTimer(next)
+	defer timer.ObserveDuration()
+
+	offset, err := m.next(ctx, req)
 	if err != nil {
+		m.metrics.DatabaseCounter(next, "fail").Inc()
 		return 0, err
 	}
-
-	return offset.(uint64), nil
+	m.metrics.DatabaseCounter(next, "success").Inc()
+	return offset, nil
 }
 
 func (m *MQueue) next(ctx context.Context, req core.NextRequest) (uint64, error) {
@@ -241,22 +262,30 @@ func (m *MQueue) next(ctx context.Context, req core.NextRequest) (uint64, error)
 }
 
 func (m *MQueue) Remove(ctx context.Context, req core.RemoveRequest) error {
-	_, err := m.tracker.Instrument(remove, func() (interface{}, error) {
-		return nil, m.remove(ctx, req)
-	})
+	timer := m.metrics.DatabaseTimer(remove)
+	defer timer.ObserveDuration()
+
+	err := m.remove(ctx, req)
+	if err != nil {
+		m.metrics.DatabaseCounter(remove, "fail").Inc()
+	} else {
+		m.metrics.DatabaseCounter(remove, "success").Inc()
+	}
 
 	return err
 }
 
 func (m *MQueue) Exists(ctx context.Context, req core.ExistsRequest) (bool, error) {
-	b, err := m.tracker.Instrument(remove, func() (interface{}, error) {
-		return m.exists(ctx, req)
-	})
+	timer := m.metrics.DatabaseTimer(remove)
+	defer timer.ObserveDuration()
+
+	b, err := m.exists(ctx, req)
 	if err != nil {
+		m.metrics.DatabaseCounter(remove, "fail").Inc()
 		return false, err
 	}
-
-	return b.(bool), nil
+	m.metrics.DatabaseCounter(remove, "success").Inc()
+	return b, nil
 }
 
 func (m *MQueue) exists(ctx context.Context, req core.ExistsRequest) (bool, error) {

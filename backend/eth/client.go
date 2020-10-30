@@ -9,6 +9,7 @@ import (
 	ethereum "github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/iancoleman/strcase"
 	stderr "github.com/pkg/errors"
 
 	backend "github.com/oasislabs/oasis-gateway/backend/core"
@@ -17,6 +18,7 @@ import (
 	"github.com/oasislabs/oasis-gateway/errors"
 	"github.com/oasislabs/oasis-gateway/eth"
 	"github.com/oasislabs/oasis-gateway/log"
+	"github.com/oasislabs/oasis-gateway/metrics"
 	"github.com/oasislabs/oasis-gateway/stats"
 	"github.com/oasislabs/oasis-gateway/tx"
 )
@@ -57,7 +59,7 @@ type Client struct {
 	client   eth.Client
 	executor *tx.Executor
 	subman   *eth.SubscriptionManager
-	tracker  *stats.MethodTracker
+	metrics  *metrics.ServiceMetrics
 }
 
 func (c *Client) Name() string {
@@ -65,10 +67,8 @@ func (c *Client) Name() string {
 }
 
 func (c *Client) Stats() stats.Metrics {
-	methodStats := c.tracker.Stats()
 	walletStats := c.executor.Stats()
 	return stats.Metrics{
-		"methods": methodStats,
 		"wallets": walletStats,
 	}
 }
@@ -115,15 +115,17 @@ func (c *Client) GetCode(
 	ctx context.Context,
 	req backend.GetCodeRequest,
 ) (backend.GetCodeResponse, errors.Err) {
-	v, err := c.tracker.Instrument(getCode, func() (interface{}, error) {
-		return c.getCode(ctx, req)
-	})
+	timer := c.metrics.RequestTimer(strcase.ToSnake(getCode))
+	defer timer.ObserveDuration()
 
+	v, err := c.getCode(ctx, req)
 	if err != nil {
+		c.metrics.RequestCounter(strcase.ToSnake(getCode), "fail").Inc()
 		return backend.GetCodeResponse{}, err.(errors.Err)
 	}
 
-	return v.(backend.GetCodeResponse), nil
+	c.metrics.RequestCounter(strcase.ToSnake(getCode), "success").Inc()
+	return v, nil
 }
 
 func (c *Client) getExpiry(
@@ -164,15 +166,17 @@ func (c *Client) GetExpiry(
 	ctx context.Context,
 	req backend.GetExpiryRequest,
 ) (backend.GetExpiryResponse, errors.Err) {
-	v, err := c.tracker.Instrument(getExpiry, func() (interface{}, error) {
-		return c.getExpiry(ctx, req)
-	})
+	timer := c.metrics.RequestTimer(strcase.ToSnake(getExpiry))
+	defer timer.ObserveDuration()
 
+	v, err := c.getExpiry(ctx, req)
 	if err != nil {
+		c.metrics.RequestCounter(strcase.ToSnake(getExpiry), "fail").Inc()
 		return backend.GetExpiryResponse{}, err.(errors.Err)
 	}
 
-	return v.(backend.GetExpiryResponse), nil
+	c.metrics.RequestCounter(strcase.ToSnake(getExpiry), "success").Inc()
+	return v, nil
 }
 
 func (c *Client) getPublicKey(
@@ -215,15 +219,17 @@ func (c *Client) GetPublicKey(
 	ctx context.Context,
 	req backend.GetPublicKeyRequest,
 ) (backend.GetPublicKeyResponse, errors.Err) {
-	v, err := c.tracker.Instrument(getPublicKey, func() (interface{}, error) {
-		return c.getPublicKey(ctx, req)
-	})
+	timer := c.metrics.RequestTimer(strcase.ToSnake(getPublicKey))
+	defer timer.ObserveDuration()
 
+	v, err := c.getPublicKey(ctx, req)
 	if err != nil {
+		c.metrics.RequestCounter(strcase.ToSnake(getPublicKey), "fail").Inc()
 		return backend.GetPublicKeyResponse{}, err.(errors.Err)
 	}
 
-	return v.(backend.GetPublicKeyResponse), nil
+	c.metrics.RequestCounter(strcase.ToSnake(getPublicKey), "success").Inc()
+	return v, nil
 }
 
 func (c *Client) verifyAddress(addr string) errors.Err {
@@ -243,14 +249,17 @@ func (c *Client) DeployService(
 	id uint64,
 	req backend.DeployServiceRequest,
 ) (backend.DeployServiceResponse, errors.Err) {
-	v, err := c.tracker.Instrument(deployService, func() (interface{}, error) {
-		return c.deployService(ctx, id, req)
-	})
+	timer := c.metrics.RequestTimer(strcase.ToSnake(deployService))
+	defer timer.ObserveDuration()
+
+	v, err := c.deployService(ctx, id, req)
 	if err != nil {
+		c.metrics.RequestCounter(strcase.ToSnake(deployService), "fail").Inc()
 		return backend.DeployServiceResponse{}, err.(errors.Err)
 	}
 
-	return v.(backend.DeployServiceResponse), nil
+	c.metrics.RequestCounter(strcase.ToSnake(deployService), "success").Inc()
+	return v, nil
 }
 
 func (c *Client) deployService(
@@ -284,14 +293,17 @@ func (c *Client) ExecuteService(
 	id uint64,
 	req backend.ExecuteServiceRequest,
 ) (backend.ExecuteServiceResponse, errors.Err) {
-	v, err := c.tracker.Instrument(executeService, func() (interface{}, error) {
-		return c.executeService(ctx, id, req)
-	})
+	timer := c.metrics.RequestTimer(strcase.ToSnake(executeService))
+	defer timer.ObserveDuration()
+
+	v, err := c.ExecuteService(ctx, id, req)
 	if err != nil {
+		c.metrics.RequestCounter(strcase.ToSnake(executeService), "fail").Inc()
 		return backend.ExecuteServiceResponse{}, err.(errors.Err)
 	}
 
-	return v.(backend.ExecuteServiceResponse), nil
+	c.metrics.RequestCounter(strcase.ToSnake(executeService), "success").Inc()
+	return v, nil
 }
 
 func (c *Client) executeService(
@@ -330,13 +342,16 @@ func (c *Client) SubscribeRequest(
 	req backend.CreateSubscriptionRequest,
 	ch chan<- interface{},
 ) errors.Err {
-	_, err := c.tracker.Instrument(subscribeRequest, func() (interface{}, error) {
-		return nil, c.subscribeRequest(ctx, req, ch)
-	})
+	timer := c.metrics.RequestTimer(strcase.ToSnake(subscribeRequest))
+	defer timer.ObserveDuration()
+
+	err := c.subscribeRequest(ctx, req, ch)
 	if err != nil {
+		c.metrics.RequestCounter(strcase.ToSnake(subscribeRequest), "fail").Inc()
 		return err.(errors.Err)
 	}
 
+	c.metrics.RequestCounter(strcase.ToSnake(subscribeRequest), "success").Inc()
 	return nil
 }
 
@@ -380,13 +395,16 @@ func (c *Client) UnsubscribeRequest(
 	ctx context.Context,
 	req backend.DestroySubscriptionRequest,
 ) errors.Err {
-	_, err := c.tracker.Instrument(unsubscribeRequest, func() (interface{}, error) {
-		return nil, c.unsubscribeRequest(ctx, req)
-	})
+	timer := c.metrics.RequestTimer(strcase.ToSnake(unsubscribeRequest))
+	defer timer.ObserveDuration()
+
+	err := c.unsubscribeRequest(ctx, req)
 	if err != nil {
+		c.metrics.RequestCounter(strcase.ToSnake(unsubscribeRequest), "fail").Inc()
 		return err.(errors.Err)
 	}
 
+	c.metrics.RequestCounter(strcase.ToSnake(unsubscribeRequest), "success").Inc()
 	return nil
 }
 
@@ -472,16 +490,12 @@ func NewClientWithDeps(ctx context.Context, deps *ClientDeps) *Client {
 		logger:   deps.Logger.ForClass("eth", "Client"),
 		client:   deps.Client,
 		executor: deps.Executor,
-		tracker: stats.NewMethodTracker(getPublicKey,
-			deployService,
-			executeService,
-			subscribeRequest,
-			unsubscribeRequest),
 		subman: eth.NewSubscriptionManager(eth.SubscriptionManagerProps{
 			Context: ctx,
 			Logger:  deps.Logger,
 			Client:  deps.Client,
 		}),
+		metrics: metrics.NewDefaultServiceMetrics("oasis-gateway-eth-backend"),
 	}
 }
 

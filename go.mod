@@ -25,6 +25,7 @@ require (
 	github.com/google/go-cmp v0.4.1 // indirect
 	github.com/google/uuid v1.1.1
 	github.com/gopherjs/gopherjs v0.0.0-20200217142428-fce0ec30dd00 // indirect
+	github.com/iancoleman/strcase v0.0.0-20191112232945-16388991a334
 	github.com/jackpal/go-nat-pmp v1.0.2 // indirect
 	github.com/karalabe/usb v0.0.0-20191104083709-911d15fe12a9 // indirect
 	github.com/kr/text v0.2.0 // indirect
@@ -37,6 +38,7 @@ require (
 	github.com/pelletier/go-toml v1.8.0 // indirect
 	github.com/pkg/errors v0.9.1
 	github.com/pquerna/cachecontrol v0.0.0-20180517163645-1555304b9b35 // indirect
+	github.com/prometheus/client_golang v1.4.1
 	github.com/prometheus/tsdb v0.10.0 // indirect
 	github.com/rjeczalik/notify v0.9.2 // indirect
 	github.com/rs/cors v1.7.0

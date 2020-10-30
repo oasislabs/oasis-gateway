@@ -10,6 +10,7 @@ import (
 	"github.com/oasislabs/oasis-gateway/config"
 	"github.com/oasislabs/oasis-gateway/gateway"
 	"github.com/oasislabs/oasis-gateway/log"
+	"github.com/oasislabs/oasis-gateway/metrics"
 	"github.com/oasislabs/oasis-gateway/rpc"
 )
 
@@ -97,6 +98,20 @@ func privateServer(config *gateway.BindPrivateConfig, router *rpc.HttpRouter) {
 	}
 }
 
+func metricsServer(config *metrics.MetricsConfig) {
+	if s, err := metrics.New(
+		config,
+		"oasis-gateway",
+		gateway.RootLogger,
+	); err != nil {
+		gateway.RootLogger.Error(gateway.RootContext, "oasis-gateway: failed to initialize instrumentation", log.MapFields{
+			"err": err.Error(),
+		})
+	} else {
+		s.StartInstrumentation()
+	}
+}
+
 func main() {
 	parser, err := config.Generate(&gateway.Config{})
 	if err != nil {
@@ -134,9 +149,12 @@ func main() {
 	gateway.RootLogger.Info(gateway.RootContext, "callback config configuration parsed", log.MapFields{
 		"callType": "CallbackConfigParseSuccess",
 	}, &config.CallbackConfig)
+	gateway.RootLogger.Info(gateway.RootContext, "metrics config configuration parsed", log.MapFields{
+		"callType": "MetricsConfigParseSuccess",
+	}, &config.MetricsConfig)
 
 	var wg sync.WaitGroup
-	wg.Add(2)
+	wg.Add(3)
 
 	group, err := gateway.NewServiceGroup(gateway.RootContext, config)
 	if err != nil {
@@ -156,6 +174,11 @@ func main() {
 
 	go func() {
 		privateServer(&config.BindPrivateConfig, routers.Private)
+		wg.Done()
+	}()
+
+	go func() {
+		metricsServer(&config.MetricsConfig)
 		wg.Done()
 	}()
 
