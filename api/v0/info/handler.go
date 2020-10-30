@@ -47,7 +47,8 @@ func (h InfoHandler) GetVersion(ctx context.Context, v interface{}) (interface{}
 	}, nil
 }
 
-// GetVersion returns the version of the component
+// GetSenders returns the addresses of the accounts the gateway uses
+// to sign transactions.
 func (h InfoHandler) GetSenders(ctx context.Context, v interface{}) (interface{}, error) {
 	addresses := h.client.Senders()
 	hexAddresses := make([]string, 0, len(addresses))
