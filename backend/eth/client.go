@@ -73,6 +73,10 @@ func (c *Client) Stats() stats.Metrics {
 	}
 }
 
+func (c *Client) Senders() []common.Address {
+	return c.executor.WalletAddresses
+}
+
 func (c *Client) getCode(
 	ctx context.Context,
 	req backend.GetCodeRequest,

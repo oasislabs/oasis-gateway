@@ -5,6 +5,7 @@ import (
 	stderr "errors"
 	"fmt"
 
+	ethereum "github.com/ethereum/go-ethereum/common"
 	"github.com/oasislabs/oasis-gateway/errors"
 	"github.com/oasislabs/oasis-gateway/log"
 	mqueue "github.com/oasislabs/oasis-gateway/mqueue/core"
@@ -17,6 +18,7 @@ import (
 type Client interface {
 	Name() string
 	Stats() stats.Metrics
+	Senders() []ethereum.Address
 	GetCode(context.Context, GetCodeRequest) (GetCodeResponse, errors.Err)
 	GetExpiry(context.Context, GetExpiryRequest) (GetExpiryResponse, errors.Err)
 	GetPublicKey(context.Context, GetPublicKeyRequest) (GetPublicKeyResponse, errors.Err)
@@ -37,13 +39,13 @@ type RequestManager struct {
 	subman *SubscriptionManager
 }
 
-func (r *RequestManager) Name() string {
+func (m *RequestManager) Name() string {
 	return "backend.core.RequestManager"
 }
 
-func (r *RequestManager) Stats() stats.Metrics {
+func (m *RequestManager) Stats() stats.Metrics {
 	return stats.Metrics{
-		"subscriptions": r.subman.Stats(),
+		"subscriptions": m.subman.Stats(),
 	}
 }
 
@@ -77,6 +79,10 @@ func NewRequestManager(properties RequestManagerProperties) *RequestManager {
 			MQueue:  properties.MQueue,
 		}),
 	}
+}
+
+func (m *RequestManager) Senders() []ethereum.Address {
+	return m.client.Senders()
 }
 
 // GetCode retrieves the source code for a specific service
