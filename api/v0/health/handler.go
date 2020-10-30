@@ -23,7 +23,7 @@ func (h HealthHandler) GetHealth(ctx context.Context, v interface{}) (interface{
 	_ = v.(*GetHealthRequest)
 	return &GetHealthResponse{
 		Health:  stats.Healthy,
-		Metrics: h.collector.Stats(),
+		Metrics: make(stats.Metrics), // disabled due to causing crash
 	}, nil
 }
 
